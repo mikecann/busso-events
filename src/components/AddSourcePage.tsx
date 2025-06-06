@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useMutation, useAction } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
   Container,
@@ -13,11 +14,16 @@ import {
   TextInput,
   Alert,
   Box,
+  Progress,
+  Paper,
+  Table,
 } from "@mantine/core";
 import {
   IconArrowLeft,
   IconSearch,
   IconAlertTriangle,
+  IconCheck,
+  IconX,
 } from "@tabler/icons-react";
 
 interface AddSourcePageProps {
@@ -26,19 +32,26 @@ interface AddSourcePageProps {
 
 export function AddSourcePage({ onBack }: AddSourcePageProps) {
   const createSource = useMutation(api.eventSources.create);
-  const testScrapeUrl = useAction(api.eventSources.testScrapeUrl);
+  const startTestScrape = useMutation(api.eventSources.startTestScrape);
+
+  const [currentTestScrapeId, setCurrentTestScrapeId] =
+    useState<Id<"testScrapes"> | null>(null);
+
+  const testScrape = useQuery(
+    api.eventSources.getTestScrapeByIdPublic,
+    currentTestScrapeId ? { testScrapeId: currentTestScrapeId } : "skip",
+  );
 
   const [formData, setFormData] = useState({
     name: "",
     startingUrl: "",
   });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     try {
       await createSource({
         name: formData.name,
@@ -59,24 +72,115 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
       toast.error("Please enter a URL first");
       return;
     }
+    setCurrentTestScrapeId(
+      await startTestScrape({ url: formData.startingUrl }),
+    );
+  };
 
-    setIsTesting(true);
-    try {
-      const result = await testScrapeUrl({
-        url: formData.startingUrl,
-      });
-
-      if (result.success) {
-        toast.success(`Test successful! ${result.message}`);
-      } else {
-        toast.error(`Test failed: ${result.message}`);
+  const renderTestScrapeProgress = () => {
+    if (!testScrape) return null;
+    const getStageProgress = () => {
+      switch (testScrape.progress?.stage) {
+        case "fetching":
+          return 33;
+        case "extracting":
+          return 66;
+        case "processing":
+          return 90;
+        default:
+          return 0;
       }
-    } catch (error) {
-      toast.error("Test scrape failed");
-      console.error("Error testing scrape:", error);
-    } finally {
-      setIsTesting(false);
-    }
+    };
+    const getStatusColor = () => {
+      switch (testScrape.status) {
+        case "completed":
+          return "green";
+        case "failed":
+          return "red";
+        case "running":
+          return "blue";
+        default:
+          return "gray";
+      }
+    };
+    return (
+      <Paper withBorder p="md" radius="md" mt="md">
+        <Stack gap="xs">
+          <Group justify="space-between">
+            <Text fw={500}>Test Scrape Progress</Text>
+            {testScrape.status === "completed" && (
+              <IconCheck size={16} color="green" />
+            )}
+            {testScrape.status === "failed" && <IconX size={16} color="red" />}
+          </Group>
+          <Progress
+            value={getStageProgress()}
+            color={getStatusColor()}
+            size="sm"
+          />
+          <Text size="sm" c="dimmed">
+            {testScrape.progress?.message || "Initializing..."}
+          </Text>
+          {testScrape.result && (
+            <Alert
+              color={testScrape.result.success ? "green" : "red"}
+              title={
+                testScrape.result.success ? "Test Successful" : "Test Failed"
+              }
+            >
+              {testScrape.result.message}
+              {testScrape.result.eventsFound !== undefined && (
+                <Text size="sm" mt="xs">
+                  Found {testScrape.result.eventsFound} potential events
+                </Text>
+              )}
+            </Alert>
+          )}
+          {/* Show event details if available */}
+          {testScrape.status === "completed" &&
+            testScrape.result?.data?.extractedEvents &&
+            testScrape.result.data.extractedEvents.length > 0 && (
+              <Box mt="md">
+                <Title order={4} mb="xs">
+                  Extracted Events
+                </Title>
+                <Table striped withRowBorders>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Title</Table.Th>
+                      <Table.Th>URL</Table.Th>
+                      <Table.Th>Date</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {testScrape.result.data.extractedEvents.map(
+                      (event: any, i: number) => (
+                        <Table.Tr key={i}>
+                          <Table.Td>{event.title}</Table.Td>
+                          <Table.Td>
+                            {event.url ? (
+                              <a
+                                href={event.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {event.url}
+                              </a>
+                            ) : (
+                              ""
+                            )}
+                          </Table.Td>
+                          <Table.Td>{event.eventDate || ""}</Table.Td>
+                        </Table.Tr>
+                      ),
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Box>
+            )}
+        </Stack>
+      </Paper>
+    );
   };
 
   return (
@@ -85,12 +189,11 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
         <Button
           leftSection={<IconArrowLeft size={16} />}
           variant="subtle"
-          onClick={onBack}
+          onClick={() => void onBack()}
           style={{ alignSelf: "flex-start" }}
         >
           Back to Sources
         </Button>
-
         <Box>
           <Title order={1} size="2.5rem">
             Add Event Source
@@ -99,7 +202,6 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
             Configure a new source for automatic event discovery
           </Text>
         </Box>
-
         <Card shadow="sm" padding="xl" radius="lg" withBorder>
           <form onSubmit={handleSubmit}>
             <Stack gap="lg">
@@ -112,7 +214,6 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                 placeholder="e.g., Tech Events SF, Startup Meetups"
                 required
               />
-
               <Box>
                 <TextInput
                   label="Starting URL"
@@ -128,7 +229,7 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                   The URL where the scraper should start looking for events
                 </Text>
               </Box>
-
+              {renderTestScrapeProgress()}
               <Alert
                 icon={<IconAlertTriangle size={16} />}
                 title="Important Note"
@@ -138,31 +239,27 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                 be scraped. The system will attempt to automatically discover
                 and extract event information.
               </Alert>
-
               <Group justify="space-between">
                 <Button
                   type="button"
-                  onClick={onBack}
+                  onClick={() => void onBack()}
                   variant="default"
                   size="lg"
                   style={{ flex: 1 }}
                 >
                   Cancel
                 </Button>
-
                 <Button
                   type="button"
-                  onClick={handleTestScrape}
-                  disabled={isTesting || !formData.startingUrl}
+                  onClick={() => void handleTestScrape()}
+                  disabled={!formData.startingUrl}
                   color="yellow"
                   size="lg"
                   style={{ flex: 1 }}
                   leftSection={<IconSearch size={16} />}
-                  loading={isTesting}
                 >
-                  {isTesting ? "Testing..." : "Test Scrape"}
+                  {"Test Scrape"}
                 </Button>
-
                 <Button
                   type="submit"
                   disabled={isSubmitting}

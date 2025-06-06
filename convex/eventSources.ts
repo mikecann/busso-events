@@ -9,6 +9,7 @@ import {
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // Helper function to check if user is admin
 async function requireAdmin(ctx: any) {
@@ -110,54 +111,24 @@ export const testScrape = action({
   },
 });
 
-export const testScrapeUrl = action({
+export const startTestScrape = mutation({
   args: {
     url: v.string(),
   },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    eventsFound?: number;
-    data?: any;
-  }> => {
+  handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    try {
-      // Scrape the URL directly
-      const scrapeResult: any = await ctx.runAction(
-        internal.scraping.scrapeUrlInternal,
-        {
-          url: args.url,
-        },
-      );
+    const testScrapeId = await ctx.db.insert("testScrapes", {
+      url: args.url,
+      status: "pending",
+      createdAt: Date.now(),
+    });
 
-      if (!scrapeResult.success) {
-        return scrapeResult;
-      }
+    await ctx.scheduler.runAfter(0, internal.eventSources.performTestScrape, {
+      testScrapeId,
+    });
 
-      // For now, we'll return a placeholder response since we don't have source-specific scraping
-      // In a real implementation, this would parse the scraped content to extract events
-      const events: any[] = []; // Would be populated from scrapeResult.data.extractedEvents
-
-      return {
-        success: true,
-        message: `Successfully scraped URL. Found ${events.length} potential events.`,
-        eventsFound: events.length,
-        data: {
-          totalEventsFound: events.length,
-          scrapedData: scrapeResult.data,
-        },
-      };
-    } catch (error) {
-      console.error("Error testing URL scrape:", error);
-      return {
-        success: false,
-        message: `Failed to scrape URL: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
+    return testScrapeId;
   },
 });
 
@@ -190,6 +161,42 @@ export const updateLastScrapeTime = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.sourceId, {
       dateLastScrape: args.timestamp,
+    });
+  },
+});
+
+export const updateTestScrapeProgress = internalMutation({
+  args: {
+    testScrapeId: v.id("testScrapes"),
+    progress: v.object({
+      stage: v.string(),
+      message: v.string(),
+      eventsFound: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.testScrapeId, {
+      status: "running",
+      progress: args.progress,
+    });
+  },
+});
+
+export const completeTestScrape = internalMutation({
+  args: {
+    testScrapeId: v.id("testScrapes"),
+    result: v.object({
+      success: v.boolean(),
+      message: v.string(),
+      eventsFound: v.optional(v.number()),
+      data: v.optional(v.any()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.testScrapeId, {
+      status: args.result.success ? "completed" : "failed",
+      result: args.result,
+      completedAt: Date.now(),
     });
   },
 });
@@ -289,5 +296,110 @@ export const performSourceScrape = internalAction({
         message: `Failed to scrape source: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
+  },
+});
+
+export const performTestScrape = internalAction({
+  args: {
+    testScrapeId: v.id("testScrapes"),
+  },
+  handler: async (ctx: any, args) => {
+    try {
+      const testScrape = await ctx.runQuery(
+        internal.eventSources.getTestScrapeById,
+        {
+          testScrapeId: args.testScrapeId,
+        },
+      );
+      if (!testScrape) throw new Error("Test scrape not found");
+      await ctx.runMutation(internal.eventSources.updateTestScrapeProgress, {
+        testScrapeId: args.testScrapeId,
+        progress: {
+          stage: "fetching",
+          message: "Fetching content from URL...",
+        },
+      });
+      const scrapeResult = await ctx.runAction(
+        internal.scraping.scrapeUrlInternal,
+        { url: testScrape.url },
+      );
+      if (!scrapeResult.success) {
+        await ctx.runMutation(internal.eventSources.completeTestScrape, {
+          testScrapeId: args.testScrapeId,
+          result: { success: false, message: scrapeResult.message },
+        });
+        return;
+      }
+      await ctx.runMutation(internal.eventSources.updateTestScrapeProgress, {
+        testScrapeId: args.testScrapeId,
+        progress: {
+          stage: "extracting",
+          message: "Extracting events from content...",
+        },
+      });
+      const events =
+        scrapeResult.data && scrapeResult.data.extractedEvents
+          ? scrapeResult.data.extractedEvents
+          : [];
+      await ctx.runMutation(internal.eventSources.updateTestScrapeProgress, {
+        testScrapeId: args.testScrapeId,
+        progress: {
+          stage: "processing",
+          message: `Found ${events.length} potential events`,
+          eventsFound: events.length,
+        },
+      });
+      await ctx.runMutation(internal.eventSources.completeTestScrape, {
+        testScrapeId: args.testScrapeId,
+        result: {
+          success: true,
+          message: `Successfully scraped URL. Found ${events.length} potential events.`,
+          eventsFound: events.length,
+          data: {
+            totalEventsFound: events.length,
+            scrapedData: scrapeResult.data,
+            extractedEvents: events,
+          },
+        },
+      });
+    } catch (error) {
+      await ctx.runMutation(internal.eventSources.completeTestScrape, {
+        testScrapeId: args.testScrapeId,
+        result: {
+          success: false,
+          message: `Failed to scrape URL: ${error instanceof Error ? error.message : "Unknown error"}`,
+        },
+      });
+    }
+  },
+});
+
+// Internal queries
+export const getTestScrapeById = internalQuery({
+  args: {
+    testScrapeId: v.id("testScrapes"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.testScrapeId);
+  },
+});
+
+// Public queries
+export const getTestScrapeByIdPublic = query({
+  args: {
+    testScrapeId: v.id("testScrapes"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    return await ctx.db.get(args.testScrapeId);
+  },
+});
+
+// Query to fetch latest test scrapes for polling/subscription
+export const listRecentTestScrapes = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.db.query("testScrapes").order("desc").take(10);
   },
 });

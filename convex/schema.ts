@@ -11,17 +11,19 @@ const applicationTables = {
     url: v.string(),
     sourceId: v.optional(v.id("eventSources")),
     lastScraped: v.optional(v.number()),
-    scrapedData: v.optional(v.object({
-      originalEventDate: v.optional(v.string()),
-      location: v.optional(v.string()),
-      organizer: v.optional(v.string()),
-      price: v.optional(v.string()),
-      category: v.optional(v.string()),
-      tags: v.optional(v.array(v.string())),
-      registrationUrl: v.optional(v.string()),
-      contactInfo: v.optional(v.string()),
-      additionalDetails: v.optional(v.string()),
-    })),
+    scrapedData: v.optional(
+      v.object({
+        originalEventDate: v.optional(v.string()),
+        location: v.optional(v.string()),
+        organizer: v.optional(v.string()),
+        price: v.optional(v.string()),
+        category: v.optional(v.string()),
+        tags: v.optional(v.array(v.string())),
+        registrationUrl: v.optional(v.string()),
+        contactInfo: v.optional(v.string()),
+        additionalDetails: v.optional(v.string()),
+      }),
+    ),
     descriptionEmbedding: v.optional(v.array(v.number())),
     // Track scheduled subscription matching
     subscriptionMatchScheduledId: v.optional(v.id("_scheduled_functions")),
@@ -46,6 +48,28 @@ const applicationTables = {
     isActive: v.boolean(),
     dateLastScrape: v.optional(v.number()),
   }),
+
+  testScrapes: defineTable({
+    url: v.string(),
+    status: v.string(), // "pending", "running", "completed", "failed"
+    progress: v.optional(
+      v.object({
+        stage: v.string(), // "fetching", "extracting", "processing"
+        message: v.string(),
+        eventsFound: v.optional(v.number()),
+      }),
+    ),
+    result: v.optional(
+      v.object({
+        success: v.boolean(),
+        message: v.string(),
+        eventsFound: v.optional(v.number()),
+        data: v.optional(v.any()),
+      }),
+    ),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_created", ["createdAt"]),
 
   subscriptions: defineTable({
     userId: v.id("users"),
@@ -82,8 +106,16 @@ const applicationTables = {
     .index("by_queued_at", ["queuedAt"]),
 
   jobs: defineTable({
-    kind: v.union(v.literal("batch_event_scrape"), v.literal("batch_source_scrape")),
-    status: v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("failed")),
+    kind: v.union(
+      v.literal("batch_event_scrape"),
+      v.literal("batch_source_scrape"),
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
     progress: v.object({
       totalEvents: v.optional(v.number()),
       totalSources: v.optional(v.number()),
@@ -98,8 +130,7 @@ const applicationTables = {
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
     error: v.optional(v.string()),
-  })
-    .index("by_status", ["status"]),
+  }).index("by_status", ["status"]),
 
   // Extend the users table to include isAdmin field
   users: defineTable({
