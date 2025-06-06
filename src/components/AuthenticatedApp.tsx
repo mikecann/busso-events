@@ -1,71 +1,30 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
-import { Header } from "./Header";
 import { EventGallery } from "./EventGallery";
+import { EventDetailPage } from "./EventDetailPage";
 import { SubscriptionsPage } from "./SubscriptionsPage";
 import { CreateSubscriptionPage } from "./CreateSubscriptionPage";
-import { EventDetailPage } from "./EventDetailPage";
 import { AppAdminPage } from "./AppAdminPage";
 import { EventDebugPage } from "./EventDebugPage";
 import { SourcesListPage } from "./SourcesListPage";
 import { AddSourcePage } from "./AddSourcePage";
+import { Header } from "./Header";
+import { useRoute, navigation } from "../router";
+import {
+  Container,
+  Center,
+  Loader,
+  Stack,
+  Title,
+  Text,
+  Button,
+} from "@mantine/core";
 import { Id } from "../../convex/_generated/dataModel";
-import { Container, Loader, Center } from "@mantine/core";
-
-type Page =
-  | "home"
-  | "subscriptions"
-  | "create-subscription"
-  | "event-detail"
-  | "admin"
-  | "event-debug"
-  | "sources"
-  | "add-source";
 
 export function AuthenticatedApp() {
   const user = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.users.isCurrentUserAdmin);
-
-  const [currentPage, setCurrentPage] = useState<Page>("home");
-  const [selectedEventId, setSelectedEventId] = useState<Id<"events"> | null>(
-    null,
-  );
-
-  const navigateToHome = () => {
-    setCurrentPage("home");
-    setSelectedEventId(null);
-  };
-
-  const navigateToSubscriptions = () => {
-    setCurrentPage("subscriptions");
-  };
-
-  const navigateToCreateSubscription = () => {
-    setCurrentPage("create-subscription");
-  };
-
-  const navigateToEventDetail = (eventId: Id<"events">) => {
-    setSelectedEventId(eventId);
-    setCurrentPage("event-detail");
-  };
-
-  const navigateToAdmin = () => {
-    setCurrentPage("admin");
-  };
-
-  const navigateToEventDebug = (eventId: Id<"events">) => {
-    setSelectedEventId(eventId);
-    setCurrentPage("event-debug");
-  };
-
-  const navigateToSources = () => {
-    setCurrentPage("sources");
-  };
-
-  const navigateToAddSource = () => {
-    setCurrentPage("add-source");
-  };
+  const route = useRoute();
 
   if (user === undefined || isAdmin === undefined) {
     return (
@@ -75,59 +34,108 @@ export function AuthenticatedApp() {
     );
   }
 
+  // If we're on a public route, redirect to dashboard
+  if (route.name === "home" || route.name === "login") {
+    navigation.dashboard().replace();
+    return null;
+  }
+
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
-      <Header
-        onNavigateHome={navigateToHome}
-        onNavigateSubscriptions={navigateToSubscriptions}
-        onNavigateAdmin={isAdmin ? navigateToAdmin : undefined}
-        currentPage={currentPage}
-      />
+      <Header currentRoute={route.name} />
 
       <Container size="xl" py="xl">
-        {currentPage === "home" && (
+        {route.name === "dashboard" && (
           <EventGallery
-            onEventClick={navigateToEventDetail}
-            onEventDebugClick={isAdmin ? navigateToEventDebug : undefined}
-          />
-        )}
-
-        {currentPage === "subscriptions" && (
-          <SubscriptionsPage onCreateNew={navigateToCreateSubscription} />
-        )}
-
-        {currentPage === "create-subscription" && (
-          <CreateSubscriptionPage onBack={navigateToSubscriptions} />
-        )}
-
-        {currentPage === "event-detail" && selectedEventId && (
-          <EventDetailPage
-            eventId={selectedEventId}
-            onBack={navigateToHome}
-            onDebugClick={
-              isAdmin ? () => navigateToEventDebug(selectedEventId) : undefined
+            onEventClick={(eventId) => navigation.eventDetail(eventId).push()}
+            onEventDebugClick={
+              isAdmin
+                ? (eventId) => navigation.eventDebug(eventId).push()
+                : undefined
             }
           />
         )}
 
-        {currentPage === "admin" && isAdmin && (
-          <AppAdminPage onNavigateToSources={navigateToSources} />
-        )}
-
-        {currentPage === "event-debug" && selectedEventId && isAdmin && (
-          <EventDebugPage eventId={selectedEventId} onBack={navigateToAdmin} />
-        )}
-
-        {currentPage === "sources" && isAdmin && (
-          <SourcesListPage
-            onBack={navigateToAdmin}
-            onNavigateToAddSource={navigateToAddSource}
+        {route.name === "subscriptions" && (
+          <SubscriptionsPage
+            onCreateNew={() => navigation.createSubscription().push()}
           />
         )}
 
-        {currentPage === "add-source" && isAdmin && (
-          <AddSourcePage onBack={navigateToSources} />
+        {route.name === "createSubscription" && (
+          <CreateSubscriptionPage
+            onBack={() => navigation.subscriptions().push()}
+          />
         )}
+
+        {route.name === "eventDetail" && (
+          <EventDetailPage
+            eventId={route.params.eventId}
+            onBack={() => navigation.dashboard().push()}
+            onDebugClick={
+              isAdmin
+                ? () =>
+                    navigation
+                      .eventDebug(route.params.eventId as Id<"events">)
+                      .push()
+                : undefined
+            }
+          />
+        )}
+
+        {route.name === "admin" && isAdmin && (
+          <AppAdminPage
+            onNavigateToSources={() => navigation.sources().push()}
+          />
+        )}
+
+        {route.name === "eventDebug" && isAdmin && (
+          <EventDebugPage
+            eventId={route.params.eventId}
+            onBack={() => navigation.admin().push()}
+          />
+        )}
+
+        {route.name === "sources" && isAdmin && (
+          <SourcesListPage
+            onBack={() => navigation.admin().push()}
+            onNavigateToAddSource={() => navigation.addSource().push()}
+          />
+        )}
+
+        {route.name === "addSource" && isAdmin && (
+          <AddSourcePage onBack={() => navigation.sources().push()} />
+        )}
+
+        {/* Handle invalid routes for authenticated users */}
+        {route.name === false && (
+          <Center style={{ minHeight: "50vh" }}>
+            <Stack align="center" gap="md">
+              <Title order={3}>Page not found</Title>
+              <Text c="dimmed">The page you're looking for doesn't exist.</Text>
+              <Button {...navigation.dashboard().link}>Go to Dashboard</Button>
+            </Stack>
+          </Center>
+        )}
+
+        {/* Handle admin-only routes for non-admin users */}
+        {(route.name === "admin" ||
+          route.name === "eventDebug" ||
+          route.name === "sources" ||
+          route.name === "addSource") &&
+          !isAdmin && (
+            <Center style={{ minHeight: "50vh" }}>
+              <Stack align="center" gap="md">
+                <Title order={3}>Access Denied</Title>
+                <Text c="dimmed">
+                  You don't have permission to access this page.
+                </Text>
+                <Button {...navigation.dashboard().link}>
+                  Go to Dashboard
+                </Button>
+              </Stack>
+            </Center>
+          )}
       </Container>
     </div>
   );

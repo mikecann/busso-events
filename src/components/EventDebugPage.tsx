@@ -32,12 +32,14 @@ import {
 } from "@tabler/icons-react";
 
 interface EventDebugPageProps {
-  eventId: Id<"events">;
+  eventId: string; // Now comes from URL parameter as string
   onBack: () => void;
 }
 
 export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
-  const event = useQuery(api.events.getById, { id: eventId });
+  // Cast the string eventId to proper Id type for Convex queries
+  const typedEventId = eventId as Id<"events">;
+  const event = useQuery(api.events.getById, { id: typedEventId });
   const updateEvent = useMutation(api.eventsAdmin.updateEvent);
   const deleteEvent = useMutation(api.eventsAdmin.deleteEvent);
   const scrapeEvent = useAction(api.eventsAdmin.scrapeEvent);
@@ -92,7 +94,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
     setIsUpdating(true);
     try {
       await updateEvent({
-        id: eventId,
+        id: typedEventId,
         [field]: editValues[field],
       });
       setEditingField(null);
@@ -121,7 +123,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
 
     setIsDeleting(true);
     try {
-      await deleteEvent({ id: eventId });
+      await deleteEvent({ id: typedEventId });
       toast.success("Event deleted successfully");
       onBack();
     } catch (error) {
@@ -135,7 +137,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const handleScrape = async () => {
     setIsScraping(true);
     try {
-      const result = await scrapeEvent({ eventId: eventId });
+      const result = await scrapeEvent({ eventId: typedEventId });
       if (result.success) {
         toast.success("Event scraped successfully");
       } else {
@@ -152,7 +154,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const handleGenerateEmbedding = async () => {
     setIsGeneratingEmbedding(true);
     try {
-      await generateEmbedding({ eventId: eventId });
+      await generateEmbedding({ eventId: typedEventId });
       toast.success("Embedding generated successfully");
     } catch (error) {
       toast.error("Failed to generate embedding");
@@ -166,7 +168,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
     setIsTriggeringMatching(true);
     try {
       const result = await triggerSubscriptionMatching({
-        eventId: eventId,
+        eventId: typedEventId,
       });
       if (result.success) {
         toast.success("Subscription matching triggered successfully");

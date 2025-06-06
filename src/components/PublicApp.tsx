@@ -1,41 +1,23 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
 import { EventGallery } from "./EventGallery";
 import { EventDetailPage } from "./EventDetailPage";
-import { Id } from "../../convex/_generated/dataModel";
+import { SignInForm } from "../SignInForm";
+import { useRoute, navigation } from "../router";
 import {
   Container,
   Group,
   Button,
   Paper,
+  Stack,
   Title,
   Text,
   Center,
-  Stack,
+  Card,
 } from "@mantine/core";
 
-type Page = "home" | "event-detail" | "login";
-
-interface PublicAppProps {
-  onNavigateToLogin: () => void;
-}
-
-export function PublicApp({ onNavigateToLogin }: PublicAppProps) {
-  const [currentPage, setCurrentPage] = useState<Page>("home");
-  const [selectedEventId, setSelectedEventId] = useState<Id<"events"> | null>(
-    null,
-  );
-
-  const navigateToHome = () => {
-    setCurrentPage("home");
-    setSelectedEventId(null);
-  };
-
-  const navigateToEventDetail = (eventId: Id<"events">) => {
-    setSelectedEventId(eventId);
-    setCurrentPage("event-detail");
-  };
+export function PublicApp() {
+  const route = useRoute();
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
@@ -49,14 +31,14 @@ export function PublicApp({ onNavigateToLogin }: PublicAppProps) {
             <Button
               variant="subtle"
               size="lg"
-              onClick={navigateToHome}
+              {...navigation.home().link}
               color="gray"
               style={{ fontWeight: "bold", fontSize: "1.25rem" }}
             >
               EventFinder
             </Button>
 
-            <Button onClick={onNavigateToLogin} size="md">
+            <Button {...navigation.login().link} size="md">
               Sign In
             </Button>
           </Group>
@@ -64,7 +46,7 @@ export function PublicApp({ onNavigateToLogin }: PublicAppProps) {
       </Paper>
 
       <Container size="xl" py="xl">
-        {currentPage === "home" && (
+        {route.name === "home" && (
           <Stack gap="xl">
             <Center>
               <Stack
@@ -83,7 +65,7 @@ export function PublicApp({ onNavigateToLogin }: PublicAppProps) {
                   Find events that match your interests and never miss out
                 </Text>
                 <Button
-                  onClick={onNavigateToLogin}
+                  {...navigation.login().link}
                   size="lg"
                   style={{ fontSize: "1.125rem" }}
                 >
@@ -92,12 +74,54 @@ export function PublicApp({ onNavigateToLogin }: PublicAppProps) {
               </Stack>
             </Center>
 
-            <EventGallery onEventClick={navigateToEventDetail} />
+            <EventGallery
+              onEventClick={(eventId) => navigation.eventDetail(eventId).push()}
+            />
           </Stack>
         )}
 
-        {currentPage === "event-detail" && selectedEventId && (
-          <EventDetailPage eventId={selectedEventId} onBack={navigateToHome} />
+        {route.name === "eventDetail" && (
+          <EventDetailPage
+            eventId={route.params.eventId}
+            onBack={() => navigation.home().push()}
+          />
+        )}
+
+        {route.name === "login" && (
+          <Center style={{ minHeight: "50vh" }}>
+            <Card
+              shadow="sm"
+              padding="xl"
+              radius="md"
+              withBorder
+              style={{ width: "100%", maxWidth: "400px" }}
+            >
+              <Stack align="center" gap="md">
+                <div style={{ textAlign: "center" }}>
+                  <Title order={2} mb="xs">
+                    Welcome to EventFinder
+                  </Title>
+                  <Text c="dimmed">
+                    Sign in to manage your event subscriptions
+                  </Text>
+                </div>
+                <SignInForm />
+                <Button variant="subtle" size="sm" {...navigation.home().link}>
+                  ← Back to browse events
+                </Button>
+              </Stack>
+            </Card>
+          </Center>
+        )}
+
+        {route.name === false && (
+          <Center style={{ minHeight: "50vh" }}>
+            <Stack align="center" gap="md">
+              <Title order={3}>Page not found</Title>
+              <Text c="dimmed">The page you're looking for doesn't exist.</Text>
+              <Button {...navigation.home().link}>Go to Home</Button>
+            </Stack>
+          </Center>
         )}
       </Container>
     </div>

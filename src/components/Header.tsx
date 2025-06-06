@@ -1,21 +1,14 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { SignOutButton } from "../SignOutButton";
+import { navigation } from "../router";
 import { Group, Text, Badge, Button, Container, Paper } from "@mantine/core";
 
 interface HeaderProps {
-  onNavigateHome: () => void;
-  onNavigateSubscriptions: () => void;
-  onNavigateAdmin?: () => void;
-  currentPage: string;
+  currentRoute: string | false;
 }
 
-export function Header({
-  onNavigateHome,
-  onNavigateSubscriptions,
-  onNavigateAdmin,
-  currentPage,
-}: HeaderProps) {
+export function Header({ currentRoute }: HeaderProps) {
   const user = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.users.isCurrentUserAdmin);
 
@@ -31,8 +24,8 @@ export function Header({
             <Button
               variant="subtle"
               size="lg"
-              onClick={onNavigateHome}
-              color={currentPage === "home" ? "blue" : "gray"}
+              {...navigation.dashboard().link}
+              color={currentRoute === "dashboard" ? "blue" : "gray"}
               style={{ fontWeight: "bold", fontSize: "1.25rem" }}
             >
               EventFinder
@@ -41,11 +34,11 @@ export function Header({
             <Group gap="lg">
               <Button
                 variant="subtle"
-                onClick={onNavigateHome}
-                color={currentPage === "home" ? "blue" : "gray"}
+                {...navigation.dashboard().link}
+                color={currentRoute === "dashboard" ? "blue" : "gray"}
                 style={{
                   borderBottom:
-                    currentPage === "home"
+                    currentRoute === "dashboard"
                       ? "2px solid var(--mantine-color-blue-6)"
                       : "none",
                 }}
@@ -55,17 +48,17 @@ export function Header({
 
               <Button
                 variant="subtle"
-                onClick={onNavigateSubscriptions}
+                {...navigation.subscriptions().link}
                 color={
-                  currentPage === "subscriptions" ||
-                  currentPage === "create-subscription"
+                  currentRoute === "subscriptions" ||
+                  currentRoute === "createSubscription"
                     ? "blue"
                     : "gray"
                 }
                 style={{
                   borderBottom:
-                    currentPage === "subscriptions" ||
-                    currentPage === "create-subscription"
+                    currentRoute === "subscriptions" ||
+                    currentRoute === "createSubscription"
                       ? "2px solid var(--mantine-color-blue-6)"
                       : "none",
                 }}
@@ -73,29 +66,24 @@ export function Header({
                 Subscriptions
               </Button>
 
-              {isAdmin && onNavigateAdmin && (
+              {isAdmin && (
                 <Button
                   variant="subtle"
-                  onClick={onNavigateAdmin}
+                  {...navigation.admin().link}
                   color={
-                    [
-                      "admin",
-                      "event-debug",
-                      "add-event",
-                      "sources",
-                      "add-source",
-                    ].includes(currentPage)
+                    ["admin", "eventDebug", "sources", "addSource"].includes(
+                      currentRoute as string,
+                    )
                       ? "blue"
                       : "gray"
                   }
                   style={{
                     borderBottom: [
                       "admin",
-                      "event-debug",
-                      "add-event",
+                      "eventDebug",
                       "sources",
-                      "add-source",
-                    ].includes(currentPage)
+                      "addSource",
+                    ].includes(currentRoute as string)
                       ? "2px solid var(--mantine-color-blue-6)"
                       : "none",
                   }}

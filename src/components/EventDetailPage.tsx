@@ -22,7 +22,7 @@ import {
 } from "@tabler/icons-react";
 
 interface EventDetailPageProps {
-  eventId: Id<"events">;
+  eventId: string;
   onBack: () => void;
   onDebugClick?: () => void;
 }
@@ -32,7 +32,7 @@ export function EventDetailPage({
   onBack,
   onDebugClick,
 }: EventDetailPageProps) {
-  const event = useQuery(api.events.getById, { id: eventId });
+  const event = useQuery(api.events.getById, { id: eventId as Id<"events"> });
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString("en-US", {
@@ -104,59 +104,49 @@ export function EventDetailPage({
             )}
           </Card.Section>
 
-          <Stack gap="lg" p="xl">
-            <Title order={1} size="2.5rem">
+          <Stack gap="md" p="xl">
+            <Title order={1} size="h2">
               {event.title}
             </Title>
 
-            <Group gap="md">
-              <Group gap="xs">
-                <IconCalendar size={20} />
-                <Text size="lg" c="dimmed">
-                  {formatDate(event.eventDate)}
-                </Text>
-              </Group>
-            </Group>
-
-            <Text size="md" style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+            <Text size="lg" c="dimmed">
               {event.description}
             </Text>
 
-            {event.scrapedData && (
-              <Card withBorder radius="md" bg="gray.0">
-                <Title order={3} mb="md">
-                  Additional Details
-                </Title>
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
-                  {Object.entries(event.scrapedData).map(
-                    ([key, value]) =>
-                      value && (
-                        <Box key={key}>
-                          <Text fw={500} size="sm" mb={2}>
-                            {key.replace(/([A-Z])/g, " $1").trim()}:
-                          </Text>
-                          <Text size="sm" c="dimmed">
-                            {Array.isArray(value) ? value.join(", ") : value}
-                          </Text>
-                        </Box>
-                      ),
-                  )}
-                </SimpleGrid>
-              </Card>
-            )}
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl" mt="md">
+              <Group gap="xs">
+                <IconCalendar size={20} color="var(--mantine-color-blue-6)" />
+                <Box>
+                  <Text fw={500} size="sm" c="dimmed">
+                    Event Date
+                  </Text>
+                  <Text size="lg">{formatDate(event.eventDate)}</Text>
+                </Box>
+              </Group>
 
-            <Group gap="md">
-              <Button
-                component="a"
-                href={event.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                rightSection={<IconExternalLink size={16} />}
-                size="lg"
-              >
-                View Original Event
-              </Button>
-            </Group>
+              {event.url && (
+                <Text
+                  component="a"
+                  href={event.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  c="blue.6"
+                  style={{ textDecoration: "none" }}
+                >
+                  <Group gap="xs">
+                    <IconExternalLink size={20} />
+                    <Box>
+                      <Text fw={500} size="sm" c="dimmed">
+                        Original Event
+                      </Text>
+                      <Text size="lg" c="blue.6">
+                        View on Website
+                      </Text>
+                    </Box>
+                  </Group>
+                </Text>
+              )}
+            </SimpleGrid>
           </Stack>
         </Card>
       </Stack>
