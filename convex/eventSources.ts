@@ -96,18 +96,33 @@ export const testScrape = action({
     eventsFound?: number;
     data?: any;
   }> => {
+    console.log(`🧪 Starting test scrape for sourceId: ${args.sourceId}`);
+
     await requireAdmin(ctx);
 
-    const result: {
-      success: boolean;
-      message: string;
-      eventsFound?: number;
-      data?: any;
-    } = await ctx.runAction(internal.eventSources.performSourceScrape, {
-      sourceId: args.sourceId,
-    });
+    try {
+      const result = await ctx.runAction(
+        internal.eventSources.performSourceScrape,
+        {
+          sourceId: args.sourceId,
+        },
+      );
 
-    return result;
+      console.log(`🧪 Test scrape completed for sourceId: ${args.sourceId}`, {
+        success: result.success,
+        eventsFound: result.eventsFound,
+      });
+
+      return result;
+    } catch (error) {
+      const errorMessage = `Test scrape failed for sourceId '${args.sourceId}': ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error(`❌ ${errorMessage}`);
+
+      return {
+        success: false,
+        message: errorMessage,
+      };
+    }
   },
 });
 
@@ -216,21 +231,26 @@ export const performSourceScrape = internalAction({
     data?: any;
   }> => {
     try {
+      console.log(`🔍 Starting source scrape for sourceId: ${args.sourceId}`);
+
       // Get the source
       const source = await ctx.runQuery(internal.eventSources.getSourceById, {
         sourceId: args.sourceId,
       });
 
       if (!source) {
+        console.error(`❌ Event source not found: ${args.sourceId}`);
         return {
           success: false,
-          message: "Event source not found",
+          message: `Event source with id '${args.sourceId}' not found`,
         };
       }
 
-      // Scrape the source page - using the general URL scraping function for now
-      // This would need to be implemented to handle source-specific scraping
-      const scrapeResult: any = await ctx.runAction(
+      console.log(`✅ Found source: ${source.name} (${source.startingUrl})`);
+
+      // Scrape the source page using the general URL scraping function
+      console.log(`🌐 Scraping URL: ${source.startingUrl}`);
+      const scrapeResult = await ctx.runAction(
         internal.scraping.scrapeUrlInternal,
         {
           url: source.startingUrl,
@@ -238,17 +258,30 @@ export const performSourceScrape = internalAction({
       );
 
       if (!scrapeResult.success) {
-        return scrapeResult;
+        console.error(`❌ Scrape failed: ${scrapeResult.message}`);
+        return {
+          success: false,
+          message: `Failed to scrape source URL: ${scrapeResult.message}`,
+        };
       }
 
-      // For now, we'll return a placeholder response since we don't have source-specific scraping
-      // In a real implementation, this would parse the scraped content to extract events
-      const events: any[] = []; // Would be populated from scrapeResult.data.extractedEvents
+      console.log(
+        `✅ Scrape successful, content length: ${scrapeResult.data?.contentLength || 0}`,
+      );
+
+      // Extract events from the scraped data
+      const events = scrapeResult.data?.extractedEvents || [];
+      console.log(`📝 Found ${events.length} potential events`);
+
       let eventsCreated = 0;
 
       // Process each event found
       for (const eventData of events) {
         try {
+          console.log(
+            `🔄 Processing event: ${eventData.title} (${eventData.url})`,
+          );
+
           // Check if event already exists
           const existingEvent = await ctx.runQuery(
             internal.eventsInternal.getEventByUrl,
@@ -259,41 +292,61 @@ export const performSourceScrape = internalAction({
 
           if (!existingEvent) {
             // Create new event
+            console.log(`➕ Creating new event: ${eventData.title}`);
             await ctx.runMutation(internal.eventsInternal.createInternal, {
               title: eventData.title,
-              description: eventData.description,
-              eventDate: eventData.eventDate,
-              imageUrl: eventData.imageUrl,
+              description:
+                eventData.description ||
+                `Event: ${eventData.title}. More details available at ${eventData.url}`,
+              eventDate:
+                typeof eventData.eventDate === "string"
+                  ? new Date(eventData.eventDate).getTime()
+                  : eventData.eventDate,
+              imageUrl: eventData.imageUrl || "",
               url: eventData.url,
               sourceId: args.sourceId,
             });
             eventsCreated++;
+          } else {
+            console.log(
+              `⏭️ Event already exists, skipping: ${eventData.title}`,
+            );
           }
         } catch (error) {
-          console.error(`Failed to process event ${eventData.url}:`, error);
+          console.error(`❌ Failed to process event ${eventData.url}:`, error);
         }
       }
 
       // Update the source's last scrape time
+      console.log(`🔄 Updating last scrape time for source: ${source.name}`);
       await ctx.runMutation(internal.eventSources.updateLastScrapeTime, {
         sourceId: args.sourceId,
         timestamp: Date.now(),
       });
 
+      const message = `Successfully scraped source '${source.name}'. Created ${eventsCreated} new events from ${events.length} total events found.`;
+      console.log(`✅ ${message}`);
+
       return {
         success: true,
-        message: `Successfully scraped ${eventsCreated} new events from ${events.length} total events found`,
+        message,
         eventsFound: eventsCreated,
         data: {
+          sourceName: source.name,
+          sourceUrl: source.startingUrl,
           totalEventsFound: events.length,
           newEventsCreated: eventsCreated,
+          existingEventsSkipped: events.length - eventsCreated,
         },
       };
     } catch (error) {
-      console.error("Error performing source scrape:", error);
+      const errorMessage = `Failed to scrape source with id '${args.sourceId}': ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error(`❌ ${errorMessage}`);
+      console.error("Error details:", error);
+
       return {
         success: false,
-        message: `Failed to scrape source: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: errorMessage,
       };
     }
   },
@@ -303,15 +356,26 @@ export const performTestScrape = internalAction({
   args: {
     testScrapeId: v.id("testScrapes"),
   },
-  handler: async (ctx: any, args) => {
+  handler: async (ctx, args) => {
     try {
+      console.log(
+        `🧪 Starting test scrape for testScrapeId: ${args.testScrapeId}`,
+      );
+
       const testScrape = await ctx.runQuery(
         internal.eventSources.getTestScrapeById,
         {
           testScrapeId: args.testScrapeId,
         },
       );
-      if (!testScrape) throw new Error("Test scrape not found");
+
+      if (!testScrape) {
+        throw new Error(`Test scrape with id '${args.testScrapeId}' not found`);
+      }
+
+      console.log(`✅ Found test scrape for URL: ${testScrape.url}`);
+
+      // Update progress: fetching
       await ctx.runMutation(internal.eventSources.updateTestScrapeProgress, {
         testScrapeId: args.testScrapeId,
         progress: {
@@ -319,17 +383,27 @@ export const performTestScrape = internalAction({
           message: "Fetching content from URL...",
         },
       });
+
+      // Scrape the URL
+      console.log(`🌐 Scraping URL: ${testScrape.url}`);
       const scrapeResult = await ctx.runAction(
         internal.scraping.scrapeUrlInternal,
         { url: testScrape.url },
       );
+
       if (!scrapeResult.success) {
+        console.error(`❌ Scrape failed: ${scrapeResult.message}`);
         await ctx.runMutation(internal.eventSources.completeTestScrape, {
           testScrapeId: args.testScrapeId,
-          result: { success: false, message: scrapeResult.message },
+          result: {
+            success: false,
+            message: `Failed to scrape URL: ${scrapeResult.message}`,
+          },
         });
         return;
       }
+
+      // Update progress: extracting
       await ctx.runMutation(internal.eventSources.updateTestScrapeProgress, {
         testScrapeId: args.testScrapeId,
         progress: {
@@ -337,10 +411,12 @@ export const performTestScrape = internalAction({
           message: "Extracting events from content...",
         },
       });
-      const events =
-        scrapeResult.data && scrapeResult.data.extractedEvents
-          ? scrapeResult.data.extractedEvents
-          : [];
+
+      // Extract events from scraped data
+      const events = scrapeResult.data?.extractedEvents || [];
+      console.log(`📝 Found ${events.length} potential events`);
+
+      // Update progress: processing
       await ctx.runMutation(internal.eventSources.updateTestScrapeProgress, {
         testScrapeId: args.testScrapeId,
         progress: {
@@ -349,13 +425,19 @@ export const performTestScrape = internalAction({
           eventsFound: events.length,
         },
       });
+
+      // Complete the test scrape
+      const message = `Successfully scraped URL '${testScrape.url}'. Found ${events.length} potential events.`;
+      console.log(`✅ ${message}`);
+
       await ctx.runMutation(internal.eventSources.completeTestScrape, {
         testScrapeId: args.testScrapeId,
         result: {
           success: true,
-          message: `Successfully scraped URL. Found ${events.length} potential events.`,
+          message,
           eventsFound: events.length,
           data: {
+            url: testScrape.url,
             totalEventsFound: events.length,
             scrapedData: scrapeResult.data,
             extractedEvents: events,
@@ -363,11 +445,17 @@ export const performTestScrape = internalAction({
         },
       });
     } catch (error) {
+      const errorMessage = `Failed to scrape URL: ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error(
+        `❌ Test scrape failed for testScrapeId: ${args.testScrapeId}`,
+        error,
+      );
+
       await ctx.runMutation(internal.eventSources.completeTestScrape, {
         testScrapeId: args.testScrapeId,
         result: {
           success: false,
-          message: `Failed to scrape URL: ${error instanceof Error ? error.message : "Unknown error"}`,
+          message: errorMessage,
         },
       });
     }

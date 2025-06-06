@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
@@ -25,6 +25,7 @@ import {
   IconPlayerPause,
   IconPlayerPlay,
   IconWorld,
+  IconRefresh,
 } from "@tabler/icons-react";
 
 interface SourcesListPageProps {
@@ -39,10 +40,12 @@ export function SourcesListPage({
   const sources = useQuery(api.eventSources.list);
   const updateSource = useMutation(api.eventSources.update);
   const deleteSource = useMutation(api.eventSources.remove);
+  const testScrape = useAction(api.eventSources.testScrape);
 
   const [editingId, setEditingId] = useState<Id<"eventSources"> | null>(null);
   const [editName, setEditName] = useState("");
   const [editUrl, setEditUrl] = useState("");
+  const [scrapingId, setScrapingId] = useState<Id<"eventSources"> | null>(null);
 
   const onApiError = useAPIErrorHandler();
 
@@ -248,15 +251,49 @@ export function SourcesListPage({
                     </Button>
 
                     {editingId !== source._id && (
-                      <Button
-                        onClick={() => handleEdit(source)}
-                        variant="light"
-                        color="blue"
-                        size="sm"
-                        leftSection={<IconEdit size={16} />}
-                      >
-                        Edit
-                      </Button>
+                      <>
+                        <Button
+                          onClick={() => {
+                            setScrapingId(source._id);
+                            testScrape({ sourceId: source._id })
+                              .then((result) => {
+                                if (result.success) {
+                                  toast.success(
+                                    `Scrape completed! Found ${result.eventsFound || 0} events.`,
+                                  );
+                                } else {
+                                  toast.error(
+                                    `Scrape failed: ${result.message}`,
+                                  );
+                                }
+                              })
+                              .catch(onApiError)
+                              .finally(() => setScrapingId(null));
+                          }}
+                          variant="light"
+                          color="orange"
+                          size="sm"
+                          leftSection={<IconRefresh size={16} />}
+                          loading={scrapingId === source._id}
+                          disabled={
+                            !source.isActive || scrapingId === source._id
+                          }
+                        >
+                          {scrapingId === source._id
+                            ? "Scraping..."
+                            : "Scrape Now"}
+                        </Button>
+
+                        <Button
+                          onClick={() => handleEdit(source)}
+                          variant="light"
+                          color="blue"
+                          size="sm"
+                          leftSection={<IconEdit size={16} />}
+                        >
+                          Edit
+                        </Button>
+                      </>
                     )}
 
                     <Button

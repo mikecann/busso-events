@@ -99,8 +99,9 @@ You are an expert at extracting event information from web content.
 
 Analyze the following markdown content and extract a list of events. For each event, provide:
 - title: The event name/title
+- description: A brief description of the event (1-3 sentences summarizing what the event is about)
 - url: The URL that leads to more details about the event (this should be a full URL, not a relative path)
-- eventDate: The date of the event if available (in YYYY-MM-DD format if possible, otherwise as found)
+- eventDate: The date of the event if available (prefer YYYY-MM-DD format, but any parseable date format is acceptable)
 - imageUrl: The URL of an image associated with the event (if available). This could be an event poster, venue photo, or promotional image. Make sure it's a full URL.
 
 Only extract actual events (conferences, meetups, workshops, concerts, etc.). Do not include:
@@ -112,6 +113,7 @@ Return the results as a JSON array of objects with the structure:
 [
   {
     "title": "Event Title",
+    "description": "Brief description of what this event is about and who should attend.",
     "url": "https://example.com/event-details",
     "eventDate": "2024-03-15",
     "imageUrl": "https://example.com/event-image.jpg"
@@ -120,6 +122,7 @@ Return the results as a JSON array of objects with the structure:
 
 If no events are found, return an empty array [].
 If an event doesn't have an associated image, omit the imageUrl field or set it to null.
+If you can't find a specific description for an event, provide a brief generic description based on the title and context.
 
 Here is the markdown content to analyze:
 
