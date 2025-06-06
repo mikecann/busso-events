@@ -2,6 +2,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAPIErrorHandler } from "../utils/hooks";
 import {
   Container,
   Title,
@@ -31,20 +32,7 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
 
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
 
-  const handleGenerateEmbeddings = async () => {
-    setIsGeneratingEmbeddings(true);
-    try {
-      const result = await generateMissingEmbeddings({});
-      toast.success(
-        `Generated embeddings for ${result.processed} events. ${result.failed} failed.`,
-      );
-    } catch (error) {
-      toast.error("Failed to generate embeddings");
-      console.error("Error generating embeddings:", error);
-    } finally {
-      setIsGeneratingEmbeddings(false);
-    }
-  };
+  const onApiError = useAPIErrorHandler();
 
   return (
     <Container size="xl">
@@ -109,7 +97,17 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
               Quick Actions
             </Title>
             <Button
-              onClick={handleGenerateEmbeddings}
+              onClick={() => {
+                setIsGeneratingEmbeddings(true);
+                generateMissingEmbeddings({})
+                  .then((result) => {
+                    toast.success(
+                      `Generated embeddings for ${result.processed} events. ${result.failed} failed.`,
+                    );
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsGeneratingEmbeddings(false));
+              }}
               disabled={isGeneratingEmbeddings}
               color="grape"
               fullWidth

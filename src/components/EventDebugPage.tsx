@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAPIErrorHandler } from "../utils/hooks";
 import {
   Container,
   Title,
@@ -48,13 +49,15 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
     api.subscriptionMatching.triggerSubscriptionMatchingForEvent,
   );
 
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, unknown>>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
   const [isGeneratingEmbedding, setIsGeneratingEmbedding] = useState(false);
   const [isTriggeringMatching, setIsTriggeringMatching] = useState(false);
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<any>({});
+
+  const onApiError = useAPIErrorHandler();
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString("en-US", {
@@ -90,97 +93,9 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
     setEditValues({ [field]: currentValue });
   };
 
-  const handleSave = async (field: string) => {
-    setIsUpdating(true);
-    try {
-      await updateEvent({
-        id: typedEventId,
-        [field]: editValues[field],
-      });
-      setEditingField(null);
-      toast.success(`${field} updated successfully`);
-    } catch (error) {
-      toast.error(`Failed to update ${field}`);
-      console.error("Error updating event:", error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   const handleCancel = () => {
     setEditingField(null);
     setEditValues({});
-  };
-
-  const handleDelete = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this event? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      await deleteEvent({ id: typedEventId });
-      toast.success("Event deleted successfully");
-      onBack();
-    } catch (error) {
-      toast.error("Failed to delete event");
-      console.error("Error deleting event:", error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleScrape = async () => {
-    setIsScraping(true);
-    try {
-      const result = await scrapeEvent({ eventId: typedEventId });
-      if (result.success) {
-        toast.success("Event scraped successfully");
-      } else {
-        toast.error(`Scraping failed: ${result.message}`);
-      }
-    } catch (error) {
-      toast.error("Failed to scrape event");
-      console.error("Error scraping event:", error);
-    } finally {
-      setIsScraping(false);
-    }
-  };
-
-  const handleGenerateEmbedding = async () => {
-    setIsGeneratingEmbedding(true);
-    try {
-      await generateEmbedding({ eventId: typedEventId });
-      toast.success("Embedding generated successfully");
-    } catch (error) {
-      toast.error("Failed to generate embedding");
-      console.error("Error generating embedding:", error);
-    } finally {
-      setIsGeneratingEmbedding(false);
-    }
-  };
-
-  const handleTriggerSubscriptionMatching = async () => {
-    setIsTriggeringMatching(true);
-    try {
-      const result = await triggerSubscriptionMatching({
-        eventId: typedEventId,
-      });
-      if (result.success) {
-        toast.success("Subscription matching triggered successfully");
-      } else {
-        toast.error("Failed to trigger subscription matching");
-      }
-    } catch (error) {
-      toast.error("Failed to trigger subscription matching");
-      console.error("Error triggering subscription matching:", error);
-    } finally {
-      setIsTriggeringMatching(false);
-    }
   };
 
   if (event === undefined) {
@@ -228,7 +143,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Stack gap="sm">
             {type === "textarea" ? (
               <Textarea
-                value={editValues[field] || ""}
+                value={String(editValues[field] || "")}
                 onChange={(e) =>
                   setEditValues({ ...editValues, [field]: e.target.value })
                 }
@@ -239,7 +154,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               <TextInput
                 type="datetime-local"
                 value={new Date(
-                  editValues[field] ||
+                  Number(editValues[field]) ||
                     (typeof value === "number" ? value : Date.now()),
                 )
                   .toISOString()
@@ -253,7 +168,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               />
             ) : (
               <TextInput
-                value={editValues[field] || ""}
+                value={String(editValues[field] || "")}
                 onChange={(e) =>
                   setEditValues({ ...editValues, [field]: e.target.value })
                 }
@@ -261,7 +176,19 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
             )}
             <Group gap="xs">
               <Button
-                onClick={() => void handleSave(field)}
+                onClick={() => {
+                  setIsUpdating(true);
+                  updateEvent({
+                    id: typedEventId,
+                    [field]: editValues[field],
+                  })
+                    .then(() => {
+                      setEditingField(null);
+                      toast.success(`${field} updated successfully`);
+                    })
+                    .catch(onApiError)
+                    .finally(() => setIsUpdating(false));
+                }}
                 disabled={isUpdating}
                 color="green"
                 size="sm"
@@ -323,7 +250,19 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           </Box>
           <Group gap="xs">
             <Button
-              onClick={() => void handleScrape()}
+              onClick={() => {
+                setIsScraping(true);
+                scrapeEvent({ eventId: typedEventId })
+                  .then((result) => {
+                    if (result.success) {
+                      toast.success("Event scraped successfully");
+                    } else {
+                      toast.error(`Scraping failed: ${result.message}`);
+                    }
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsScraping(false));
+              }}
               disabled={isScraping}
               color="yellow"
               leftSection={<IconSearch size={16} />}
@@ -332,7 +271,13 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               {isScraping ? "Scraping..." : "Scrape"}
             </Button>
             <Button
-              onClick={() => void handleGenerateEmbedding()}
+              onClick={() => {
+                setIsGeneratingEmbedding(true);
+                generateEmbedding({ eventId: typedEventId })
+                  .then(() => toast.success("Embedding generated successfully"))
+                  .catch(onApiError)
+                  .finally(() => setIsGeneratingEmbedding(false));
+              }}
               disabled={isGeneratingEmbedding}
               color="grape"
               leftSection={<IconBrain size={16} />}
@@ -341,7 +286,23 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               {isGeneratingEmbedding ? "Generating..." : "Generate Embedding"}
             </Button>
             <Button
-              onClick={() => void handleDelete()}
+              onClick={() => {
+                if (
+                  !confirm(
+                    "Are you sure you want to delete this event? This action cannot be undone.",
+                  )
+                )
+                  return;
+
+                setIsDeleting(true);
+                deleteEvent({ id: typedEventId })
+                  .then(() => {
+                    toast.success("Event deleted successfully");
+                    onBack();
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsDeleting(false));
+              }}
               disabled={isDeleting}
               color="red"
               leftSection={<IconTrash size={16} />}
@@ -431,7 +392,23 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Group justify="space-between" align="center" mb="lg">
             <Title order={2}>Subscription Matching</Title>
             <Button
-              onClick={() => void handleTriggerSubscriptionMatching()}
+              onClick={() => {
+                setIsTriggeringMatching(true);
+                triggerSubscriptionMatching({
+                  eventId: typedEventId,
+                })
+                  .then((result) => {
+                    if (result.success) {
+                      toast.success(
+                        "Subscription matching triggered successfully",
+                      );
+                    } else {
+                      toast.error("Failed to trigger subscription matching");
+                    }
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsTriggeringMatching(false));
+              }}
               disabled={isTriggeringMatching}
               leftSection={<IconRefresh size={16} />}
               loading={isTriggeringMatching}

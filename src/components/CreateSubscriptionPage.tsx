@@ -3,6 +3,7 @@ import { useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { useAPIErrorHandler } from "../utils/hooks";
 import {
   Container,
   Title,
@@ -48,11 +49,13 @@ export function CreateSubscriptionPage({
 
   const [prompt, setPrompt] = useState("");
   const [debouncedPrompt, setDebouncedPrompt] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [previewEvents, setPreviewEvents] = useState<PreviewEvent[] | null>(
     null,
   );
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const onApiError = useAPIErrorHandler();
 
   // Debounce the prompt for search
   useEffect(() => {
@@ -70,45 +73,15 @@ export function CreateSubscriptionPage({
       return;
     }
 
-    const loadPreview = async () => {
-      setIsLoadingPreview(true);
-      try {
-        const events = await previewMatchingEvents({ prompt: debouncedPrompt });
-        setPreviewEvents(events);
-      } catch (error) {
+    setIsLoadingPreview(true);
+    previewMatchingEvents({ prompt: debouncedPrompt })
+      .then((events) => setPreviewEvents(events))
+      .catch((error) => {
         console.error("Error loading preview events:", error);
         setPreviewEvents([]);
-      } finally {
-        setIsLoadingPreview(false);
-      }
-    };
-
-    loadPreview();
+      })
+      .finally(() => setIsLoadingPreview(false));
   }, [debouncedPrompt, previewMatchingEvents]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prompt.trim()) {
-      toast.error("Please enter a prompt");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      await createSubscription({
-        prompt: prompt.trim(),
-        isActive: true,
-      });
-      toast.success("Subscription created successfully!");
-      onBack();
-    } catch (error) {
-      toast.error("Failed to create subscription");
-      console.error("Error creating subscription:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const formatEventDate = (timestamp: number) => {
     try {
@@ -169,7 +142,27 @@ export function CreateSubscriptionPage({
         </Box>
 
         <Card shadow="sm" padding="xl" radius="lg" withBorder>
-          <form onSubmit={handleSubmit}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!prompt.trim()) {
+                toast.error("Please enter a prompt");
+                return;
+              }
+
+              setIsLoading(true);
+              createSubscription({
+                prompt: prompt.trim(),
+                isActive: true,
+              })
+                .then(() => {
+                  toast.success("Subscription created successfully!");
+                  onBack();
+                })
+                .catch(onApiError)
+                .finally(() => setIsLoading(false));
+            }}
+          >
             <Stack gap="lg">
               <Box>
                 <Text fw={500} size="sm" mb="xs">
@@ -462,12 +455,12 @@ export function CreateSubscriptionPage({
 
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !prompt.trim()}
+                  disabled={isLoading || !prompt.trim()}
                   size="lg"
                   style={{ flex: 1 }}
-                  loading={isSubmitting}
+                  loading={isLoading}
                 >
-                  {isSubmitting ? "Creating..." : "Create Subscription"}
+                  {isLoading ? "Creating..." : "Create Subscription"}
                 </Button>
               </Group>
             </Stack>

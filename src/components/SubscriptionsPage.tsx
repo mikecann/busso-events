@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAPIErrorHandler } from "../utils/hooks";
 import {
   Container,
   Title,
@@ -42,6 +43,8 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
   const [sendingEmailFor, setSendingEmailFor] =
     useState<Id<"subscriptions"> | null>(null);
 
+  const onApiError = useAPIErrorHandler();
+
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString("en-US", {
       year: "numeric",
@@ -70,24 +73,6 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
     }
   };
 
-  const handleToggleActive = async (
-    id: Id<"subscriptions">,
-    currentActive: boolean,
-  ) => {
-    try {
-      await updateSubscription({
-        id: id,
-        isActive: !currentActive,
-      });
-      toast.success(
-        `Subscription ${!currentActive ? "activated" : "deactivated"}`,
-      );
-    } catch (error) {
-      toast.error("Failed to update subscription");
-      console.error("Error updating subscription:", error);
-    }
-  };
-
   const handleEdit = (subscription: {
     _id: Id<"subscriptions">;
     prompt: string;
@@ -96,58 +81,9 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
     setEditPrompt(subscription.prompt);
   };
 
-  const handleSaveEdit = async (id: Id<"subscriptions">) => {
-    try {
-      await updateSubscription({
-        id: id,
-        prompt: editPrompt,
-      });
-      setEditingId(null);
-      toast.success("Subscription updated");
-    } catch (error) {
-      toast.error("Failed to update subscription");
-      console.error("Error updating subscription:", error);
-    }
-  };
-
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditPrompt("");
-  };
-
-  const handleDelete = async (id: Id<"subscriptions">) => {
-    if (!confirm("Are you sure you want to delete this subscription?")) {
-      return;
-    }
-
-    try {
-      await deleteSubscription({ id: id });
-      toast.success("Subscription deleted");
-    } catch (error) {
-      toast.error("Failed to delete subscription");
-      console.error("Error deleting subscription:", error);
-    }
-  };
-
-  const handleSendEmailNow = async (subscriptionId: Id<"subscriptions">) => {
-    setSendingEmailFor(subscriptionId);
-    try {
-      const result = await sendEmailNow({
-        subscriptionId: subscriptionId,
-      });
-      if (result.success) {
-        toast.success(
-          `Email sent successfully! ${result.eventsSent} events included.`,
-        );
-      } else {
-        toast.error(result.message);
-      }
-    } catch (error) {
-      toast.error("Failed to send email");
-      console.error("Error sending email:", error);
-    } finally {
-      setSendingEmailFor(null);
-    }
   };
 
   if (subscriptions === undefined) {
@@ -238,7 +174,17 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
                       />
                       <Group gap="xs">
                         <Button
-                          onClick={() => handleSaveEdit(subscription._id)}
+                          onClick={() => {
+                            updateSubscription({
+                              id: subscription._id,
+                              prompt: editPrompt,
+                            })
+                              .then(() => {
+                                setEditingId(null);
+                                toast.success("Subscription updated");
+                              })
+                              .catch(onApiError);
+                          }}
                           color="green"
                           size="sm"
                         >
@@ -344,7 +290,23 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
                 <Stack gap="xs" style={{ minWidth: "120px" }}>
                   {subscription.totalQueuedEvents > 0 && (
                     <Button
-                      onClick={() => handleSendEmailNow(subscription._id)}
+                      onClick={() => {
+                        setSendingEmailFor(subscription._id);
+                        sendEmailNow({
+                          subscriptionId: subscription._id,
+                        })
+                          .then((result) => {
+                            if (result.success) {
+                              toast.success(
+                                `Email sent successfully! ${result.eventsSent} events included.`,
+                              );
+                            } else {
+                              toast.error(result.message);
+                            }
+                          })
+                          .catch(onApiError)
+                          .finally(() => setSendingEmailFor(null));
+                      }}
                       loading={sendingEmailFor === subscription._id}
                       color="green"
                       size="sm"
@@ -358,10 +320,16 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
 
                   <Button
                     onClick={() =>
-                      handleToggleActive(
-                        subscription._id,
-                        subscription.isActive,
-                      )
+                      updateSubscription({
+                        id: subscription._id,
+                        isActive: !subscription.isActive,
+                      })
+                        .then(() => {
+                          toast.success(
+                            `Subscription ${!subscription.isActive ? "activated" : "deactivated"}`,
+                          );
+                        })
+                        .catch(onApiError)
                     }
                     variant="light"
                     color={subscription.isActive ? "yellow" : "green"}
@@ -390,7 +358,18 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
                   )}
 
                   <Button
-                    onClick={() => handleDelete(subscription._id)}
+                    onClick={() => {
+                      if (
+                        !confirm(
+                          "Are you sure you want to delete this subscription?",
+                        )
+                      )
+                        return;
+
+                      deleteSubscription({ id: subscription._id })
+                        .then(() => toast.success("Subscription deleted"))
+                        .catch(onApiError);
+                    }}
                     variant="light"
                     color="red"
                     size="sm"

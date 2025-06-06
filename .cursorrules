@@ -1,0 +1,39 @@
+# React Development Rules
+
+## Event Handlers
+- Put event handlers inline rather than hoisting them as separate functions above the JSX
+- Only create separate handler functions when logic is reused in multiple places
+- For simple mutations that just need success toast, error handling, and loading state, use inline handlers
+
+## Error Handling Pattern
+- Use functional approach with `.then().catch().finally()` instead of try/catch blocks
+- Use the `useAPIErrorHandler` hook for consistent error handling across components
+- Pattern for simple mutations:
+  ```tsx
+  onClick={() => {
+    setIsLoading(true);
+    mutation(data)
+      .then(() => toast.success("Success message"))
+      .catch(onApiError)
+      .finally(() => setIsLoading(false));
+  }}
+  ```
+
+## Component Structure
+- Create each React component in its own file
+- Prefer "early return" pattern over nested conditionals
+- Prefer if-statements with early returns over switch statements
+
+## TypeScript Style
+- Omit brackets for single-line statements
+- Use destructured object parameters pattern
+- Return objects for multi-value returns
+- Never use non-null assertion (`!`) operator; check explicitly
+- Include more information in TypeScript error messages (e.g., `System agent of kind '${agentKind}' for userId '${userId}' could not be found` instead of just "System agent not found")
+
+## React Patterns
+- Put event handlers inline rather than hoisting when they are only used once
+- Create helper functions only when logic is reused in multiple places
+- Use functional approach for error handling (e.g., `.then().catch().finally()` with custom API error handler)
+- For simple mutations, handle success with a toast, catch errors with `onApiError`, and set loading state in finally
+- Use the `useAPIErrorHandler` hook for consistent error handling across the application 

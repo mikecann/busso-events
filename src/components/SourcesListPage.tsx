@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAPIErrorHandler } from "../utils/hooks";
 import {
   Container,
   Title,
@@ -43,6 +44,8 @@ export function SourcesListPage({
   const [editName, setEditName] = useState("");
   const [editUrl, setEditUrl] = useState("");
 
+  const onApiError = useAPIErrorHandler();
+
   const formatDate = (timestamp: number | undefined) => {
     if (!timestamp) return "Never";
     return new Date(timestamp).toLocaleString("en-US", {
@@ -52,22 +55,6 @@ export function SourcesListPage({
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const handleToggleActive = async (
-    id: Id<"eventSources">,
-    currentActive: boolean,
-  ) => {
-    try {
-      await updateSource({
-        id: id,
-        isActive: !currentActive,
-      });
-      toast.success(`Source ${!currentActive ? "activated" : "deactivated"}`);
-    } catch (error) {
-      toast.error("Failed to update source");
-      console.error("Error updating source:", error);
-    }
   };
 
   const handleEdit = (source: {
@@ -80,39 +67,10 @@ export function SourcesListPage({
     setEditUrl(source.startingUrl);
   };
 
-  const handleSaveEdit = async (id: Id<"eventSources">) => {
-    try {
-      await updateSource({
-        id: id,
-        name: editName,
-        startingUrl: editUrl,
-      });
-      setEditingId(null);
-      toast.success("Source updated");
-    } catch (error) {
-      toast.error("Failed to update source");
-      console.error("Error updating source:", error);
-    }
-  };
-
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditName("");
     setEditUrl("");
-  };
-
-  const handleDelete = async (id: Id<"eventSources">) => {
-    if (!confirm("Are you sure you want to delete this source?")) {
-      return;
-    }
-
-    try {
-      await deleteSource({ id: id });
-      toast.success("Source deleted");
-    } catch (error) {
-      toast.error("Failed to delete source");
-      console.error("Error deleting source:", error);
-    }
   };
 
   if (sources === undefined) {
@@ -211,7 +169,18 @@ export function SourcesListPage({
                         />
                         <Group gap="xs">
                           <Button
-                            onClick={() => handleSaveEdit(source._id)}
+                            onClick={() => {
+                              updateSource({
+                                id: source._id,
+                                name: editName,
+                                startingUrl: editUrl,
+                              })
+                                .then(() => {
+                                  setEditingId(null);
+                                  toast.success("Source updated");
+                                })
+                                .catch(onApiError);
+                            }}
                             color="green"
                             size="sm"
                           >
@@ -253,7 +222,16 @@ export function SourcesListPage({
                   <Stack gap="xs" style={{ minWidth: "120px" }}>
                     <Button
                       onClick={() =>
-                        handleToggleActive(source._id, source.isActive)
+                        updateSource({
+                          id: source._id,
+                          isActive: !source.isActive,
+                        })
+                          .then(() => {
+                            toast.success(
+                              `Source ${!source.isActive ? "activated" : "deactivated"}`,
+                            );
+                          })
+                          .catch(onApiError)
                       }
                       variant="light"
                       color={source.isActive ? "yellow" : "green"}
@@ -282,7 +260,18 @@ export function SourcesListPage({
                     )}
 
                     <Button
-                      onClick={() => handleDelete(source._id)}
+                      onClick={() => {
+                        if (
+                          !confirm(
+                            "Are you sure you want to delete this source?",
+                          )
+                        )
+                          return;
+
+                        deleteSource({ id: source._id })
+                          .then(() => toast.success("Source deleted"))
+                          .catch(onApiError);
+                      }}
                       variant="light"
                       color="red"
                       size="sm"
