@@ -1,4 +1,11 @@
-import { query, mutation, action, internalAction, internalQuery, internalMutation } from "./_generated/server";
+import {
+  query,
+  mutation,
+  action,
+  internalAction,
+  internalQuery,
+  internalMutation,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
@@ -9,22 +16,23 @@ async function requireAdmin(ctx: any) {
   if (!userId) {
     throw new Error("Must be authenticated");
   }
-  const user = await ctx.db.get(userId);
-  if (!user || !user.isAdmin) {
+
+  // Use internal query to check admin status
+  const isAdmin = await ctx.runQuery(internal.eventsInternal.checkUserIsAdmin, {
+    userId,
+  });
+  if (!isAdmin) {
     throw new Error("Admin access required");
   }
-  return user;
+  return userId;
 }
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
-    
-    return await ctx.db
-      .query("eventSources")
-      .order("desc")
-      .collect();
+
+    return await ctx.db.query("eventSources").order("desc").collect();
   },
 });
 
@@ -35,7 +43,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    
+
     return await ctx.db.insert("eventSources", {
       name: args.name,
       startingUrl: args.startingUrl,
@@ -53,12 +61,12 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    
+
     const { id, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
+      Object.entries(updates).filter(([_, value]) => value !== undefined),
     );
-    
+
     await ctx.db.patch(id, filteredUpdates);
   },
 });
@@ -69,7 +77,7 @@ export const remove = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    
+
     await ctx.db.delete(args.id);
   },
 });
@@ -78,14 +86,17 @@ export const testScrape = action({
   args: {
     sourceId: v.id("eventSources"),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     success: boolean;
     message: string;
     eventsFound?: number;
     data?: any;
   }> => {
     await requireAdmin(ctx);
-    
+
     const result: {
       success: boolean;
       message: string;
@@ -94,8 +105,59 @@ export const testScrape = action({
     } = await ctx.runAction(internal.eventSources.performSourceScrape, {
       sourceId: args.sourceId,
     });
-    
+
     return result;
+  },
+});
+
+export const testScrapeUrl = action({
+  args: {
+    url: v.string(),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    eventsFound?: number;
+    data?: any;
+  }> => {
+    await requireAdmin(ctx);
+
+    try {
+      // Scrape the URL directly
+      const scrapeResult: any = await ctx.runAction(
+        internal.scraping.scrapeUrlInternal,
+        {
+          url: args.url,
+        },
+      );
+
+      if (!scrapeResult.success) {
+        return scrapeResult;
+      }
+
+      // For now, we'll return a placeholder response since we don't have source-specific scraping
+      // In a real implementation, this would parse the scraped content to extract events
+      const events: any[] = []; // Would be populated from scrapeResult.data.extractedEvents
+
+      return {
+        success: true,
+        message: `Successfully scraped URL. Found ${events.length} potential events.`,
+        eventsFound: events.length,
+        data: {
+          totalEventsFound: events.length,
+          scrapedData: scrapeResult.data,
+        },
+      };
+    } catch (error) {
+      console.error("Error testing URL scrape:", error);
+      return {
+        success: false,
+        message: `Failed to scrape URL: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+    }
   },
 });
 
@@ -137,7 +199,10 @@ export const performSourceScrape = internalAction({
   args: {
     sourceId: v.id("eventSources"),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     success: boolean;
     message: string;
     eventsFound?: number;
@@ -158,9 +223,12 @@ export const performSourceScrape = internalAction({
 
       // Scrape the source page - using the general URL scraping function for now
       // This would need to be implemented to handle source-specific scraping
-      const scrapeResult: any = await ctx.runAction(internal.scraping.scrapeUrlInternal, {
-        url: source.startingUrl,
-      });
+      const scrapeResult: any = await ctx.runAction(
+        internal.scraping.scrapeUrlInternal,
+        {
+          url: source.startingUrl,
+        },
+      );
 
       if (!scrapeResult.success) {
         return scrapeResult;
@@ -175,9 +243,12 @@ export const performSourceScrape = internalAction({
       for (const eventData of events) {
         try {
           // Check if event already exists
-          const existingEvent = await ctx.runQuery(internal.eventsInternal.getEventByUrl, {
-            url: eventData.url,
-          });
+          const existingEvent = await ctx.runQuery(
+            internal.eventsInternal.getEventByUrl,
+            {
+              url: eventData.url,
+            },
+          );
 
           if (!existingEvent) {
             // Create new event

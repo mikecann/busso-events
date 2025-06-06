@@ -26,7 +26,7 @@ interface AddSourcePageProps {
 
 export function AddSourcePage({ onBack }: AddSourcePageProps) {
   const createSource = useMutation(api.eventSources.create);
-  const testScrape = useAction(api.eventSources.testScrape);
+  const testScrapeUrl = useAction(api.eventSources.testScrapeUrl);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -62,14 +62,8 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
 
     setIsTesting(true);
     try {
-      // First create the source temporarily to test it
-      const sourceId = await createSource({
-        name: formData.name || "Test Source",
-        startingUrl: formData.startingUrl,
-      });
-
-      const result = await testScrape({
-        sourceId,
+      const result = await testScrapeUrl({
+        url: formData.startingUrl,
       });
 
       if (result.success) {
