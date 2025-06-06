@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { SignOutButton } from "../SignOutButton";
+import { Group, Text, Badge, Button, Container, Paper } from "@mantine/core";
 
 interface HeaderProps {
   onNavigateHome: () => void;
@@ -9,79 +10,119 @@ interface HeaderProps {
   currentPage: string;
 }
 
-export function Header({ onNavigateHome, onNavigateSubscriptions, onNavigateAdmin, currentPage }: HeaderProps) {
+export function Header({
+  onNavigateHome,
+  onNavigateSubscriptions,
+  onNavigateAdmin,
+  currentPage,
+}: HeaderProps) {
   const user = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.users.isCurrentUserAdmin);
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-8">
-            <button
+    <Paper
+      shadow="xs"
+      withBorder
+      style={{ borderTop: "none", borderLeft: "none", borderRight: "none" }}
+    >
+      <Container size="xl" py="md">
+        <Group justify="space-between">
+          <Group gap="xl">
+            <Button
+              variant="subtle"
+              size="lg"
               onClick={onNavigateHome}
-              className={`text-xl font-bold transition-colors ${
-                currentPage === "home" ? "text-blue-600" : "text-gray-900 hover:text-blue-600"
-              }`}
+              color={currentPage === "home" ? "blue" : "gray"}
+              style={{ fontWeight: "bold", fontSize: "1.25rem" }}
             >
               EventFinder
-            </button>
-            
-            <nav className="flex space-x-6">
-              <button
+            </Button>
+
+            <Group gap="lg">
+              <Button
+                variant="subtle"
                 onClick={onNavigateHome}
-                className={`font-medium transition-colors ${
-                  currentPage === "home" 
-                    ? "text-blue-600 border-b-2 border-blue-600 pb-1" 
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
+                color={currentPage === "home" ? "blue" : "gray"}
+                style={{
+                  borderBottom:
+                    currentPage === "home"
+                      ? "2px solid var(--mantine-color-blue-6)"
+                      : "none",
+                }}
               >
                 Events
-              </button>
-              
-              <button
+              </Button>
+
+              <Button
+                variant="subtle"
                 onClick={onNavigateSubscriptions}
-                className={`font-medium transition-colors ${
-                  currentPage === "subscriptions" || currentPage === "create-subscription"
-                    ? "text-blue-600 border-b-2 border-blue-600 pb-1" 
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
+                color={
+                  currentPage === "subscriptions" ||
+                  currentPage === "create-subscription"
+                    ? "blue"
+                    : "gray"
+                }
+                style={{
+                  borderBottom:
+                    currentPage === "subscriptions" ||
+                    currentPage === "create-subscription"
+                      ? "2px solid var(--mantine-color-blue-6)"
+                      : "none",
+                }}
               >
                 Subscriptions
-              </button>
-              
+              </Button>
+
               {isAdmin && onNavigateAdmin && (
-                <button
+                <Button
+                  variant="subtle"
                   onClick={onNavigateAdmin}
-                  className={`font-medium transition-colors ${
-                    currentPage === "admin" || currentPage === "event-debug" || currentPage === "add-event" || currentPage === "sources" || currentPage === "add-source"
-                      ? "text-blue-600 border-b-2 border-blue-600 pb-1" 
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
+                  color={
+                    [
+                      "admin",
+                      "event-debug",
+                      "add-event",
+                      "sources",
+                      "add-source",
+                    ].includes(currentPage)
+                      ? "blue"
+                      : "gray"
+                  }
+                  style={{
+                    borderBottom: [
+                      "admin",
+                      "event-debug",
+                      "add-event",
+                      "sources",
+                      "add-source",
+                    ].includes(currentPage)
+                      ? "2px solid var(--mantine-color-blue-6)"
+                      : "none",
+                  }}
                 >
                   Admin
-                </button>
+                </Button>
               )}
-            </nav>
-          </div>
-          
-          <div className="flex items-center space-x-4">
+            </Group>
+          </Group>
+
+          <Group gap="md">
             {user && (
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">
+              <Group gap="xs">
+                <Text size="sm" c="dimmed">
                   Welcome, {user.name || user.email || "User"}
-                </span>
+                </Text>
                 {isAdmin && (
-                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                  <Badge color="blue" size="sm">
                     Admin
-                  </span>
+                  </Badge>
                 )}
-              </div>
+              </Group>
             )}
             <SignOutButton />
-          </div>
-        </div>
-      </div>
-    </header>
+          </Group>
+        </Group>
+      </Container>
+    </Paper>
   );
 }

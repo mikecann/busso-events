@@ -2,6 +2,33 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Container,
+  Title,
+  Text,
+  Button,
+  Card,
+  Stack,
+  Group,
+  Badge,
+  TextInput,
+  Textarea,
+  Loader,
+  Center,
+  Box,
+  Image,
+  SimpleGrid,
+  Divider,
+} from "@mantine/core";
+import {
+  IconArrowLeft,
+  IconSearch,
+  IconBrain,
+  IconTrash,
+  IconRefresh,
+  IconCalendar,
+  IconExternalLink,
+} from "@tabler/icons-react";
 
 interface EventDebugPageProps {
   eventId: string;
@@ -14,8 +41,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const deleteEvent = useMutation(api.eventsAdmin.deleteEvent);
   const scrapeEvent = useAction(api.eventsAdmin.scrapeEvent);
   const generateEmbedding = useAction(api.embeddings.generateEventEmbedding);
-  const triggerSubscriptionMatching = useAction(api.subscriptionMatching.triggerSubscriptionMatchingForEvent);
-  
+  const triggerSubscriptionMatching = useAction(
+    api.subscriptionMatching.triggerSubscriptionMatchingForEvent,
+  );
+
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
@@ -38,14 +67,14 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const formatRelativeTime = (timestamp: number) => {
     const now = Date.now();
     const diff = timestamp - now;
-    
+
     if (diff <= 0) {
       return "Ready to run";
     }
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 0) {
       return `in ${hours}h ${minutes}m`;
     } else {
@@ -81,7 +110,11 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this event? This action cannot be undone.",
+      )
+    ) {
       return;
     }
 
@@ -131,7 +164,9 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const handleTriggerSubscriptionMatching = async () => {
     setIsTriggeringMatching(true);
     try {
-      const result = await triggerSubscriptionMatching({ eventId: eventId as any });
+      const result = await triggerSubscriptionMatching({
+        eventId: eventId as any,
+      });
       if (result.success) {
         toast.success("Subscription matching triggered successfully");
       } else {
@@ -147,282 +182,379 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
 
   if (event === undefined) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <Center py="xl">
+        <Loader size="lg" />
+      </Center>
     );
   }
 
   if (event === null) {
     return (
-      <div className="text-center py-12">
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Event not found</h3>
-        <button
-          onClick={onBack}
-          className="text-blue-600 hover:text-blue-800"
-        >
-          ← Back to Events
-        </button>
-      </div>
+      <Center py="xl">
+        <Stack align="center" gap="md">
+          <Title order={3}>Event not found</Title>
+          <Button
+            variant="subtle"
+            onClick={onBack}
+            leftSection={<IconArrowLeft size={16} />}
+          >
+            Back to Events
+          </Button>
+        </Stack>
+      </Center>
     );
   }
 
-  const renderEditableField = (field: string, label: string, value: any, type: "text" | "textarea" | "datetime" = "text") => {
+  const renderEditableField = (
+    field: string,
+    label: string,
+    value: any,
+    type: "text" | "textarea" | "datetime" = "text",
+  ) => {
     const isEditing = editingField === field;
-    
+
     return (
-      <div className="border-b border-gray-200 py-4">
-        <div className="flex justify-between items-start">
-          <div className="flex-1">
-            <h4 className="text-sm font-medium text-gray-700 mb-1">{label}</h4>
-            {isEditing ? (
-              <div className="space-y-2">
-                {type === "textarea" ? (
-                  <textarea
-                    value={editValues[field] || ""}
-                    onChange={(e) => setEditValues({ ...editValues, [field]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    rows={4}
-                  />
-                ) : type === "datetime" ? (
-                  <input
-                    type="datetime-local"
-                    value={new Date(editValues[field] || value).toISOString().slice(0, 16)}
-                    onChange={(e) => setEditValues({ ...editValues, [field]: new Date(e.target.value).getTime() })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={editValues[field] || ""}
-                    onChange={(e) => setEditValues({ ...editValues, [field]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleSave(field)}
-                    disabled={isUpdating}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 py-1 rounded text-sm"
-                  >
-                    {isUpdating ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+      <Box
+        py="md"
+        style={{ borderBottom: "1px solid var(--mantine-color-gray-2)" }}
+      >
+        <Text fw={500} size="sm" mb="xs" c="gray.7">
+          {label}
+        </Text>
+        {isEditing ? (
+          <Stack gap="sm">
+            {type === "textarea" ? (
+              <Textarea
+                value={editValues[field] || ""}
+                onChange={(e) =>
+                  setEditValues({ ...editValues, [field]: e.target.value })
+                }
+                rows={4}
+                autosize
+              />
+            ) : type === "datetime" ? (
+              <TextInput
+                type="datetime-local"
+                value={new Date(editValues[field] || value)
+                  .toISOString()
+                  .slice(0, 16)}
+                onChange={(e) =>
+                  setEditValues({
+                    ...editValues,
+                    [field]: new Date(e.target.value).getTime(),
+                  })
+                }
+              />
             ) : (
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  {type === "datetime" ? (
-                    <p className="text-gray-900">{formatDate(value)}</p>
-                  ) : (
-                    <p className="text-gray-900 whitespace-pre-wrap">{value || "Not set"}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleEdit(field, value)}
-                  className="ml-4 text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  Edit
-                </button>
-              </div>
+              <TextInput
+                value={editValues[field] || ""}
+                onChange={(e) =>
+                  setEditValues({ ...editValues, [field]: e.target.value })
+                }
+              />
             )}
-          </div>
-        </div>
-      </div>
+            <Group gap="xs">
+              <Button
+                onClick={() => handleSave(field)}
+                disabled={isUpdating}
+                color="green"
+                size="sm"
+                loading={isUpdating}
+              >
+                {isUpdating ? "Saving..." : "Save"}
+              </Button>
+              <Button onClick={handleCancel} variant="default" size="sm">
+                Cancel
+              </Button>
+            </Group>
+          </Stack>
+        ) : (
+          <Group justify="space-between" align="flex-start">
+            <Box style={{ flex: 1 }}>
+              {type === "datetime" ? (
+                <Text>{formatDate(value)}</Text>
+              ) : (
+                <Text style={{ whiteSpace: "pre-wrap" }}>
+                  {value || "Not set"}
+                </Text>
+              )}
+            </Box>
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => handleEdit(field, value)}
+            >
+              Edit
+            </Button>
+          </Group>
+        )}
+      </Box>
     );
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <button
+    <Container size="lg">
+      <Stack gap="lg">
+        <Button
+          leftSection={<IconArrowLeft size={16} />}
+          variant="subtle"
           onClick={onBack}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+          style={{ alignSelf: "flex-start" }}
         >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
           Back to Events
-        </button>
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Event Debug</h1>
-            <p className="text-gray-600 mt-2">Debug and manage event details</p>
-          </div>
-          <div className="flex gap-2">
-            <button
+        </Button>
+
+        <Group justify="space-between" align="flex-start">
+          <Box>
+            <Title order={1} size="2.5rem">
+              Event Debug
+            </Title>
+            <Text c="dimmed" mt="xs">
+              Debug and manage event details
+            </Text>
+          </Box>
+          <Group gap="xs">
+            <Button
               onClick={handleScrape}
               disabled={isScraping}
-              className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              color="yellow"
+              leftSection={<IconSearch size={16} />}
+              loading={isScraping}
             >
-              {isScraping ? "Scraping..." : "🔍 Scrape"}
-            </button>
-            <button
+              {isScraping ? "Scraping..." : "Scrape"}
+            </Button>
+            <Button
               onClick={handleGenerateEmbedding}
               disabled={isGeneratingEmbedding}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              color="grape"
+              leftSection={<IconBrain size={16} />}
+              loading={isGeneratingEmbedding}
             >
-              {isGeneratingEmbedding ? "Generating..." : "🧠 Generate Embedding"}
-            </button>
-            <button
+              {isGeneratingEmbedding ? "Generating..." : "Generate Embedding"}
+            </Button>
+            <Button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              color="red"
+              leftSection={<IconTrash size={16} />}
+              loading={isDeleting}
             >
-              {isDeleting ? "Deleting..." : "🗑️ Delete"}
-            </button>
-          </div>
-        </div>
-      </div>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </Group>
+        </Group>
 
-      <div className="space-y-6">
-        {/* Basic Information */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
-          <div className="space-y-1">
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Title order={2} mb="lg">
+            Basic Information
+          </Title>
+          <Stack gap={0}>
             {renderEditableField("title", "Title", event.title)}
-            {renderEditableField("description", "Description", event.description, "textarea")}
-            {renderEditableField("eventDate", "Event Date", event.eventDate, "datetime")}
+            {renderEditableField(
+              "description",
+              "Description",
+              event.description,
+              "textarea",
+            )}
+            {renderEditableField(
+              "eventDate",
+              "Event Date",
+              event.eventDate,
+              "datetime",
+            )}
             {renderEditableField("imageUrl", "Image URL", event.imageUrl)}
             {renderEditableField("url", "Event URL", event.url)}
-          </div>
-        </div>
+          </Stack>
+        </Card>
 
-        {/* System Information */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">System Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-gray-700">Event ID:</span>
-              <span className="ml-2 text-gray-900 font-mono">{event._id}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Created:</span>
-              <span className="ml-2 text-gray-900">{formatDate(event._creationTime)}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Last Scraped:</span>
-              <span className="ml-2 text-gray-900">
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Title order={2} mb="lg">
+            System Information
+          </Title>
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Event ID:
+              </Text>
+              <Text ff="monospace" size="sm">
+                {event._id}
+              </Text>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Created:
+              </Text>
+              <Text size="sm">{formatDate(event._creationTime)}</Text>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Last Scraped:
+              </Text>
+              <Text size="sm">
                 {event.lastScraped ? formatDate(event.lastScraped) : "Never"}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Has Embedding:</span>
-              <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
-                event.descriptionEmbedding 
-                  ? "bg-green-100 text-green-800" 
-                  : "bg-red-100 text-red-800"
-              }`}>
+              </Text>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Has Embedding:
+              </Text>
+              <Badge
+                color={event.descriptionEmbedding ? "green" : "red"}
+                size="sm"
+                mt="xs"
+              >
                 {event.descriptionEmbedding ? "Yes" : "No"}
-              </span>
-            </div>
+              </Badge>
+            </Box>
             {event.sourceId && (
-              <div>
-                <span className="font-medium text-gray-700">Source ID:</span>
-                <span className="ml-2 text-gray-900 font-mono">{event.sourceId}</span>
-              </div>
+              <Box>
+                <Text fw={500} size="sm" c="gray.7">
+                  Source ID:
+                </Text>
+                <Text ff="monospace" size="sm">
+                  {event.sourceId}
+                </Text>
+              </Box>
             )}
-          </div>
-        </div>
+          </SimpleGrid>
+        </Card>
 
-        {/* Subscription Matching Information */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Subscription Matching</h2>
-            <button
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Group justify="space-between" align="center" mb="lg">
+            <Title order={2}>Subscription Matching</Title>
+            <Button
               onClick={handleTriggerSubscriptionMatching}
               disabled={isTriggeringMatching}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              leftSection={<IconRefresh size={16} />}
+              loading={isTriggeringMatching}
             >
-              {isTriggeringMatching ? "Triggering..." : "🔄 Trigger Now"}
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-gray-700">Scheduled Job ID:</span>
-              <span className="ml-2 text-gray-900 font-mono">
+              {isTriggeringMatching ? "Triggering..." : "Trigger Now"}
+            </Button>
+          </Group>
+
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="lg">
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Scheduled Job ID:
+              </Text>
+              <Text ff="monospace" size="sm">
                 {event.subscriptionMatchScheduledId || "Not scheduled"}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Scheduled For:</span>
-              <span className={`ml-2 ${
-                event.subscriptionMatchScheduledAt && event.subscriptionMatchScheduledAt <= Date.now()
-                  ? "text-green-600 font-medium"
-                  : "text-gray-900"
-              }`}>
-                {event.subscriptionMatchScheduledAt 
-                  ? `${formatDate(event.subscriptionMatchScheduledAt)} (${formatRelativeTime(event.subscriptionMatchScheduledAt)})`
-                  : "Not scheduled"
+              </Text>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Scheduled For:
+              </Text>
+              <Text
+                size="sm"
+                c={
+                  event.subscriptionMatchScheduledAt &&
+                  event.subscriptionMatchScheduledAt <= Date.now()
+                    ? "green.6"
+                    : undefined
                 }
-              </span>
-            </div>
-          </div>
+                fw={
+                  event.subscriptionMatchScheduledAt &&
+                  event.subscriptionMatchScheduledAt <= Date.now()
+                    ? 500
+                    : undefined
+                }
+              >
+                {event.subscriptionMatchScheduledAt
+                  ? `${formatDate(event.subscriptionMatchScheduledAt)} (${formatRelativeTime(event.subscriptionMatchScheduledAt)})`
+                  : "Not scheduled"}
+              </Text>
+            </Box>
+          </SimpleGrid>
 
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
-              💡 <strong>Subscription matching</strong> runs automatically 8 hours after an event is created or updated. 
-              It checks this event against all active user subscriptions and adds matching events to email queues.
-            </p>
-          </div>
-        </div>
+          <Card bg="blue.0" padding="md" radius="md">
+            <Text size="sm" c="blue.8">
+              💡{" "}
+              <Text span fw={500}>
+                Subscription matching
+              </Text>{" "}
+              runs automatically 8 hours after an event is created or updated.
+              It checks this event against all active user subscriptions and
+              adds matching events to email queues.
+            </Text>
+          </Card>
+        </Card>
 
-        {/* Scraped Data */}
         {event.scrapedData && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Scraped Data</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <Card shadow="sm" padding="xl" radius="lg" withBorder>
+            <Title order={2} mb="lg">
+              Scraped Data
+            </Title>
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               {Object.entries(event.scrapedData).map(([key, value]) => (
-                <div key={key}>
-                  <span className="font-medium text-gray-700 capitalize">
-                    {key.replace(/([A-Z])/g, ' $1').trim()}:
-                  </span>
-                  <span className="ml-2 text-gray-900">
-                    {Array.isArray(value) ? value.join(", ") : value || "Not available"}
-                  </span>
-                </div>
+                <Box key={key}>
+                  <Text
+                    fw={500}
+                    size="sm"
+                    c="gray.7"
+                    style={{ textTransform: "capitalize" }}
+                  >
+                    {key.replace(/([A-Z])/g, " $1").trim()}:
+                  </Text>
+                  <Text size="sm">
+                    {Array.isArray(value)
+                      ? value.join(", ")
+                      : value || "Not available"}
+                  </Text>
+                </Box>
               ))}
-            </div>
-          </div>
+            </SimpleGrid>
+          </Card>
         )}
 
-        {/* Event Preview */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Event Preview</h2>
-          <div className="border border-gray-200 rounded-lg p-4">
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Title order={2} mb="lg">
+            Event Preview
+          </Title>
+          <Card withBorder padding="lg" radius="md">
             {event.imageUrl && (
-              <img
-                src={event.imageUrl}
-                alt={event.title}
-                className="w-full h-48 object-cover rounded-lg mb-4"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
+              <Card.Section>
+                <Image
+                  src={event.imageUrl}
+                  alt={event.title}
+                  height={192}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              </Card.Section>
             )}
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
-            <p className="text-gray-600 mb-3">{event.description}</p>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span>📅 {formatDate(event.eventDate)}</span>
-              <a
-                href={event.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800"
-              >
-                🔗 View Original
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            <Stack gap="md" mt={event.imageUrl ? "md" : 0}>
+              <Title order={3} size="lg">
+                {event.title}
+              </Title>
+              <Text c="dimmed">{event.description}</Text>
+              <Group gap="lg">
+                <Group gap="xs">
+                  <IconCalendar size={16} />
+                  <Text size="sm" c="dimmed">
+                    {formatDate(event.eventDate)}
+                  </Text>
+                </Group>
+                <Text
+                  component="a"
+                  href={event.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  c="blue.6"
+                  style={{ textDecoration: "none" }}
+                  size="sm"
+                >
+                  <Group gap="xs">
+                    <IconExternalLink size={16} />
+                    <Text>View Original</Text>
+                  </Group>
+                </Text>
+              </Group>
+            </Stack>
+          </Card>
+        </Card>
+      </Stack>
+    </Container>
   );
 }

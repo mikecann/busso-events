@@ -2,6 +2,29 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Container,
+  Title,
+  Text,
+  Button,
+  Card,
+  Stack,
+  Group,
+  Badge,
+  Textarea,
+  SimpleGrid,
+  Loader,
+  Center,
+  Box,
+  ActionIcon,
+} from "@mantine/core";
+import {
+  IconMail,
+  IconEdit,
+  IconTrash,
+  IconPlayerPause,
+  IconPlayerPlay,
+} from "@tabler/icons-react";
 
 interface SubscriptionsPageProps {
   onCreateNew: () => void;
@@ -12,7 +35,7 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
   const updateSubscription = useMutation(api.subscriptions.update);
   const deleteSubscription = useMutation(api.subscriptions.remove);
   const sendEmailNow = useAction(api.emailSending.sendSubscriptionEmail);
-  
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
   const [sendingEmailFor, setSendingEmailFor] = useState<string | null>(null);
@@ -30,14 +53,14 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
   const formatRelativeTime = (timestamp: number) => {
     const now = Date.now();
     const diff = timestamp - now;
-    
+
     if (diff <= 0) {
       return "Ready to send";
     }
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 0) {
       return `in ${hours}h ${minutes}m`;
     } else {
@@ -51,7 +74,9 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
         id: id as any,
         isActive: !currentActive,
       });
-      toast.success(`Subscription ${!currentActive ? "activated" : "deactivated"}`);
+      toast.success(
+        `Subscription ${!currentActive ? "activated" : "deactivated"}`,
+      );
     } catch (error) {
       toast.error("Failed to update subscription");
       console.error("Error updating subscription:", error);
@@ -99,9 +124,13 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
   const handleSendEmailNow = async (subscriptionId: string) => {
     setSendingEmailFor(subscriptionId);
     try {
-      const result = await sendEmailNow({ subscriptionId: subscriptionId as any });
+      const result = await sendEmailNow({
+        subscriptionId: subscriptionId as any,
+      });
       if (result.success) {
-        toast.success(`Email sent successfully! ${result.eventsSent} events included.`);
+        toast.success(
+          `Email sent successfully! ${result.eventsSent} events included.`,
+        );
       } else {
         toast.error(result.message);
       }
@@ -115,199 +144,254 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
 
   if (subscriptions === undefined) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <Center py="xl">
+        <Loader size="lg" />
+      </Center>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Event Subscriptions</h1>
-          <p className="text-gray-600 mt-2">Manage your event notification preferences</p>
-        </div>
-        <button
-          onClick={onCreateNew}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-        >
+    <Container size="lg">
+      <Group justify="space-between" mb="xl">
+        <Box>
+          <Title order={1} size="2.5rem">
+            Event Subscriptions
+          </Title>
+          <Text c="dimmed" mt="xs">
+            Manage your event notification preferences
+          </Text>
+        </Box>
+        <Button onClick={onCreateNew} size="lg">
           + Create Subscription
-        </button>
-      </div>
+        </Button>
+      </Group>
 
       {subscriptions.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <div className="text-gray-400 text-6xl mb-4">📧</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No subscriptions yet</h3>
-          <p className="text-gray-600 mb-6">
-            Create your first subscription to get notified about events that match your interests
-          </p>
-          <button
-            onClick={onCreateNew}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
+        <Card
+          shadow="sm"
+          padding="xl"
+          radius="lg"
+          style={{ textAlign: "center" }}
+        >
+          <Text size="4rem" style={{ marginBottom: "1rem" }}>
+            📧
+          </Text>
+          <Title order={3} mb="xs">
+            No subscriptions yet
+          </Title>
+          <Text c="dimmed" mb="lg">
+            Create your first subscription to get notified about events that
+            match your interests
+          </Text>
+          <Button onClick={onCreateNew} size="lg">
             Create Your First Subscription
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="space-y-6">
+        <Stack gap="lg">
           {subscriptions.map((subscription) => (
-            <div
+            <Card
               key={subscription._id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+              shadow="sm"
+              padding="xl"
+              radius="lg"
+              withBorder
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      subscription.isActive ? "bg-green-500" : "bg-gray-400"
-                    }`}></div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      subscription.isActive 
-                        ? "bg-green-100 text-green-800" 
-                        : "bg-gray-100 text-gray-800"
-                    }`}>
+              <Group align="flex-start" justify="space-between">
+                <Box style={{ flex: 1 }}>
+                  <Group gap="sm" mb="sm">
+                    <Box
+                      w={12}
+                      h={12}
+                      bg={subscription.isActive ? "green.5" : "gray.4"}
+                      style={{ borderRadius: "50%" }}
+                    />
+                    <Badge
+                      color={subscription.isActive ? "green" : "gray"}
+                      size="sm"
+                    >
                       {subscription.isActive ? "Active" : "Inactive"}
-                    </span>
+                    </Badge>
                     {subscription.totalQueuedEvents > 0 && (
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                        {subscription.totalQueuedEvents} queued event{subscription.totalQueuedEvents > 1 ? 's' : ''}
-                      </span>
+                      <Badge color="blue" size="sm">
+                        {subscription.totalQueuedEvents} queued event
+                        {subscription.totalQueuedEvents > 1 ? "s" : ""}
+                      </Badge>
                     )}
-                  </div>
+                  </Group>
 
                   {editingId === subscription._id ? (
-                    <div className="space-y-3">
-                      <textarea
+                    <Stack gap="sm">
+                      <Textarea
                         value={editPrompt}
                         onChange={(e) => setEditPrompt(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                         rows={3}
+                        autosize
                       />
-                      <div className="flex gap-2">
-                        <button
+                      <Group gap="xs">
+                        <Button
                           onClick={() => handleSaveEdit(subscription._id)}
-                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                          color="green"
+                          size="sm"
                         >
                           Save
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={handleCancelEdit}
-                          className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                          variant="default"
+                          size="sm"
                         >
                           Cancel
-                        </button>
-                      </div>
-                    </div>
+                        </Button>
+                      </Group>
+                    </Stack>
                   ) : (
-                    <div>
-                      <p className="text-gray-900 mb-3 leading-relaxed">
+                    <Stack gap="md">
+                      <Text size="md" style={{ lineHeight: 1.6 }}>
                         "{subscription.prompt}"
-                      </p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Email frequency:</span>
-                          <span className="ml-1">{subscription.emailFrequencyHours}h</span>
-                        </div>
-                        <div>
-                          <span className="font-medium">Last email:</span>
-                          <span className="ml-1">
-                            {subscription.lastEmailSent 
+                      </Text>
+
+                      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+                        <Box>
+                          <Text fw={500} size="sm">
+                            Email frequency:
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            {subscription.emailFrequencyHours}h
+                          </Text>
+                        </Box>
+                        <Box>
+                          <Text fw={500} size="sm">
+                            Last email:
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            {subscription.lastEmailSent
                               ? formatDate(subscription.lastEmailSent)
-                              : "Never"
+                              : "Never"}
+                          </Text>
+                        </Box>
+                        <Box>
+                          <Text fw={500} size="sm">
+                            Next email:
+                          </Text>
+                          <Text
+                            size="sm"
+                            c={
+                              subscription.nextEmailScheduled <= Date.now()
+                                ? "green"
+                                : "dimmed"
                             }
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium">Next email:</span>
-                          <span className={`ml-1 ${
-                            subscription.nextEmailScheduled <= Date.now() 
-                              ? "text-green-600 font-medium" 
-                              : ""
-                          }`}>
-                            {formatRelativeTime(subscription.nextEmailScheduled)}
-                          </span>
-                        </div>
-                      </div>
+                            fw={
+                              subscription.nextEmailScheduled <= Date.now()
+                                ? 500
+                                : 400
+                            }
+                          >
+                            {formatRelativeTime(
+                              subscription.nextEmailScheduled,
+                            )}
+                          </Text>
+                        </Box>
+                      </SimpleGrid>
 
                       {subscription.queuedEvents.length > 0 && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                          <h4 className="font-medium text-blue-900 mb-2">
+                        <Card withBorder radius="md" bg="blue.0">
+                          <Title order={4} c="blue.9" mb="sm">
                             Queued Events ({subscription.totalQueuedEvents})
-                          </h4>
-                          <div className="space-y-2">
+                          </Title>
+                          <Stack gap="xs">
                             {subscription.queuedEvents.map((queueItem: any) => (
-                              <div key={queueItem._id} className="text-sm">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-blue-800">
+                              <Box key={queueItem._id}>
+                                <Group gap="xs" align="center">
+                                  <Text fw={500} size="sm" c="blue.8">
                                     {queueItem.event.title}
-                                  </span>
-                                  <span className="text-blue-600 text-xs">
-                                    ({(queueItem.matchScore * 100).toFixed(0)}% match)
-                                  </span>
-                                </div>
-                                <div className="text-blue-600 text-xs">
+                                  </Text>
+                                  <Text size="xs" c="blue.6">
+                                    ({(queueItem.matchScore * 100).toFixed(0)}%
+                                    match)
+                                  </Text>
+                                </Group>
+                                <Text size="xs" c="blue.6">
                                   📅 {formatDate(queueItem.event.eventDate)}
-                                </div>
-                              </div>
+                                </Text>
+                              </Box>
                             ))}
                             {subscription.totalQueuedEvents > 5 && (
-                              <div className="text-xs text-blue-600">
-                                ... and {subscription.totalQueuedEvents - 5} more
-                              </div>
+                              <Text size="xs" c="blue.6">
+                                ... and {subscription.totalQueuedEvents - 5}{" "}
+                                more
+                              </Text>
                             )}
-                          </div>
-                        </div>
+                          </Stack>
+                        </Card>
                       )}
-                    </div>
+                    </Stack>
                   )}
-                </div>
+                </Box>
 
-                <div className="flex flex-col gap-2 ml-4">
+                <Stack gap="xs" style={{ minWidth: "120px" }}>
                   {subscription.totalQueuedEvents > 0 && (
-                    <button
+                    <Button
                       onClick={() => handleSendEmailNow(subscription._id)}
-                      disabled={sendingEmailFor === subscription._id}
-                      className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                      loading={sendingEmailFor === subscription._id}
+                      color="green"
+                      size="sm"
+                      leftSection={<IconMail size={16} />}
                     >
-                      {sendingEmailFor === subscription._id ? "Sending..." : "📧 Send Email Now"}
-                    </button>
+                      {sendingEmailFor === subscription._id
+                        ? "Sending..."
+                        : "Send Now"}
+                    </Button>
                   )}
-                  
-                  <button
-                    onClick={() => handleToggleActive(subscription._id, subscription.isActive)}
-                    className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                      subscription.isActive
-                        ? "bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
-                        : "bg-green-100 hover:bg-green-200 text-green-800"
-                    }`}
+
+                  <Button
+                    onClick={() =>
+                      handleToggleActive(
+                        subscription._id,
+                        subscription.isActive,
+                      )
+                    }
+                    variant="light"
+                    color={subscription.isActive ? "yellow" : "green"}
+                    size="sm"
+                    leftSection={
+                      subscription.isActive ? (
+                        <IconPlayerPause size={16} />
+                      ) : (
+                        <IconPlayerPlay size={16} />
+                      )
+                    }
                   >
                     {subscription.isActive ? "Pause" : "Activate"}
-                  </button>
-                  
+                  </Button>
+
                   {editingId !== subscription._id && (
-                    <button
+                    <Button
                       onClick={() => handleEdit(subscription)}
-                      className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded text-sm font-medium transition-colors"
+                      variant="light"
+                      color="blue"
+                      size="sm"
+                      leftSection={<IconEdit size={16} />}
                     >
                       Edit
-                    </button>
+                    </Button>
                   )}
-                  
-                  <button
+
+                  <Button
                     onClick={() => handleDelete(subscription._id)}
-                    className="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-2 rounded text-sm font-medium transition-colors"
+                    variant="light"
+                    color="red"
+                    size="sm"
+                    leftSection={<IconTrash size={16} />}
                   >
                     Delete
-                  </button>
-                </div>
-              </div>
-            </div>
+                  </Button>
+                </Stack>
+              </Group>
+            </Card>
           ))}
-        </div>
+        </Stack>
       )}
-    </div>
+    </Container>
   );
 }

@@ -4,6 +4,16 @@ import { useState } from "react";
 import { EventGallery } from "./EventGallery";
 import { EventDetailPage } from "./EventDetailPage";
 import { Id } from "../../convex/_generated/dataModel";
+import {
+  Container,
+  Group,
+  Button,
+  Paper,
+  Title,
+  Text,
+  Center,
+  Stack,
+} from "@mantine/core";
 
 type Page = "home" | "event-detail" | "login";
 
@@ -13,7 +23,9 @@ interface PublicAppProps {
 
 export function PublicApp({ onNavigateToLogin }: PublicAppProps) {
   const [currentPage, setCurrentPage] = useState<Page>("home");
-  const [selectedEventId, setSelectedEventId] = useState<Id<"events"> | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<Id<"events"> | null>(
+    null,
+  );
 
   const navigateToHome = () => {
     setCurrentPage("home");
@@ -26,58 +38,68 @@ export function PublicApp({ onNavigateToLogin }: PublicAppProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button
+    <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
+      <Paper
+        shadow="xs"
+        withBorder
+        style={{ borderTop: "none", borderLeft: "none", borderRight: "none" }}
+      >
+        <Container size="xl" py="md">
+          <Group justify="space-between">
+            <Button
+              variant="subtle"
+              size="lg"
               onClick={navigateToHome}
-              className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
+              color="gray"
+              style={{ fontWeight: "bold", fontSize: "1.25rem" }}
             >
               EventFinder
-            </button>
-            
-            <button
-              onClick={onNavigateToLogin}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
+            </Button>
+
+            <Button onClick={onNavigateToLogin} size="md">
               Sign In
-            </button>
-          </div>
-        </div>
-      </header>
-      
-      <main className="container mx-auto px-4 py-8">
+            </Button>
+          </Group>
+        </Container>
+      </Paper>
+
+      <Container size="xl" py="xl">
         {currentPage === "home" && (
-          <div className="space-y-6">
-            <div className="text-center py-8">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                Discover Amazing Events
-              </h1>
-              <p className="text-xl text-gray-600 mb-8">
-                Find events that match your interests and never miss out
-              </p>
-              <button
-                onClick={onNavigateToLogin}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium text-lg transition-colors"
+          <Stack gap="xl">
+            <Center>
+              <Stack
+                gap="xl"
+                align="center"
+                style={{
+                  textAlign: "center",
+                  paddingTop: "2rem",
+                  paddingBottom: "2rem",
+                }}
               >
-                Get Started - Sign In
-              </button>
-            </div>
-            
-            <EventGallery 
-              onEventClick={navigateToEventDetail}
-            />
-          </div>
+                <Title order={1} size="3rem" fw={700}>
+                  Discover Amazing Events
+                </Title>
+                <Text size="xl" c="dimmed" style={{ marginBottom: "2rem" }}>
+                  Find events that match your interests and never miss out
+                </Text>
+                <Button
+                  onClick={onNavigateToLogin}
+                  size="lg"
+                  style={{ fontSize: "1.125rem" }}
+                >
+                  Get Started - Sign In
+                </Button>
+              </Stack>
+            </Center>
+
+            <EventGallery onEventClick={navigateToEventDetail} />
+          </Stack>
         )}
-        
+
         {currentPage === "event-detail" && selectedEventId && (
-          <EventDetailPage 
-            eventId={selectedEventId} 
-            onBack={navigateToHome}
-          />
+          <EventDetailPage eventId={selectedEventId} onBack={navigateToHome} />
         )}
-      </main>
+      </Container>
     </div>
   );
 }

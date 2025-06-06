@@ -5,65 +5,89 @@ import { EventCard } from "./EventCard";
 import { SearchBar } from "./SearchBar";
 import { DateFilter } from "./DateFilter";
 import { Id } from "../../convex/_generated/dataModel";
+import {
+  Stack,
+  Group,
+  Loader,
+  Center,
+  Text,
+  Card,
+  Title,
+  SimpleGrid,
+} from "@mantine/core";
 
 interface EventGalleryProps {
   onEventClick: (eventId: Id<"events">) => void;
   onEventDebugClick?: (eventId: Id<"events">) => void;
 }
 
-export function EventGallery({ onEventClick, onEventDebugClick }: EventGalleryProps) {
+export function EventGallery({
+  onEventClick,
+  onEventDebugClick,
+}: EventGalleryProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<"all" | "week" | "month" | "3months">("all");
-  
-  const events = useQuery(api.events.search, { 
+  const [dateFilter, setDateFilter] = useState<
+    "all" | "week" | "month" | "3months"
+  >("all");
+
+  const events = useQuery(api.events.search, {
     searchTerm: searchTerm.trim() || "",
-    dateFilter 
+    dateFilter,
   });
 
   if (events === undefined) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <Center py="xl">
+        <Loader size="lg" />
+      </Center>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <SearchBar 
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-          />
+    <Stack gap="lg">
+      <Group align="flex-start" gap="md" style={{ flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: "300px" }}>
+          <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
         </div>
-        <DateFilter 
-          value={dateFilter}
-          onChange={setDateFilter}
-        />
-      </div>
+        <DateFilter value={dateFilter} onChange={setDateFilter} />
+      </Group>
 
       {events.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow-sm">
-          <div className="text-gray-400 text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No events found</h3>
-          <p className="text-gray-600">
-            {searchTerm ? "Try adjusting your search terms" : "Check back later for new events"}
-          </p>
-        </div>
+        <Card
+          shadow="sm"
+          padding="xl"
+          radius="lg"
+          style={{ textAlign: "center" }}
+        >
+          <Text size="4rem" style={{ marginBottom: "1rem" }}>
+            🔍
+          </Text>
+          <Title order={3} mb="xs">
+            No events found
+          </Title>
+          <Text c="dimmed">
+            {searchTerm
+              ? "Try adjusting your search terms"
+              : "Check back later for new events"}
+          </Text>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
           {events.map((event) => (
             <EventCard
               key={event._id}
               event={event}
               onClick={() => onEventClick(event._id)}
-              onDebugClick={onEventDebugClick ? () => onEventDebugClick(event._id) : undefined}
+              onDebugClick={
+                onEventDebugClick
+                  ? () => onEventDebugClick(event._id)
+                  : undefined
+              }
               showDebugButton={!!onEventDebugClick}
             />
           ))}
-        </div>
+        </SimpleGrid>
       )}
-    </div>
+    </Stack>
   );
 }

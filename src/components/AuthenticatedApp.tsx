@@ -11,13 +11,14 @@ import { EventDebugPage } from "./EventDebugPage";
 import { SourcesListPage } from "./SourcesListPage";
 import { AddSourcePage } from "./AddSourcePage";
 import { Id } from "../../convex/_generated/dataModel";
+import { Container, Loader, Center } from "@mantine/core";
 
-type Page = 
-  | "home" 
-  | "subscriptions" 
-  | "create-subscription" 
-  | "event-detail" 
-  | "admin" 
+type Page =
+  | "home"
+  | "subscriptions"
+  | "create-subscription"
+  | "event-detail"
+  | "admin"
   | "event-debug"
   | "sources"
   | "add-source";
@@ -25,9 +26,11 @@ type Page =
 export function AuthenticatedApp() {
   const user = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.users.isCurrentUserAdmin);
-  
+
   const [currentPage, setCurrentPage] = useState<Page>("home");
-  const [selectedEventId, setSelectedEventId] = useState<Id<"events"> | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<Id<"events"> | null>(
+    null,
+  );
 
   const navigateToHome = () => {
     setCurrentPage("home");
@@ -66,71 +69,69 @@ export function AuthenticatedApp() {
 
   if (user === undefined || isAdmin === undefined) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <Center style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
+        <Loader size="lg" />
+      </Center>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header 
+    <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
+      <Header
         onNavigateHome={navigateToHome}
         onNavigateSubscriptions={navigateToSubscriptions}
         onNavigateAdmin={isAdmin ? navigateToAdmin : undefined}
         currentPage={currentPage}
       />
-      
-      <main className="container mx-auto px-4 py-8">
+
+      <Container size="xl" py="xl">
         {currentPage === "home" && (
-          <EventGallery 
+          <EventGallery
             onEventClick={navigateToEventDetail}
             onEventDebugClick={isAdmin ? navigateToEventDebug : undefined}
           />
         )}
-        
+
         {currentPage === "subscriptions" && (
-          <SubscriptionsPage 
-            onCreateNew={navigateToCreateSubscription}
-          />
+          <SubscriptionsPage onCreateNew={navigateToCreateSubscription} />
         )}
-        
+
         {currentPage === "create-subscription" && (
           <CreateSubscriptionPage onBack={navigateToSubscriptions} />
         )}
-        
+
         {currentPage === "event-detail" && selectedEventId && (
-          <EventDetailPage 
-            eventId={selectedEventId} 
+          <EventDetailPage
+            eventId={selectedEventId}
             onBack={navigateToHome}
-            onDebugClick={isAdmin ? () => navigateToEventDebug(selectedEventId) : undefined}
+            onDebugClick={
+              isAdmin ? () => navigateToEventDebug(selectedEventId) : undefined
+            }
           />
         )}
-        
+
         {currentPage === "admin" && isAdmin && (
-          <AppAdminPage 
-            onNavigateToSources={navigateToSources}
-          />
+          <AppAdminPage onNavigateToSources={navigateToSources} />
         )}
-        
+
         {currentPage === "event-debug" && selectedEventId && isAdmin && (
-          <EventDebugPage 
+          <EventDebugPage
             eventId={selectedEventId as string}
             onBack={navigateToAdmin}
           />
         )}
-        
+
         {currentPage === "sources" && isAdmin && (
-          <SourcesListPage 
+          <SourcesListPage
             onBack={navigateToAdmin}
             onNavigateToAddSource={navigateToAddSource}
           />
         )}
-        
+
         {currentPage === "add-source" && isAdmin && (
           <AddSourcePage onBack={navigateToSources} />
         )}
-      </main>
+      </Container>
     </div>
   );
 }
