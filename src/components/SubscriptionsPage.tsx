@@ -308,28 +308,26 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
                             Queued Events ({subscription.totalQueuedEvents})
                           </Title>
                           <Stack gap="xs">
-                            {subscription.queuedEvents.map(
-                              (queueItem: {
-                                _id: Id<"emailQueue">;
-                                matchScore: number;
-                                event: { title: string; eventDate: number };
-                              }) => (
-                                <Box key={queueItem._id}>
-                                  <Group gap="xs" align="center">
-                                    <Text fw={500} size="sm" c="blue.8">
-                                      {queueItem.event.title}
-                                    </Text>
-                                    <Text size="xs" c="blue.6">
-                                      ({(queueItem.matchScore * 100).toFixed(0)}
-                                      % match)
-                                    </Text>
-                                  </Group>
-                                  <Text size="xs" c="blue.6">
-                                    📅 {formatDate(queueItem.event.eventDate)}
+                            {subscription.queuedEvents.map((queueItem) => (
+                              <Box key={queueItem._id}>
+                                <Group gap="xs" align="center">
+                                  <Text fw={500} size="sm" c="blue.8">
+                                    {queueItem.event?.title ||
+                                      "Event not found"}
                                   </Text>
-                                </Box>
-                              ),
-                            )}
+                                  <Text size="xs" c="blue.6">
+                                    ({(queueItem.matchScore * 100).toFixed(0)}%
+                                    match)
+                                  </Text>
+                                </Group>
+                                <Text size="xs" c="blue.6">
+                                  📅{" "}
+                                  {queueItem.event
+                                    ? formatDate(queueItem.event.eventDate)
+                                    : "Unknown date"}
+                                </Text>
+                              </Box>
+                            ))}
                             {subscription.totalQueuedEvents > 5 && (
                               <Text size="xs" c="blue.6">
                                 ... and {subscription.totalQueuedEvents - 5}{" "}

@@ -34,8 +34,8 @@ type PreviewEvent = {
   imageUrl?: string;
   score: number;
   matchType: "semantic" | "title";
-  meetsThreshold: boolean;
-  thresholdValue: number;
+  meetsThreshold?: boolean;
+  thresholdValue?: number;
 };
 
 export function CreateSubscriptionPage({
@@ -124,20 +124,20 @@ export function CreateSubscriptionPage({
     }
   };
 
-  const getScoreColor = (score: number, meetsThreshold: boolean) => {
+  const getScoreColor = (score: number, meetsThreshold?: boolean) => {
     if (!meetsThreshold) return "gray";
     if (score >= 0.8) return "green";
     if (score >= 0.6) return "yellow";
     return "red";
   };
 
-  const getMatchTypeColor = (matchType: string, meetsThreshold: boolean) => {
+  const getMatchTypeColor = (matchType: string, meetsThreshold?: boolean) => {
     if (!meetsThreshold) return "gray";
     if (matchType === "semantic") return "blue";
     return "grape";
   };
 
-  const getCardOpacity = (meetsThreshold: boolean) => {
+  const getCardOpacity = (meetsThreshold?: boolean) => {
     return meetsThreshold ? 1 : 0.6;
   };
 

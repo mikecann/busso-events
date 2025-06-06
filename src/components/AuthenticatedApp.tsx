@@ -115,10 +115,7 @@ export function AuthenticatedApp() {
         )}
 
         {currentPage === "event-debug" && selectedEventId && isAdmin && (
-          <EventDebugPage
-            eventId={selectedEventId as string}
-            onBack={navigateToAdmin}
-          />
+          <EventDebugPage eventId={selectedEventId} onBack={navigateToAdmin} />
         )}
 
         {currentPage === "sources" && isAdmin && (

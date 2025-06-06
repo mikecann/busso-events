@@ -22,8 +22,20 @@ function getIsActive(subscription: Doc<"subscriptions">): boolean {
   return subscription.status === "active";
 }
 
+type QueuedEventItem = {
+  _id: Id<"emailQueue">;
+  subscriptionId: Id<"subscriptions">;
+  eventId: Id<"events">;
+  matchScore: number;
+  matchType: string;
+  queuedAt: number;
+  emailSent?: boolean;
+  emailSentAt?: number;
+  event: Doc<"events"> | null;
+};
+
 type SubscriptionWithQueue = Doc<"subscriptions"> & {
-  queuedEvents: unknown[];
+  queuedEvents: QueuedEventItem[];
   totalQueuedEvents: number;
   nextEmailScheduled: number;
   emailFrequencyHours: number;
@@ -43,7 +55,7 @@ export const list = query({
     // Get queued events for each subscription
     const subscriptionsWithQueue: SubscriptionWithQueue[] = await Promise.all(
       subscriptions.map(async (sub): Promise<SubscriptionWithQueue> => {
-        const queuedEvents: unknown[] = await ctx.runQuery(
+        const queuedEvents: QueuedEventItem[] = await ctx.runQuery(
           internal.emailQueue.getQueuedEventsForSubscription,
           {
             subscriptionId: sub._id,

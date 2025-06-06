@@ -276,7 +276,9 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Group justify="space-between" align="flex-start">
             <Box style={{ flex: 1 }}>
               {type === "datetime" ? (
-                <Text>{formatDate(value)}</Text>
+                <Text>
+                  {typeof value === "number" ? formatDate(value) : "Not set"}
+                </Text>
               ) : (
                 <Text style={{ whiteSpace: "pre-wrap" }}>
                   {value || "Not set"}
