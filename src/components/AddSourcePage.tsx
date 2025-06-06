@@ -39,7 +39,7 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
     startingUrl: "",
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const onApiError = useAPIErrorHandler();
 
@@ -64,9 +64,9 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
         </Box>
         <Card shadow="sm" padding="xl" radius="lg" withBorder>
           <form
-            onSubmit={async (e: React.FormEvent) => {
+            onSubmit={(e) => {
               e.preventDefault();
-              setIsSubmitting(true);
+              setIsLoading(true);
 
               createSource({
                 name: formData.name,
@@ -74,7 +74,7 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
               })
                 .then(() => toast.success("Event source created successfully!"))
                 .catch(onApiError)
-                .finally(() => setIsSubmitting(false));
+                .finally(() => setIsLoading(false));
             }}
           >
             <Stack gap="lg">
@@ -124,14 +124,15 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    setIsLoading(true);
                     startTestScrape({ url: formData.startingUrl })
                       .then((testScrapeId) =>
                         setCurrentTestScrapeId(testScrapeId),
                       )
                       .catch(onApiError)
-                      .finally(() => setIsSubmitting(false))
-                  }
+                      .finally(() => setIsLoading(false));
+                  }}
                   disabled={!formData.startingUrl}
                   color="yellow"
                   size="lg"
@@ -142,12 +143,12 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isLoading}
                   size="lg"
                   style={{ flex: 1 }}
-                  loading={isSubmitting}
+                  loading={isLoading}
                 >
-                  {isSubmitting ? "Creating..." : "Create Source"}
+                  {isLoading ? "Creating..." : "Create Source"}
                 </Button>
               </Group>
             </Stack>
