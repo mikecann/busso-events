@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -36,9 +37,10 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
   const deleteSubscription = useMutation(api.subscriptions.remove);
   const sendEmailNow = useAction(api.emailSending.sendSubscriptionEmail);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<Id<"subscriptions"> | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
-  const [sendingEmailFor, setSendingEmailFor] = useState<string | null>(null);
+  const [sendingEmailFor, setSendingEmailFor] =
+    useState<Id<"subscriptions"> | null>(null);
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString("en-US", {
@@ -68,10 +70,13 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
     }
   };
 
-  const handleToggleActive = async (id: string, currentActive: boolean) => {
+  const handleToggleActive = async (
+    id: Id<"subscriptions">,
+    currentActive: boolean,
+  ) => {
     try {
       await updateSubscription({
-        id: id as any,
+        id: id,
         isActive: !currentActive,
       });
       toast.success(
@@ -83,15 +88,18 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
     }
   };
 
-  const handleEdit = (subscription: any) => {
+  const handleEdit = (subscription: {
+    _id: Id<"subscriptions">;
+    prompt: string;
+  }) => {
     setEditingId(subscription._id);
     setEditPrompt(subscription.prompt);
   };
 
-  const handleSaveEdit = async (id: string) => {
+  const handleSaveEdit = async (id: Id<"subscriptions">) => {
     try {
       await updateSubscription({
-        id: id as any,
+        id: id,
         prompt: editPrompt,
       });
       setEditingId(null);
@@ -107,13 +115,13 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
     setEditPrompt("");
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: Id<"subscriptions">) => {
     if (!confirm("Are you sure you want to delete this subscription?")) {
       return;
     }
 
     try {
-      await deleteSubscription({ id: id as any });
+      await deleteSubscription({ id: id });
       toast.success("Subscription deleted");
     } catch (error) {
       toast.error("Failed to delete subscription");
@@ -121,11 +129,11 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
     }
   };
 
-  const handleSendEmailNow = async (subscriptionId: string) => {
+  const handleSendEmailNow = async (subscriptionId: Id<"subscriptions">) => {
     setSendingEmailFor(subscriptionId);
     try {
       const result = await sendEmailNow({
-        subscriptionId: subscriptionId as any,
+        subscriptionId: subscriptionId,
       });
       if (result.success) {
         toast.success(
@@ -300,22 +308,28 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
                             Queued Events ({subscription.totalQueuedEvents})
                           </Title>
                           <Stack gap="xs">
-                            {subscription.queuedEvents.map((queueItem: any) => (
-                              <Box key={queueItem._id}>
-                                <Group gap="xs" align="center">
-                                  <Text fw={500} size="sm" c="blue.8">
-                                    {queueItem.event.title}
-                                  </Text>
+                            {subscription.queuedEvents.map(
+                              (queueItem: {
+                                _id: Id<"emailQueue">;
+                                matchScore: number;
+                                event: { title: string; eventDate: number };
+                              }) => (
+                                <Box key={queueItem._id}>
+                                  <Group gap="xs" align="center">
+                                    <Text fw={500} size="sm" c="blue.8">
+                                      {queueItem.event.title}
+                                    </Text>
+                                    <Text size="xs" c="blue.6">
+                                      ({(queueItem.matchScore * 100).toFixed(0)}
+                                      % match)
+                                    </Text>
+                                  </Group>
                                   <Text size="xs" c="blue.6">
-                                    ({(queueItem.matchScore * 100).toFixed(0)}%
-                                    match)
+                                    📅 {formatDate(queueItem.event.eventDate)}
                                   </Text>
-                                </Group>
-                                <Text size="xs" c="blue.6">
-                                  📅 {formatDate(queueItem.event.eventDate)}
-                                </Text>
-                              </Box>
-                            ))}
+                                </Box>
+                              ),
+                            )}
                             {subscription.totalQueuedEvents > 5 && (
                               <Text size="xs" c="blue.6">
                                 ... and {subscription.totalQueuedEvents - 5}{" "}

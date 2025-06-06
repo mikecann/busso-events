@@ -1,10 +1,11 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
+import { Doc, Id } from "./_generated/dataModel";
 
 // Helper function to check authentication
-async function requireAuth(ctx: any) {
+async function requireAuth(ctx: QueryCtx): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
   if (!userId) {
     throw new Error("Must be authenticated");
@@ -13,7 +14,7 @@ async function requireAuth(ctx: any) {
 }
 
 // Helper function to get isActive status from either field
-function getIsActive(subscription: any): boolean {
+function getIsActive(subscription: Doc<"subscriptions">): boolean {
   if (subscription.isActive !== undefined) {
     return subscription.isActive;
   }
@@ -21,11 +22,18 @@ function getIsActive(subscription: any): boolean {
   return subscription.status === "active";
 }
 
+type SubscriptionWithQueue = Doc<"subscriptions"> & {
+  queuedEvents: unknown[];
+  totalQueuedEvents: number;
+  nextEmailScheduled: number;
+  emailFrequencyHours: number;
+};
+
 export const list = query({
   args: {},
-  handler: async (ctx): Promise<any[]> => {
+  handler: async (ctx): Promise<SubscriptionWithQueue[]> => {
     const userId = await requireAuth(ctx);
-    
+
     const subscriptions = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -33,17 +41,20 @@ export const list = query({
       .collect();
 
     // Get queued events for each subscription
-    const subscriptionsWithQueue: any[] = await Promise.all(
-      subscriptions.map(async (sub): Promise<any> => {
-        const queuedEvents: any[] = await ctx.runQuery(internal.emailQueue.getQueuedEventsForSubscription, {
-          subscriptionId: sub._id,
-          includeAlreadySent: false,
-        });
+    const subscriptionsWithQueue: SubscriptionWithQueue[] = await Promise.all(
+      subscriptions.map(async (sub): Promise<SubscriptionWithQueue> => {
+        const queuedEvents: unknown[] = await ctx.runQuery(
+          internal.emailQueue.getQueuedEventsForSubscription,
+          {
+            subscriptionId: sub._id,
+            includeAlreadySent: false,
+          },
+        );
 
         // Calculate next email time
         const emailFrequency = sub.emailFrequencyHours || 24; // Default 24 hours
         const lastEmailSent = sub.lastEmailSent || 0;
-        const nextEmailTime = lastEmailSent + (emailFrequency * 60 * 60 * 1000);
+        const nextEmailTime = lastEmailSent + emailFrequency * 60 * 60 * 1000;
 
         return {
           ...sub,
@@ -53,7 +64,7 @@ export const list = query({
           nextEmailScheduled: nextEmailTime,
           emailFrequencyHours: emailFrequency,
         };
-      })
+      }),
     );
 
     return subscriptionsWithQueue;
@@ -68,7 +79,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    
+
     const subscriptionId = await ctx.db.insert("subscriptions", {
       userId,
       prompt: args.prompt,
@@ -79,9 +90,13 @@ export const create = mutation({
     });
 
     // Schedule embedding generation for the new subscription
-    await ctx.scheduler.runAfter(0, internal.embeddings.generateSubscriptionEmbedding, {
-      subscriptionId,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.embeddings.generateSubscriptionEmbedding,
+      {
+        subscriptionId,
+      },
+    );
 
     return subscriptionId;
   },
@@ -96,21 +111,21 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    
+
     // Verify ownership
     const subscription = await ctx.db.get(args.id);
     if (!subscription || subscription.userId !== userId) {
       throw new Error("Subscription not found or access denied");
     }
-    
+
     const { id, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
+      Object.entries(updates).filter(([_, value]) => value !== undefined),
     );
-    
+
     // Remove old status field if updating isActive
     if (args.isActive !== undefined) {
-      await ctx.db.patch(id, { 
+      await ctx.db.patch(id, {
         ...filteredUpdates,
         status: undefined, // Remove old field
       });
@@ -120,9 +135,13 @@ export const update = mutation({
 
     // If prompt changed, regenerate embedding
     if (args.prompt) {
-      await ctx.scheduler.runAfter(0, internal.embeddings.generateSubscriptionEmbedding, {
-        subscriptionId: args.id,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.embeddings.generateSubscriptionEmbedding,
+        {
+          subscriptionId: args.id,
+        },
+      );
     }
   },
 });
@@ -133,13 +152,13 @@ export const remove = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    
+
     // Verify ownership
     const subscription = await ctx.db.get(args.id);
     if (!subscription || subscription.userId !== userId) {
       throw new Error("Subscription not found or access denied");
     }
-    
+
     await ctx.db.delete(args.id);
   },
 });

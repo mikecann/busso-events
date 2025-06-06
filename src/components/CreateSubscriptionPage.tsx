@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
   Container,
@@ -25,6 +26,18 @@ interface CreateSubscriptionPageProps {
   onBack: () => void;
 }
 
+type PreviewEvent = {
+  _id: Id<"events">;
+  title: string;
+  description: string;
+  eventDate: number;
+  imageUrl?: string;
+  score: number;
+  matchType: "semantic" | "title";
+  meetsThreshold: boolean;
+  thresholdValue: number;
+};
+
 export function CreateSubscriptionPage({
   onBack,
 }: CreateSubscriptionPageProps) {
@@ -36,7 +49,9 @@ export function CreateSubscriptionPage({
   const [prompt, setPrompt] = useState("");
   const [debouncedPrompt, setDebouncedPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [previewEvents, setPreviewEvents] = useState<any[] | null>(null);
+  const [previewEvents, setPreviewEvents] = useState<PreviewEvent[] | null>(
+    null,
+  );
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   // Debounce the prompt for search
@@ -247,67 +262,69 @@ export function CreateSubscriptionPage({
                               cols={{ base: 1, md: 2, lg: 3 }}
                               spacing="md"
                             >
-                              {eventsAboveThreshold.map((event: any) => (
-                                <Card
-                                  key={event._id}
-                                  withBorder
-                                  padding="md"
-                                  radius="md"
-                                  style={{
-                                    opacity: getCardOpacity(
-                                      event.meetsThreshold,
-                                    ),
-                                  }}
-                                >
-                                  {event.imageUrl && (
-                                    <Card.Section>
-                                      <Image
-                                        src={event.imageUrl}
-                                        alt={event.title}
-                                        height={128}
-                                        onError={(e) => {
-                                          e.currentTarget.style.display =
-                                            "none";
-                                        }}
-                                      />
-                                    </Card.Section>
-                                  )}
-                                  <Stack gap="xs" mt="sm">
-                                    <Group gap="xs">
-                                      <Badge
-                                        color={getScoreColor(
-                                          event.score,
-                                          event.meetsThreshold,
-                                        )}
-                                        size="xs"
-                                      >
-                                        Score: {event.score.toFixed(3)}
-                                      </Badge>
-                                      <Badge
-                                        color={getMatchTypeColor(
-                                          event.matchType,
-                                          event.meetsThreshold,
-                                        )}
-                                        size="xs"
-                                      >
-                                        {event.matchType}
-                                      </Badge>
-                                    </Group>
-                                    <Text fw={500} size="sm" lineClamp={2}>
-                                      {event.title}
-                                    </Text>
-                                    <Group gap="xs" align="center">
-                                      <IconCalendar size={12} />
-                                      <Text size="xs" c="dimmed">
-                                        {formatEventDate(event.eventDate)}
+                              {eventsAboveThreshold.map(
+                                (event: PreviewEvent) => (
+                                  <Card
+                                    key={event._id}
+                                    withBorder
+                                    padding="md"
+                                    radius="md"
+                                    style={{
+                                      opacity: getCardOpacity(
+                                        event.meetsThreshold,
+                                      ),
+                                    }}
+                                  >
+                                    {event.imageUrl && (
+                                      <Card.Section>
+                                        <Image
+                                          src={event.imageUrl}
+                                          alt={event.title}
+                                          height={128}
+                                          onError={(e) => {
+                                            e.currentTarget.style.display =
+                                              "none";
+                                          }}
+                                        />
+                                      </Card.Section>
+                                    )}
+                                    <Stack gap="xs" mt="sm">
+                                      <Group gap="xs">
+                                        <Badge
+                                          color={getScoreColor(
+                                            event.score,
+                                            event.meetsThreshold,
+                                          )}
+                                          size="xs"
+                                        >
+                                          Score: {event.score.toFixed(3)}
+                                        </Badge>
+                                        <Badge
+                                          color={getMatchTypeColor(
+                                            event.matchType,
+                                            event.meetsThreshold,
+                                          )}
+                                          size="xs"
+                                        >
+                                          {event.matchType}
+                                        </Badge>
+                                      </Group>
+                                      <Text fw={500} size="sm" lineClamp={2}>
+                                        {event.title}
                                       </Text>
-                                    </Group>
-                                    <Text size="xs" c="dimmed" lineClamp={3}>
-                                      {event.description}
-                                    </Text>
-                                  </Stack>
-                                </Card>
-                              ))}
+                                      <Group gap="xs" align="center">
+                                        <IconCalendar size={12} />
+                                        <Text size="xs" c="dimmed">
+                                          {formatEventDate(event.eventDate)}
+                                        </Text>
+                                      </Group>
+                                      <Text size="xs" c="dimmed" lineClamp={3}>
+                                        {event.description}
+                                      </Text>
+                                    </Stack>
+                                  </Card>
+                                ),
+                              )}
                             </SimpleGrid>
                           </Box>
                         )}
@@ -331,77 +348,79 @@ export function CreateSubscriptionPage({
                               cols={{ base: 1, md: 2, lg: 3 }}
                               spacing="md"
                             >
-                              {eventsBelowThreshold.map((event: any) => (
-                                <Card
-                                  key={event._id}
-                                  withBorder
-                                  padding="md"
-                                  radius="md"
-                                  bg="gray.0"
-                                  style={{
-                                    opacity: getCardOpacity(
-                                      event.meetsThreshold,
-                                    ),
-                                  }}
-                                >
-                                  {event.imageUrl && (
-                                    <Card.Section>
-                                      <Image
-                                        src={event.imageUrl}
-                                        alt={event.title}
-                                        height={128}
-                                        style={{ filter: "grayscale(100%)" }}
-                                        onError={(e) => {
-                                          e.currentTarget.style.display =
-                                            "none";
-                                        }}
-                                      />
-                                    </Card.Section>
-                                  )}
-                                  <Stack gap="xs" mt="sm">
-                                    <Group gap="xs">
-                                      <Badge
-                                        color={getScoreColor(
-                                          event.score,
-                                          event.meetsThreshold,
-                                        )}
-                                        size="xs"
+                              {eventsBelowThreshold.map(
+                                (event: PreviewEvent) => (
+                                  <Card
+                                    key={event._id}
+                                    withBorder
+                                    padding="md"
+                                    radius="md"
+                                    bg="gray.0"
+                                    style={{
+                                      opacity: getCardOpacity(
+                                        event.meetsThreshold,
+                                      ),
+                                    }}
+                                  >
+                                    {event.imageUrl && (
+                                      <Card.Section>
+                                        <Image
+                                          src={event.imageUrl}
+                                          alt={event.title}
+                                          height={128}
+                                          style={{ filter: "grayscale(100%)" }}
+                                          onError={(e) => {
+                                            e.currentTarget.style.display =
+                                              "none";
+                                          }}
+                                        />
+                                      </Card.Section>
+                                    )}
+                                    <Stack gap="xs" mt="sm">
+                                      <Group gap="xs">
+                                        <Badge
+                                          color={getScoreColor(
+                                            event.score,
+                                            event.meetsThreshold,
+                                          )}
+                                          size="xs"
+                                        >
+                                          Score: {event.score.toFixed(3)}
+                                        </Badge>
+                                        <Badge
+                                          color={getMatchTypeColor(
+                                            event.matchType,
+                                            event.meetsThreshold,
+                                          )}
+                                          size="xs"
+                                        >
+                                          {event.matchType}
+                                        </Badge>
+                                        <Badge color="red" size="xs">
+                                          Below {event.thresholdValue}
+                                        </Badge>
+                                      </Group>
+                                      <Text
+                                        fw={500}
+                                        size="sm"
+                                        c="dimmed"
+                                        lineClamp={2}
                                       >
-                                        Score: {event.score.toFixed(3)}
-                                      </Badge>
-                                      <Badge
-                                        color={getMatchTypeColor(
-                                          event.matchType,
-                                          event.meetsThreshold,
-                                        )}
-                                        size="xs"
-                                      >
-                                        {event.matchType}
-                                      </Badge>
-                                      <Badge color="red" size="xs">
-                                        Below {event.thresholdValue}
-                                      </Badge>
-                                    </Group>
-                                    <Text
-                                      fw={500}
-                                      size="sm"
-                                      c="dimmed"
-                                      lineClamp={2}
-                                    >
-                                      {event.title}
-                                    </Text>
-                                    <Group gap="xs" align="center">
-                                      <IconCalendar size={12} />
-                                      <Text size="xs" c="dimmed">
-                                        {formatEventDate(event.eventDate)}
+                                        {event.title}
                                       </Text>
-                                    </Group>
-                                    <Text size="xs" c="dimmed" lineClamp={3}>
-                                      {event.description}
-                                    </Text>
-                                  </Stack>
-                                </Card>
-                              ))}
+                                      <Group gap="xs" align="center">
+                                        <IconCalendar size={12} />
+                                        <Text size="xs" c="dimmed">
+                                          {formatEventDate(event.eventDate)}
+                                        </Text>
+                                      </Group>
+                                      <Text size="xs" c="dimmed" lineClamp={3}>
+                                        {event.description}
+                                      </Text>
+                                    </Stack>
+                                  </Card>
+                                ),
+                              )}
                             </SimpleGrid>
                           </Box>
                         )}

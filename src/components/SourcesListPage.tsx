@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -38,7 +39,7 @@ export function SourcesListPage({
   const updateSource = useMutation(api.eventSources.update);
   const deleteSource = useMutation(api.eventSources.remove);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<Id<"eventSources"> | null>(null);
   const [editName, setEditName] = useState("");
   const [editUrl, setEditUrl] = useState("");
 
@@ -53,10 +54,13 @@ export function SourcesListPage({
     });
   };
 
-  const handleToggleActive = async (id: string, currentActive: boolean) => {
+  const handleToggleActive = async (
+    id: Id<"eventSources">,
+    currentActive: boolean,
+  ) => {
     try {
       await updateSource({
-        id: id as any,
+        id: id,
         isActive: !currentActive,
       });
       toast.success(`Source ${!currentActive ? "activated" : "deactivated"}`);
@@ -66,16 +70,20 @@ export function SourcesListPage({
     }
   };
 
-  const handleEdit = (source: any) => {
+  const handleEdit = (source: {
+    _id: Id<"eventSources">;
+    name: string;
+    startingUrl: string;
+  }) => {
     setEditingId(source._id);
     setEditName(source.name);
     setEditUrl(source.startingUrl);
   };
 
-  const handleSaveEdit = async (id: string) => {
+  const handleSaveEdit = async (id: Id<"eventSources">) => {
     try {
       await updateSource({
-        id: id as any,
+        id: id,
         name: editName,
         startingUrl: editUrl,
       });
@@ -93,13 +101,13 @@ export function SourcesListPage({
     setEditUrl("");
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: Id<"eventSources">) => {
     if (!confirm("Are you sure you want to delete this source?")) {
       return;
     }
 
     try {
-      await deleteSource({ id: id as any });
+      await deleteSource({ id: id });
       toast.success("Source deleted");
     } catch (error) {
       toast.error("Failed to delete source");

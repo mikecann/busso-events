@@ -1,13 +1,22 @@
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 
 // Magic constant for similarity threshold
 const SIMILARITY_THRESHOLD = 0.2; // Events below this score are excluded
 
+// Types for search results
+type EventSearchResult = Doc<"events"> & {
+  _score?: number;
+  score: number;
+  matchType: "semantic" | "title";
+  meetsThreshold?: boolean;
+  thresholdValue?: number;
+};
+
 // Helper function to get isActive status from either field
-function getIsActive(subscription: any): boolean {
+function getIsActive(subscription: Doc<"subscriptions">): boolean {
   if (subscription.isActive !== undefined) {
     return subscription.isActive;
   }
@@ -18,19 +27,19 @@ function getIsActive(subscription: any): boolean {
 // Helper function to calculate cosine similarity
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
-  
+
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
-  
+
   for (let i = 0; i < a.length; i++) {
     dotProduct += a[i] * b[i];
     normA += a[i] * a[i];
     normB += b[i] * b[i];
   }
-  
+
   if (normA === 0 || normB === 0) return 0;
-  
+
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
@@ -39,7 +48,7 @@ export const previewMatchingEvents = action({
   args: {
     prompt: v.string(),
   },
-  handler: async (ctx, args): Promise<any[]> => {
+  handler: async (ctx, args): Promise<EventSearchResult[]> => {
     if (!args.prompt.trim()) {
       return [];
     }
@@ -48,32 +57,45 @@ export const previewMatchingEvents = action({
 
     try {
       // Generate embedding for the prompt
-      const promptEmbedding: number[] = await ctx.runAction(internal.embeddings.generateEmbedding, {
-        text: args.prompt,
-      });
+      const promptEmbedding: number[] = await ctx.runAction(
+        internal.embeddings.generateEmbedding,
+        {
+          text: args.prompt,
+        },
+      );
 
       // Use vector search to find similar events
-      const embeddingResults: any[] = await ctx.runQuery(internal.subscriptionQueries.searchEventsByEmbedding, {
-        embedding: promptEmbedding,
-      });
+      const embeddingResults: Doc<"events">[] = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByEmbedding,
+        {
+          embedding: promptEmbedding,
+        },
+      );
 
       // Also do text search for comparison
-      const titleResults: any[] = await ctx.runQuery(internal.subscriptionQueries.searchEventsByTitle, {
-        searchTerm: args.prompt,
-      });
+      const titleResults: Doc<"events">[] = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByTitle,
+        {
+          searchTerm: args.prompt,
+        },
+      );
 
       // Combine results and add source information
-      const allResults = [
-        ...embeddingResults.map((event: any) => ({
-          ...event,
-          matchType: "semantic",
-          score: event._score || 0,
-        })),
-        ...titleResults.map((event: any) => ({
-          ...event,
-          matchType: "title",
-          score: event._score || 0,
-        }))
+      const allResults: EventSearchResult[] = [
+        ...embeddingResults.map(
+          (event): EventSearchResult => ({
+            ...event,
+            matchType: "semantic",
+            score: (event as any)._score || 0,
+          }),
+        ),
+        ...titleResults.map(
+          (event): EventSearchResult => ({
+            ...event,
+            matchType: "title",
+            score: (event as any)._score || 0,
+          }),
+        ),
       ];
 
       // Deduplicate by ID, keeping the one with higher score
@@ -98,14 +120,16 @@ export const previewMatchingEvents = action({
       return filteredResults
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 15); // Show more results since we're including below-threshold ones
-
     } catch (error) {
       console.error("Error in previewMatchingEvents:", error);
-      
+
       // Fallback to text search only
-      const titleResults: any[] = await ctx.runQuery(internal.subscriptionQueries.searchEventsByTitle, {
-        searchTerm: args.prompt,
-      });
+      const titleResults: any[] = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByTitle,
+        {
+          searchTerm: args.prompt,
+        },
+      );
 
       // Filter to only future events and add threshold status
       const filteredResults = titleResults
@@ -133,9 +157,12 @@ export const findMatchingEventsForSubscription = action({
     maxResults: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<Doc<"events">[]> => {
-    const subscription = await ctx.runQuery(internal.subscriptionQueries.getSubscriptionById, {
-      subscriptionId: args.subscriptionId,
-    });
+    const subscription = await ctx.runQuery(
+      internal.subscriptionQueries.getSubscriptionById,
+      {
+        subscriptionId: args.subscriptionId,
+      },
+    );
 
     if (!subscription || !getIsActive(subscription)) {
       return [];
@@ -146,25 +173,34 @@ export const findMatchingEventsForSubscription = action({
 
     try {
       let promptEmbedding: number[] | undefined;
-      
+
       // Use existing embedding if available, otherwise generate it
       if (subscription.promptEmbedding) {
         promptEmbedding = subscription.promptEmbedding;
       } else {
-        promptEmbedding = await ctx.runAction(internal.embeddings.generateEmbedding, {
-          text: subscription.prompt,
-        });
+        promptEmbedding = await ctx.runAction(
+          internal.embeddings.generateEmbedding,
+          {
+            text: subscription.prompt,
+          },
+        );
       }
 
       // Use vector search to find similar events
-      const embeddingResults: any[] = await ctx.runQuery(internal.subscriptionQueries.searchEventsByEmbedding, {
-        embedding: promptEmbedding,
-      });
+      const embeddingResults: any[] = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByEmbedding,
+        {
+          embedding: promptEmbedding,
+        },
+      );
 
       // Also do text search
-      const titleResults: any[] = await ctx.runQuery(internal.subscriptionQueries.searchEventsByTitle, {
-        searchTerm: subscription.prompt,
-      });
+      const titleResults: any[] = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByTitle,
+        {
+          searchTerm: subscription.prompt,
+        },
+      );
 
       // Combine results
       const allResults = [
@@ -175,9 +211,9 @@ export const findMatchingEventsForSubscription = action({
         })),
         ...titleResults.map((event: any) => ({
           ...event,
-          matchType: "title", 
+          matchType: "title",
           score: event._score || 0,
-        }))
+        })),
       ];
 
       // Deduplicate by ID, keeping the one with higher score
@@ -190,13 +226,15 @@ export const findMatchingEventsForSubscription = action({
       });
 
       // Filter by similarity threshold and future events only
-      const filteredResults = Array.from(uniqueResults.values()).filter((event: any) => {
-        // Must be above similarity threshold
-        if (event.score < SIMILARITY_THRESHOLD) return false;
-        // Must be a future event
-        if (event.eventDate <= now) return false;
-        return true;
-      });
+      const filteredResults = Array.from(uniqueResults.values()).filter(
+        (event: any) => {
+          // Must be above similarity threshold
+          if (event.score < SIMILARITY_THRESHOLD) return false;
+          // Must be a future event
+          if (event.eventDate <= now) return false;
+          return true;
+        },
+      );
 
       // Add matching events to the email queue
       for (const event of filteredResults.slice(0, maxResults)) {
@@ -212,7 +250,6 @@ export const findMatchingEventsForSubscription = action({
       return filteredResults
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, maxResults);
-
     } catch (error) {
       console.error("Error finding matching events for subscription:", error);
       return [];
@@ -227,9 +264,12 @@ export const findMatchingEventsForSubscriptionInternal = internalAction({
     maxResults: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<Doc<"events">[]> => {
-    const subscription = await ctx.runQuery(internal.subscriptionQueries.getSubscriptionById, {
-      subscriptionId: args.subscriptionId,
-    });
+    const subscription = await ctx.runQuery(
+      internal.subscriptionQueries.getSubscriptionById,
+      {
+        subscriptionId: args.subscriptionId,
+      },
+    );
 
     if (!subscription || !getIsActive(subscription)) {
       return [];
@@ -240,25 +280,34 @@ export const findMatchingEventsForSubscriptionInternal = internalAction({
 
     try {
       let promptEmbedding: number[] | undefined;
-      
+
       // Use existing embedding if available, otherwise generate it
       if (subscription.promptEmbedding) {
         promptEmbedding = subscription.promptEmbedding;
       } else {
-        promptEmbedding = await ctx.runAction(internal.embeddings.generateEmbedding, {
-          text: subscription.prompt,
-        });
+        promptEmbedding = await ctx.runAction(
+          internal.embeddings.generateEmbedding,
+          {
+            text: subscription.prompt,
+          },
+        );
       }
 
       // Use vector search to find similar events
-      const embeddingResults: any[] = await ctx.runQuery(internal.subscriptionQueries.searchEventsByEmbedding, {
-        embedding: promptEmbedding,
-      });
+      const embeddingResults: any[] = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByEmbedding,
+        {
+          embedding: promptEmbedding,
+        },
+      );
 
       // Also do text search
-      const titleResults: any[] = await ctx.runQuery(internal.subscriptionQueries.searchEventsByTitle, {
-        searchTerm: subscription.prompt,
-      });
+      const titleResults: any[] = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByTitle,
+        {
+          searchTerm: subscription.prompt,
+        },
+      );
 
       // Combine results
       const allResults = [
@@ -269,9 +318,9 @@ export const findMatchingEventsForSubscriptionInternal = internalAction({
         })),
         ...titleResults.map((event: any) => ({
           ...event,
-          matchType: "title", 
+          matchType: "title",
           score: event._score || 0,
-        }))
+        })),
       ];
 
       // Deduplicate by ID, keeping the one with higher score
@@ -284,13 +333,15 @@ export const findMatchingEventsForSubscriptionInternal = internalAction({
       });
 
       // Filter by similarity threshold and future events only
-      const filteredResults = Array.from(uniqueResults.values()).filter((event: any) => {
-        // Must be above similarity threshold
-        if (event.score < SIMILARITY_THRESHOLD) return false;
-        // Must be a future event
-        if (event.eventDate <= now) return false;
-        return true;
-      });
+      const filteredResults = Array.from(uniqueResults.values()).filter(
+        (event: any) => {
+          // Must be above similarity threshold
+          if (event.score < SIMILARITY_THRESHOLD) return false;
+          // Must be a future event
+          if (event.eventDate <= now) return false;
+          return true;
+        },
+      );
 
       // Add matching events to the email queue
       for (const event of filteredResults.slice(0, maxResults)) {
@@ -306,7 +357,6 @@ export const findMatchingEventsForSubscriptionInternal = internalAction({
       return filteredResults
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, maxResults);
-
     } catch (error) {
       console.error("Error finding matching events for subscription:", error);
       return [];
@@ -340,27 +390,37 @@ export const processEventForSubscriptionMatching = internalAction({
       }
 
       // Get all active subscriptions
-      const subscriptions = await ctx.runQuery(internal.subscriptionQueries.getActiveSubscriptions);
-      
+      const subscriptions = await ctx.runQuery(
+        internal.subscriptionQueries.getActiveSubscriptions,
+      );
+
       if (subscriptions.length === 0) {
         console.log("No active subscriptions found");
         return;
       }
 
-      console.log(`Found ${subscriptions.length} active subscriptions to check against event`);
+      console.log(
+        `Found ${subscriptions.length} active subscriptions to check against event`,
+      );
 
       // Check this event against each subscription
       for (const subscription of subscriptions) {
         try {
           await checkEventAgainstSubscription(ctx, args.eventId, subscription);
         } catch (error) {
-          console.error(`Error checking event ${args.eventId} against subscription ${subscription._id}:`, error);
+          console.error(
+            `Error checking event ${args.eventId} against subscription ${subscription._id}:`,
+            error,
+          );
         }
       }
 
       console.log(`Completed subscription matching for event ${args.eventId}`);
     } catch (error) {
-      console.error(`Error in processEventForSubscriptionMatching for event ${args.eventId}:`, error);
+      console.error(
+        `Error in processEventForSubscriptionMatching for event ${args.eventId}:`,
+        error,
+      );
     }
   },
 });
@@ -373,42 +433,62 @@ export const triggerSubscriptionMatchingForEvent = action({
   handler: async (ctx, args) => {
     // This is a public action that can be called from the frontend
     // It will trigger the internal subscription matching process immediately
-    await ctx.runAction(internal.subscriptionMatching.processEventForSubscriptionMatching, {
-      eventId: args.eventId,
-    });
-    
-    return { success: true, message: "Subscription matching triggered successfully" };
+    await ctx.runAction(
+      internal.subscriptionMatching.processEventForSubscriptionMatching,
+      {
+        eventId: args.eventId,
+      },
+    );
+
+    return {
+      success: true,
+      message: "Subscription matching triggered successfully",
+    };
   },
 });
 
 // Helper function to check a single event against a single subscription
-async function checkEventAgainstSubscription(ctx: any, eventId: any, subscription: any) {
+async function checkEventAgainstSubscription(
+  ctx: ActionCtx,
+  eventId: Id<"events">,
+  subscription: Doc<"subscriptions">,
+) {
   try {
     let promptEmbedding: number[] | undefined;
-    
+
     // Use existing embedding if available, otherwise generate it
     if (subscription.promptEmbedding) {
       promptEmbedding = subscription.promptEmbedding;
     } else {
-      promptEmbedding = await ctx.runAction(internal.embeddings.generateEmbedding, {
-        text: subscription.prompt,
-      });
+      promptEmbedding = await ctx.runAction(
+        internal.embeddings.generateEmbedding,
+        {
+          text: subscription.prompt,
+        },
+      );
     }
 
-    const event = await ctx.runQuery(internal.eventsInternal.getEventById, { eventId });
+    const event = await ctx.runQuery(internal.eventsInternal.getEventById, {
+      eventId,
+    });
     if (!event) return;
 
     // Calculate semantic similarity if event has embedding
     let semanticScore = 0;
     if (event.descriptionEmbedding && promptEmbedding) {
-      semanticScore = cosineSimilarity(promptEmbedding, event.descriptionEmbedding);
+      semanticScore = cosineSimilarity(
+        promptEmbedding,
+        event.descriptionEmbedding,
+      );
     }
 
     // Calculate text similarity (simple keyword matching)
     let textScore = 0;
     const promptWords = subscription.prompt.toLowerCase().split(/\s+/);
     const eventText = (event.title + " " + event.description).toLowerCase();
-    const matchingWords = promptWords.filter((word: string) => eventText.includes(word));
+    const matchingWords = promptWords.filter((word: string) =>
+      eventText.includes(word),
+    );
     textScore = matchingWords.length / promptWords.length;
 
     // Use the higher score
@@ -424,9 +504,14 @@ async function checkEventAgainstSubscription(ctx: any, eventId: any, subscriptio
         matchType: matchType,
       });
 
-      console.log(`Added event ${eventId} to queue for subscription ${subscription._id} with score ${finalScore.toFixed(3)}`);
+      console.log(
+        `Added event ${eventId} to queue for subscription ${subscription._id} with score ${finalScore.toFixed(3)}`,
+      );
     }
   } catch (error) {
-    console.error(`Error checking event ${eventId} against subscription ${subscription._id}:`, error);
+    console.error(
+      `Error checking event ${eventId} against subscription ${subscription._id}:`,
+      error,
+    );
   }
 }

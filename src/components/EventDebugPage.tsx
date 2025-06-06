@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -31,12 +32,12 @@ import {
 } from "@tabler/icons-react";
 
 interface EventDebugPageProps {
-  eventId: string;
+  eventId: Id<"events">;
   onBack: () => void;
 }
 
 export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
-  const event = useQuery(api.events.getById, { id: eventId as any });
+  const event = useQuery(api.events.getById, { id: eventId });
   const updateEvent = useMutation(api.eventsAdmin.updateEvent);
   const deleteEvent = useMutation(api.eventsAdmin.deleteEvent);
   const scrapeEvent = useAction(api.eventsAdmin.scrapeEvent);
@@ -82,7 +83,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
     }
   };
 
-  const handleEdit = (field: string, currentValue: any) => {
+  const handleEdit = (field: string, currentValue: unknown) => {
     setEditingField(field);
     setEditValues({ [field]: currentValue });
   };
@@ -91,7 +92,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
     setIsUpdating(true);
     try {
       await updateEvent({
-        id: eventId as any,
+        id: eventId,
         [field]: editValues[field],
       });
       setEditingField(null);
@@ -120,7 +121,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
 
     setIsDeleting(true);
     try {
-      await deleteEvent({ id: eventId as any });
+      await deleteEvent({ id: eventId });
       toast.success("Event deleted successfully");
       onBack();
     } catch (error) {
@@ -134,7 +135,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const handleScrape = async () => {
     setIsScraping(true);
     try {
-      const result = await scrapeEvent({ eventId: eventId as any });
+      const result = await scrapeEvent({ eventId: eventId });
       if (result.success) {
         toast.success("Event scraped successfully");
       } else {
@@ -151,7 +152,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const handleGenerateEmbedding = async () => {
     setIsGeneratingEmbedding(true);
     try {
-      await generateEmbedding({ eventId: eventId as any });
+      await generateEmbedding({ eventId: eventId });
       toast.success("Embedding generated successfully");
     } catch (error) {
       toast.error("Failed to generate embedding");
@@ -165,7 +166,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
     setIsTriggeringMatching(true);
     try {
       const result = await triggerSubscriptionMatching({
-        eventId: eventId as any,
+        eventId: eventId,
       });
       if (result.success) {
         toast.success("Subscription matching triggered successfully");
@@ -208,7 +209,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const renderEditableField = (
     field: string,
     label: string,
-    value: any,
+    value: string | number | undefined,
     type: "text" | "textarea" | "datetime" = "text",
   ) => {
     const isEditing = editingField === field;
@@ -235,7 +236,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
             ) : type === "datetime" ? (
               <TextInput
                 type="datetime-local"
-                value={new Date(editValues[field] || value)
+                value={new Date(
+                  editValues[field] ||
+                    (typeof value === "number" ? value : Date.now()),
+                )
                   .toISOString()
                   .slice(0, 16)}
                 onChange={(e) =>
@@ -255,7 +259,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
             )}
             <Group gap="xs">
               <Button
-                onClick={() => handleSave(field)}
+                onClick={() => void handleSave(field)}
                 disabled={isUpdating}
                 color="green"
                 size="sm"
@@ -315,7 +319,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           </Box>
           <Group gap="xs">
             <Button
-              onClick={handleScrape}
+              onClick={() => void handleScrape()}
               disabled={isScraping}
               color="yellow"
               leftSection={<IconSearch size={16} />}
@@ -324,7 +328,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               {isScraping ? "Scraping..." : "Scrape"}
             </Button>
             <Button
-              onClick={handleGenerateEmbedding}
+              onClick={() => void handleGenerateEmbedding()}
               disabled={isGeneratingEmbedding}
               color="grape"
               leftSection={<IconBrain size={16} />}
@@ -333,7 +337,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               {isGeneratingEmbedding ? "Generating..." : "Generate Embedding"}
             </Button>
             <Button
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               disabled={isDeleting}
               color="red"
               leftSection={<IconTrash size={16} />}
@@ -423,7 +427,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Group justify="space-between" align="center" mb="lg">
             <Title order={2}>Subscription Matching</Title>
             <Button
-              onClick={handleTriggerSubscriptionMatching}
+              onClick={() => void handleTriggerSubscriptionMatching()}
               disabled={isTriggeringMatching}
               leftSection={<IconRefresh size={16} />}
               loading={isTriggeringMatching}
