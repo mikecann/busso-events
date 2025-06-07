@@ -97,6 +97,7 @@ export const updateEventAfterScrape = internalMutation({
       additionalDetails: v.optional(v.string()),
     }),
     description: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const updates: any = {
@@ -106,6 +107,10 @@ export const updateEventAfterScrape = internalMutation({
 
     if (args.description) {
       updates.description = args.description;
+    }
+
+    if (args.imageUrl) {
+      updates.imageUrl = args.imageUrl;
     }
 
     await ctx.db.patch(args.eventId, updates);
@@ -309,6 +314,51 @@ export const performEventScrape = internalAction({
         originalEventDate: eventDetails.eventDate || undefined,
       };
 
+      // Extract the best image URL from the scraped data
+      let bestImageUrl = undefined;
+      if (eventDetails.imageUrls && Array.isArray(eventDetails.imageUrls)) {
+        // Filter out non-image URLs and find the best quality image
+        const imageUrls = eventDetails.imageUrls.filter((url: string) => {
+          // Skip URLs that are likely page URLs rather than images
+          if (url.includes("/event/") || url.includes("/events/")) return false;
+          // Only include URLs that look like image files
+          return (
+            /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(url) ||
+            url.includes("media.")
+          );
+        });
+
+        if (imageUrls.length > 0) {
+          // Prefer larger images by looking for size indicators in the URL
+          const sortedImages = imageUrls.sort((a: string, b: string) => {
+            // Extract width from transformation parameters (e.g., tr=w-3240,h-1920)
+            const getWidth = (url: string) => {
+              const match = url.match(/tr=w-(\d+)/);
+              return match ? parseInt(match[1]) : 0;
+            };
+
+            const aWidth = getWidth(a);
+            const bWidth = getWidth(b);
+
+            // If both have width info, prefer larger
+            if (aWidth && bWidth) return bWidth - aWidth;
+
+            // If only one has width info, prefer that one
+            if (aWidth) return -1;
+            if (bWidth) return 1;
+
+            // Otherwise prefer URLs without size restrictions (likely original)
+            if (a.includes("scaled") && !b.includes("scaled")) return 1;
+            if (!a.includes("scaled") && b.includes("scaled")) return -1;
+
+            return 0;
+          });
+
+          bestImageUrl = sortedImages[0];
+          console.log(`🖼️ Selected image URL: ${bestImageUrl}`);
+        }
+      }
+
       // Update the event with scraped data
       await ctx.runMutation(internal.eventsInternal.updateEventAfterScrape, {
         eventId: args.eventId,
@@ -317,6 +367,8 @@ export const performEventScrape = internalAction({
         description: eventDetails.description
           ? eventDetails.description
           : event.description,
+        // Update image URL if we found a good one
+        imageUrl: bestImageUrl,
       });
 
       const message = `Successfully scraped event '${event.title}' from URL: ${event.url}`;

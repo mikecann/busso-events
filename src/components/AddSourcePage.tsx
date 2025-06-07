@@ -5,6 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { TestScrapeProgress } from "./TestScrapeProgress";
 import { useAPIErrorHandler } from "../utils/hooks";
+import { navigation } from "../router";
 import {
   Container,
   Title,
@@ -72,7 +73,10 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                 name: formData.name,
                 startingUrl: formData.startingUrl,
               })
-                .then(() => toast.success("Event source created successfully!"))
+                .then(() => {
+                  toast.success("Event source created successfully!");
+                  navigation.sources().push();
+                })
                 .catch(onApiError)
                 .finally(() => setIsLoading(false));
             }}
