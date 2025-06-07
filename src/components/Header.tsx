@@ -1,8 +1,19 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { SignOutButton } from "../SignOutButton";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { navigation } from "../router";
-import { Group, Text, Badge, Button, Container, Paper } from "@mantine/core";
+import {
+  Group,
+  Text,
+  Badge,
+  Button,
+  Container,
+  Paper,
+  Avatar,
+  Menu,
+  rem,
+} from "@mantine/core";
+import { IconUser, IconLogout, IconChevronDown } from "@tabler/icons-react";
 
 interface HeaderProps {
   currentRoute: string | false;
@@ -11,6 +22,23 @@ interface HeaderProps {
 export function Header({ currentRoute }: HeaderProps) {
   const user = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.users.isCurrentUserAdmin);
+  const { signOut } = useAuthActions();
+
+  // Generate initials from user name or email
+  const getUserInitials = () => {
+    if (user?.name) {
+      return user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (user?.email) {
+      return user.email.slice(0, 2).toUpperCase();
+    }
+    return "U";
+  };
 
   return (
     <Paper
@@ -94,21 +122,71 @@ export function Header({ currentRoute }: HeaderProps) {
             </Group>
           </Group>
 
-          <Group gap="md">
-            {user && (
-              <Group gap="xs">
-                <Text size="sm" c="dimmed">
-                  Welcome, {user.name || user.email || "User"}
-                </Text>
-                {isAdmin && (
-                  <Badge color="blue" size="sm">
-                    Admin
-                  </Badge>
-                )}
-              </Group>
-            )}
-            <SignOutButton />
-          </Group>
+          {user && (
+            <Menu shadow="md" width={250} position="bottom-end">
+              <Menu.Target>
+                <Group
+                  gap="xs"
+                  style={{
+                    cursor: "pointer",
+                    padding: "4px 8px",
+                    borderRadius: "8px",
+                    transition: "background-color 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "var(--mantine-color-gray-0)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <Avatar size="md" radius="xl" color="blue">
+                    {getUserInitials()}
+                  </Avatar>
+                  <IconChevronDown
+                    size={16}
+                    color="var(--mantine-color-gray-6)"
+                  />
+                </Group>
+              </Menu.Target>
+
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={
+                    <IconUser style={{ width: rem(14), height: rem(14) }} />
+                  }
+                  disabled
+                >
+                  <div>
+                    <Text size="sm" fw={500}>
+                      {user.name || "User"}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {user.email}
+                    </Text>
+                    {isAdmin && (
+                      <Badge color="blue" size="xs" mt="2px">
+                        Admin
+                      </Badge>
+                    )}
+                  </div>
+                </Menu.Item>
+
+                <Menu.Divider />
+
+                <Menu.Item
+                  leftSection={
+                    <IconLogout style={{ width: rem(14), height: rem(14) }} />
+                  }
+                  onClick={() => void signOut()}
+                  color="red"
+                >
+                  Sign out
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
         </Group>
       </Container>
     </Paper>
