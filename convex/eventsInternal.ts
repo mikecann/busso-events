@@ -307,7 +307,6 @@ export const performEventScrape = internalAction({
         contactInfo: eventDetails.contactInfo || undefined,
         additionalDetails: eventDetails.additionalDetails || undefined,
         originalEventDate: eventDetails.eventDate || undefined,
-        scrapedContent: scrapeResult.data?.content?.substring(0, 2000), // Store first 2000 chars of scraped content
       };
 
       // Update the event with scraped data

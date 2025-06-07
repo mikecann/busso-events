@@ -48,11 +48,6 @@ export function AuthenticatedApp() {
         {route.name === "dashboard" && (
           <EventGallery
             onEventClick={(eventId) => navigation.eventDetail(eventId).push()}
-            onEventDebugClick={
-              isAdmin
-                ? (eventId) => navigation.eventDebug(eventId).push()
-                : undefined
-            }
           />
         )}
 

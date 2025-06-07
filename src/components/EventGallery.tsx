@@ -18,13 +18,9 @@ import {
 
 interface EventGalleryProps {
   onEventClick: (eventId: Id<"events">) => void;
-  onEventDebugClick?: (eventId: Id<"events">) => void;
 }
 
-export function EventGallery({
-  onEventClick,
-  onEventDebugClick,
-}: EventGalleryProps) {
+export function EventGallery({ onEventClick }: EventGalleryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState<
     "all" | "week" | "month" | "3months"
@@ -78,12 +74,6 @@ export function EventGallery({
               key={event._id}
               event={event}
               onClick={() => onEventClick(event._id)}
-              onDebugClick={
-                onEventDebugClick
-                  ? () => onEventDebugClick(event._id)
-                  : undefined
-              }
-              showDebugButton={!!onEventDebugClick}
             />
           ))}
         </SimpleGrid>

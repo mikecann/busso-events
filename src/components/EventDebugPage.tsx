@@ -4,6 +4,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
+import { navigation } from "../router";
 import {
   Container,
   Title,
@@ -113,10 +114,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Title order={3}>Event not found</Title>
           <Button
             variant="subtle"
-            onClick={onBack}
+            onClick={() => navigation.eventDetail(typedEventId).push()}
             leftSection={<IconArrowLeft size={16} />}
           >
-            Back to Events
+            Back to Event
           </Button>
         </Stack>
       </Center>
@@ -233,10 +234,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
         <Button
           leftSection={<IconArrowLeft size={16} />}
           variant="subtle"
-          onClick={onBack}
+          onClick={() => navigation.eventDetail(typedEventId).push()}
           style={{ alignSelf: "flex-start" }}
         >
-          Back to Events
+          Back to Event
         </Button>
 
         <Group justify="space-between" align="flex-start">
