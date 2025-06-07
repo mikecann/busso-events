@@ -1,4 +1,8 @@
-import { internalQuery, internalMutation, internalAction } from "./_generated/server";
+import {
+  internalQuery,
+  internalMutation,
+  internalAction,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -37,16 +41,16 @@ export const getEventsReadyForScrapingInternal = internalQuery({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const oneDayAgo = now - (24 * 60 * 60 * 1000);
-    
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
     // Get events that haven't been scraped in the last 24 hours
     return await ctx.db
       .query("events")
-      .filter((q) => 
+      .filter((q) =>
         q.or(
           q.eq(q.field("lastScraped"), undefined),
-          q.lt(q.field("lastScraped"), oneDayAgo)
-        )
+          q.lt(q.field("lastScraped"), oneDayAgo),
+        ),
       )
       .collect();
   },
@@ -157,7 +161,7 @@ async function scheduleSubscriptionMatching(ctx: any, eventId: any) {
   const scheduledId = await ctx.scheduler.runAfter(
     delayMs,
     internal.subscriptionMatching.processEventForSubscriptionMatching,
-    { eventId }
+    { eventId },
   );
 
   // Update the event with the scheduled job info
@@ -179,7 +183,7 @@ export const updateEventInternal = internalMutation({
   handler: async (ctx, args) => {
     const { eventId, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
+      Object.entries(updates).filter(([_, value]) => value !== undefined),
     );
 
     if (Object.keys(filteredUpdates).length > 0) {
@@ -225,58 +229,114 @@ export const deleteEventInternal = internalMutation({
   },
 });
 
-// Placeholder scraping action - this would contain actual scraping logic
+// Real scraping action that actually scrapes the event URL
 export const performEventScrape = internalAction({
   args: {
     eventId: v.id("events"),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     success: boolean;
     message: string;
     scrapedData?: any;
   }> => {
     try {
+      console.log(`🔍 Starting event scrape for eventId: ${args.eventId}`);
+
       // Get the event
-      const event: any = await ctx.runQuery(internal.eventsInternal.getEventById, {
-        eventId: args.eventId,
-      });
+      const event: any = await ctx.runQuery(
+        internal.eventsInternal.getEventById,
+        {
+          eventId: args.eventId,
+        },
+      );
 
       if (!event) {
+        console.error(`❌ Event not found: ${args.eventId}`);
         return {
           success: false,
-          message: "Event not found",
+          message: `Event with id '${args.eventId}' not found`,
         };
       }
 
-      // Simulate scraping - in real implementation, this would scrape the event URL
+      if (!event.url) {
+        console.error(`❌ Event has no URL to scrape: ${args.eventId}`);
+        return {
+          success: false,
+          message: "Event has no URL to scrape",
+        };
+      }
+
+      console.log(`✅ Found event: ${event.title} (${event.url})`);
+
+      // Scrape the event page using the event page scraping function
+      console.log(`🌐 Scraping event URL: ${event.url}`);
+      const scrapeResult = await ctx.runAction(
+        internal.scraping.scrapeEventPageInternal,
+        {
+          url: event.url,
+        },
+      );
+
+      if (!scrapeResult.success) {
+        console.error(`❌ Scrape failed: ${scrapeResult.message}`);
+        return {
+          success: false,
+          message: `Failed to scrape event URL: ${scrapeResult.message}`,
+        };
+      }
+
+      console.log(
+        `✅ Scrape successful, content length: ${scrapeResult.data?.contentLength || 0}`,
+      );
+
+      // Extract the event details from the scraped data
+      const eventDetails: any = scrapeResult.data?.eventDetails || {};
+      console.log(`📝 Extracted event details:`, eventDetails);
+
+      // Convert the extracted event details to the format expected by scrapedData
       const scrapedData: any = {
-        location: "Sample Location",
-        organizer: "Sample Organizer",
-        price: "Free",
-        category: "Technology",
-        tags: ["tech", "networking"],
-        registrationUrl: event.url,
-        contactInfo: "contact@example.com",
-        additionalDetails: "Additional event details from scraping",
+        location: eventDetails.location || undefined,
+        organizer: eventDetails.organizer || undefined,
+        price: eventDetails.price || undefined,
+        category: eventDetails.category || undefined,
+        tags: eventDetails.tags || [],
+        registrationUrl: eventDetails.registrationUrl || event.url,
+        contactInfo: eventDetails.contactInfo || undefined,
+        additionalDetails: eventDetails.additionalDetails || undefined,
+        originalEventDate: eventDetails.eventDate || undefined,
+        scrapedContent: scrapeResult.data?.content?.substring(0, 2000), // Store first 2000 chars of scraped content
       };
 
       // Update the event with scraped data
       await ctx.runMutation(internal.eventsInternal.updateEventAfterScrape, {
         eventId: args.eventId,
         scrapedData,
-        description: event.description + " (Enhanced with scraped data)",
+        // Enhance description if we got additional details
+        description: eventDetails.description
+          ? eventDetails.description
+          : event.description,
       });
+
+      const message = `Successfully scraped event '${event.title}' from URL: ${event.url}`;
+      console.log(`✅ ${message}`);
 
       return {
         success: true,
-        message: "Event scraped successfully",
+        message,
         scrapedData,
       };
     } catch (error) {
-      console.error("Error scraping event:", error);
+      const errorMessage = `Failed to scrape event: ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error(
+        `❌ Event scrape failed for eventId: ${args.eventId}`,
+        error,
+      );
       return {
         success: false,
-        message: `Scraping failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: errorMessage,
       };
     }
   },
