@@ -77,8 +77,8 @@ export function EventCard({ event, onClick }: EventCardProps) {
             <Box
               style={{
                 position: "absolute",
-                top: 16,
-                right: 16,
+                top: 12,
+                right: 12,
                 background: "rgba(255, 255, 255, 0.95)",
                 backdropFilter: "blur(10px)",
                 borderRadius: "12px",
