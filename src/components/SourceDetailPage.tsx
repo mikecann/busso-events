@@ -22,6 +22,8 @@ import {
   Divider,
   SimpleGrid,
   ThemeIcon,
+  TextInput,
+  Modal,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -35,6 +37,10 @@ import {
   IconTrendingUp,
   IconPlayerPlay,
   IconPlayerPause,
+  IconEdit,
+  IconTrash,
+  IconX,
+  IconCheck,
 } from "@tabler/icons-react";
 import { Id } from "../../convex/_generated/dataModel";
 
@@ -60,8 +66,12 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
   });
 
   const updateSource = useMutation(api.eventSources.update);
+  const deleteSource = useMutation(api.eventSources.remove);
   const testScrape = useAction(api.eventSources.testScrape);
   const [isScrapingNow, setIsScrapingNow] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editUrl, setEditUrl] = useState("");
 
   const onApiError = useAPIErrorHandler();
 
@@ -221,6 +231,42 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
               disabled={!source.isActive || isScrapingNow}
             >
               {isScrapingNow ? "Scraping..." : "Scrape Now"}
+            </Button>
+
+            <Button
+              onClick={() => {
+                setEditName(source.name);
+                setEditUrl(source.startingUrl);
+                setIsEditing(true);
+              }}
+              variant="light"
+              color="blue"
+              leftSection={<IconEdit size={16} />}
+            >
+              Edit Source
+            </Button>
+
+            <Button
+              onClick={() => {
+                if (
+                  !confirm(
+                    "Are you sure you want to delete this source? This action cannot be undone.",
+                  )
+                )
+                  return;
+
+                deleteSource({ id: source._id })
+                  .then(() => {
+                    toast.success("Source deleted successfully");
+                    onBack(); // Navigate back to sources list
+                  })
+                  .catch(onApiError);
+              }}
+              variant="light"
+              color="red"
+              leftSection={<IconTrash size={16} />}
+            >
+              Delete Source
             </Button>
           </Group>
         </Group>
@@ -406,6 +452,60 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
             </Card>
           )}
         </Box>
+
+        {/* Edit Modal */}
+        <Modal
+          opened={isEditing}
+          onClose={() => setIsEditing(false)}
+          title="Edit Event Source"
+          size="md"
+        >
+          <Stack gap="md">
+            <TextInput
+              label="Source Name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Enter source name"
+              required
+            />
+            <TextInput
+              label="Starting URL"
+              value={editUrl}
+              onChange={(e) => setEditUrl(e.target.value)}
+              placeholder="https://example.com/events"
+              type="url"
+              required
+            />
+            <Group justify="flex-end" gap="sm">
+              <Button
+                variant="light"
+                onClick={() => setIsEditing(false)}
+                leftSection={<IconX size={16} />}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  updateSource({
+                    id: source!._id,
+                    name: editName,
+                    startingUrl: editUrl,
+                  })
+                    .then(() => {
+                      toast.success("Source updated successfully");
+                      setIsEditing(false);
+                    })
+                    .catch(onApiError);
+                }}
+                color="blue"
+                leftSection={<IconCheck size={16} />}
+                disabled={!editName.trim() || !editUrl.trim()}
+              >
+                Save Changes
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
       </Stack>
     </Container>
   );
