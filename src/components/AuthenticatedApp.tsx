@@ -8,6 +8,7 @@ import { AppAdminPage } from "./AppAdminPage";
 import { EventDebugPage } from "./EventDebugPage";
 import { SourcesListPage } from "./SourcesListPage";
 import { AddSourcePage } from "./AddSourcePage";
+import { SourceDetailPage } from "./SourceDetailPage";
 import { Header } from "./Header";
 import { useRoute, navigation } from "../router";
 import {
@@ -95,11 +96,21 @@ export function AuthenticatedApp() {
           <SourcesListPage
             onBack={() => navigation.admin().push()}
             onNavigateToAddSource={() => navigation.addSource().push()}
+            onNavigateToSourceDetail={(sourceId) =>
+              navigation.sourceDetail(sourceId).push()
+            }
           />
         )}
 
         {route.name === "addSource" && isAdmin && (
           <AddSourcePage onBack={() => navigation.sources().push()} />
+        )}
+
+        {route.name === "sourceDetail" && isAdmin && (
+          <SourceDetailPage
+            sourceId={route.params.sourceId}
+            onBack={() => navigation.sources().push()}
+          />
         )}
 
         {/* Handle invalid routes for authenticated users */}
@@ -117,7 +128,8 @@ export function AuthenticatedApp() {
         {(route.name === "admin" ||
           route.name === "eventDebug" ||
           route.name === "sources" ||
-          route.name === "addSource") &&
+          route.name === "addSource" ||
+          route.name === "sourceDetail") &&
           !isAdmin && (
             <Center style={{ minHeight: "50vh" }}>
               <Stack align="center" gap="md">

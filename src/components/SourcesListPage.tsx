@@ -26,16 +26,19 @@ import {
   IconPlayerPlay,
   IconWorld,
   IconRefresh,
+  IconSearch,
 } from "@tabler/icons-react";
 
 interface SourcesListPageProps {
   onBack: () => void;
   onNavigateToAddSource: () => void;
+  onNavigateToSourceDetail: (sourceId: Id<"eventSources">) => void;
 }
 
 export function SourcesListPage({
   onBack,
   onNavigateToAddSource,
+  onNavigateToSourceDetail,
 }: SourcesListPageProps) {
   const sources = useQuery(api.eventSources.list);
   const updateSource = useMutation(api.eventSources.update);
@@ -292,6 +295,16 @@ export function SourcesListPage({
                           leftSection={<IconEdit size={16} />}
                         >
                           Edit
+                        </Button>
+
+                        <Button
+                          onClick={() => onNavigateToSourceDetail(source._id)}
+                          variant="light"
+                          color="violet"
+                          size="sm"
+                          leftSection={<IconSearch size={16} />}
+                        >
+                          View Details
                         </Button>
                       </>
                     )}

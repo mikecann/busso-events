@@ -537,3 +537,66 @@ export const getSourcesStatus = query({
     };
   },
 });
+
+// Get a single event source by ID for admin users
+export const getById = query({
+  args: {
+    sourceId: v.id("eventSources"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    return await ctx.db.get(args.sourceId);
+  },
+});
+
+// Get events by source ID with pagination
+export const getEventsBySource = query({
+  args: {
+    sourceId: v.id("eventSources"),
+    paginationOpts: v.object({
+      cursor: v.union(v.string(), v.null()),
+      numItems: v.number(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    // Get events for this source, ordered by creation date (newest first)
+    const events = await ctx.db
+      .query("events")
+      .filter((q) => q.eq(q.field("sourceId"), args.sourceId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    // Get statistics about events from this source
+    const allEventsFromSource = await ctx.db
+      .query("events")
+      .filter((q) => q.eq(q.field("sourceId"), args.sourceId))
+      .collect();
+
+    const now = Date.now();
+    const upcomingEvents = allEventsFromSource.filter(
+      (event) => event.eventDate > now,
+    );
+    const pastEvents = allEventsFromSource.filter(
+      (event) => event.eventDate <= now,
+    );
+
+    return {
+      ...events,
+      stats: {
+        totalEvents: allEventsFromSource.length,
+        upcomingEvents: upcomingEvents.length,
+        pastEvents: pastEvents.length,
+        oldestEvent:
+          allEventsFromSource.length > 0
+            ? Math.min(...allEventsFromSource.map((e) => e.eventDate))
+            : null,
+        newestEvent:
+          allEventsFromSource.length > 0
+            ? Math.max(...allEventsFromSource.map((e) => e.eventDate))
+            : null,
+      },
+    };
+  },
+});

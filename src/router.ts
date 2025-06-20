@@ -24,6 +24,12 @@ export const { RouteProvider, useRoute, routes } = createRouter({
   admin: defineRoute("/admin"),
   sources: defineRoute("/admin/sources"),
   addSource: defineRoute("/admin/sources/add"),
+  sourceDetail: defineRoute(
+    {
+      sourceId: param.path.string,
+    },
+    (p) => `/admin/sources/${p.sourceId}`,
+  ),
   eventDebug: defineRoute(
     {
       eventId: param.path.string,
@@ -35,6 +41,7 @@ export const { RouteProvider, useRoute, routes } = createRouter({
 // Type helper for route parameters
 export type RouteParams = {
   eventDetail: { eventId: string };
+  sourceDetail: { sourceId: string };
   eventDebug: { eventId: string };
 };
 
@@ -49,5 +56,7 @@ export const navigation = {
   admin: () => routes.admin(),
   sources: () => routes.sources(),
   addSource: () => routes.addSource(),
+  sourceDetail: (sourceId: Id<"eventSources">) =>
+    routes.sourceDetail({ sourceId }),
   eventDebug: (eventId: Id<"events">) => routes.eventDebug({ eventId }),
 } as const;

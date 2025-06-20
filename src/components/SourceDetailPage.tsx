@@ -1,0 +1,412 @@
+import { useQuery, useMutation, useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useAPIErrorHandler } from "../utils/hooks";
+import {
+  Container,
+  Title,
+  Text,
+  Button,
+  Card,
+  Stack,
+  Group,
+  Badge,
+  Box,
+  Table,
+  Pagination,
+  Center,
+  Loader,
+  Alert,
+  Anchor,
+  Divider,
+  SimpleGrid,
+  ThemeIcon,
+} from "@mantine/core";
+import {
+  IconArrowLeft,
+  IconRefresh,
+  IconCalendar,
+  IconExternalLink,
+  IconAlertCircle,
+  IconGlobe,
+  IconClock,
+  IconDatabase,
+  IconTrendingUp,
+  IconPlayerPlay,
+  IconPlayerPause,
+} from "@tabler/icons-react";
+import { Id } from "../../convex/_generated/dataModel";
+
+interface SourceDetailPageProps {
+  sourceId: string;
+  onBack: () => void;
+}
+
+export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
+  const source = useQuery(api.eventSources.getById, {
+    sourceId: sourceId as Id<"eventSources">,
+  });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const numItems = 20;
+
+  const eventsData = useQuery(api.eventSources.getEventsBySource, {
+    sourceId: sourceId as Id<"eventSources">,
+    paginationOpts: {
+      numItems,
+      cursor: null, // For simplicity, we'll implement basic pagination
+    },
+  });
+
+  const updateSource = useMutation(api.eventSources.update);
+  const testScrape = useAction(api.eventSources.testScrape);
+  const [isScrapingNow, setIsScrapingNow] = useState(false);
+
+  const onApiError = useAPIErrorHandler();
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatDateShort = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const isUpcoming = (eventDate: number) => {
+    return eventDate > Date.now();
+  };
+
+  if (source === undefined || eventsData === undefined) {
+    return (
+      <Center py="xl">
+        <Loader size="lg" />
+      </Center>
+    );
+  }
+
+  if (source === null) {
+    return (
+      <Container size="lg">
+        <Stack gap="lg">
+          <Button
+            leftSection={<IconArrowLeft size={16} />}
+            variant="subtle"
+            onClick={onBack}
+            style={{ alignSelf: "flex-start" }}
+          >
+            Back to Sources
+          </Button>
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Source not found"
+            color="red"
+          >
+            The event source you're looking for doesn't exist or has been
+            deleted.
+          </Alert>
+        </Stack>
+      </Container>
+    );
+  }
+
+  const { page: events, stats } = eventsData;
+
+  return (
+    <Container size="xl">
+      <Stack gap="lg">
+        <Button
+          leftSection={<IconArrowLeft size={16} />}
+          variant="subtle"
+          onClick={onBack}
+          style={{ alignSelf: "flex-start" }}
+        >
+          Back to Sources
+        </Button>
+
+        {/* Source Header */}
+        <Group justify="space-between" align="flex-start">
+          <Box>
+            <Group gap="sm" mb="xs">
+              <Box
+                w={16}
+                h={16}
+                bg={source.isActive ? "green.5" : "gray.4"}
+                style={{ borderRadius: "50%" }}
+              />
+              <Badge color={source.isActive ? "green" : "gray"} size="lg">
+                {source.isActive ? "Active" : "Inactive"}
+              </Badge>
+            </Group>
+            <Title order={1} size="2.5rem" mb="xs">
+              {source.name}
+            </Title>
+            <Group gap="xs" mb="md">
+              <IconGlobe size={16} />
+              <Anchor
+                href={source.startingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                c="dimmed"
+                style={{ wordBreak: "break-all" }}
+              >
+                {source.startingUrl}
+                <IconExternalLink size={12} style={{ marginLeft: 4 }} />
+              </Anchor>
+            </Group>
+            <Text c="dimmed">
+              Last scraped:{" "}
+              {source.dateLastScrape
+                ? formatDate(source.dateLastScrape)
+                : "Never"}
+            </Text>
+          </Box>
+
+          <Group gap="sm">
+            <Button
+              onClick={() =>
+                updateSource({
+                  id: source._id,
+                  isActive: !source.isActive,
+                })
+                  .then(() => {
+                    toast.success(
+                      `Source ${!source.isActive ? "activated" : "deactivated"}`,
+                    );
+                  })
+                  .catch(onApiError)
+              }
+              variant="light"
+              color={source.isActive ? "yellow" : "green"}
+              leftSection={
+                source.isActive ? (
+                  <IconPlayerPause size={16} />
+                ) : (
+                  <IconPlayerPlay size={16} />
+                )
+              }
+            >
+              {source.isActive ? "Pause Source" : "Activate Source"}
+            </Button>
+
+            <Button
+              onClick={() => {
+                setIsScrapingNow(true);
+                testScrape({ sourceId: source._id })
+                  .then((result) => {
+                    if (result.success) {
+                      toast.success(
+                        `Scrape completed! Found ${result.eventsFound || 0} events.`,
+                      );
+                    } else {
+                      toast.error(`Scrape failed: ${result.message}`);
+                    }
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsScrapingNow(false));
+              }}
+              color="orange"
+              leftSection={<IconRefresh size={16} />}
+              loading={isScrapingNow}
+              disabled={!source.isActive || isScrapingNow}
+            >
+              {isScrapingNow ? "Scraping..." : "Scrape Now"}
+            </Button>
+          </Group>
+        </Group>
+
+        {/* Statistics Cards */}
+        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="lg">
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Group justify="space-between" align="flex-start">
+              <Box>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Total Events
+                </Text>
+                <Text size="xl" fw={700} c="blue.6">
+                  {stats.totalEvents}
+                </Text>
+              </Box>
+              <ThemeIcon variant="light" size={32} radius="md" color="blue">
+                <IconDatabase size={16} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Group justify="space-between" align="flex-start">
+              <Box>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Upcoming
+                </Text>
+                <Text size="xl" fw={700} c="green.6">
+                  {stats.upcomingEvents}
+                </Text>
+              </Box>
+              <ThemeIcon variant="light" size={32} radius="md" color="green">
+                <IconTrendingUp size={16} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Group justify="space-between" align="flex-start">
+              <Box>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Past Events
+                </Text>
+                <Text size="xl" fw={700} c="gray.6">
+                  {stats.pastEvents}
+                </Text>
+              </Box>
+              <ThemeIcon variant="light" size={32} radius="md" color="gray">
+                <IconClock size={16} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Group justify="space-between" align="flex-start">
+              <Box>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Date Range
+                </Text>
+                <Text size="sm" fw={500}>
+                  {stats.oldestEvent && stats.newestEvent
+                    ? `${formatDateShort(stats.oldestEvent)} - ${formatDateShort(stats.newestEvent)}`
+                    : "No events"}
+                </Text>
+              </Box>
+              <ThemeIcon variant="light" size={32} radius="md" color="violet">
+                <IconCalendar size={16} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+        </SimpleGrid>
+
+        <Divider />
+
+        {/* Events List */}
+        <Box>
+          <Title order={2} mb="lg">
+            Events from this Source
+          </Title>
+
+          {events.length === 0 ? (
+            <Card
+              shadow="sm"
+              padding="xl"
+              radius="lg"
+              withBorder
+              style={{ textAlign: "center" }}
+            >
+              <Text size="4rem" style={{ marginBottom: "1rem" }}>
+                📅
+              </Text>
+              <Title order={3} mb="xs">
+                No events found
+              </Title>
+              <Text c="dimmed">
+                This source hasn't scraped any events yet. Try running a scrape
+                to discover events.
+              </Text>
+            </Card>
+          ) : (
+            <Card shadow="sm" padding="xl" radius="lg" withBorder>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Event</Table.Th>
+                    <Table.Th>Date</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th>URL</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {events.map((event) => (
+                    <Table.Tr key={event._id}>
+                      <Table.Td>
+                        <Box>
+                          <Text fw={500} size="sm" lineClamp={2}>
+                            {event.title}
+                          </Text>
+                          {event.description && (
+                            <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
+                              {event.description}
+                            </Text>
+                          )}
+                        </Box>
+                      </Table.Td>
+                      <Table.Td>
+                        <Box>
+                          <Text size="sm">
+                            {formatDateShort(event.eventDate)}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {new Date(event.eventDate).toLocaleTimeString(
+                              "en-US",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </Text>
+                        </Box>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge
+                          color={isUpcoming(event.eventDate) ? "blue" : "gray"}
+                          size="sm"
+                        >
+                          {isUpcoming(event.eventDate) ? "Upcoming" : "Past"}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Anchor
+                          href={event.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          size="sm"
+                        >
+                          View Event
+                          <IconExternalLink
+                            size={12}
+                            style={{ marginLeft: 4 }}
+                          />
+                        </Anchor>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+
+              {eventsData.continueCursor && (
+                <Group justify="center" mt="lg">
+                  <Button
+                    variant="light"
+                    onClick={() => {
+                      // TODO: Implement pagination with continueCursor
+                      toast.info("Pagination coming soon!");
+                    }}
+                  >
+                    Load More Events
+                  </Button>
+                </Group>
+              )}
+            </Card>
+          )}
+        </Box>
+      </Stack>
+    </Container>
+  );
+}
