@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.81",
+    "@convex-dev/workpool": "^0.2.14",
     "@mantine/dates": "^8.0.2",
     "@mantine/modals": "^8.0.2",
     "@mantine/spotlight": "^8.0.2",

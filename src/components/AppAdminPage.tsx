@@ -31,6 +31,7 @@ import {
   IconX,
   IconLoader,
   IconSearch,
+  IconExternalLink,
 } from "@tabler/icons-react";
 
 interface AppAdminPageProps {
@@ -388,6 +389,23 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
                 {isGeneratingEmbeddings
                   ? "Generating..."
                   : "Generate Missing Embeddings"}
+              </Button>
+
+              <Button
+                onClick={() => {
+                  // Extract deployment ID from VITE_CONVEX_URL (e.g., "https://next-dragon-181.convex.cloud" -> "next-dragon-181")
+                  const convexUrl = import.meta.env.VITE_CONVEX_URL;
+                  const deploymentId = convexUrl?.split(".")[0]?.split("//")[1];
+                  const dashboardUrl = deploymentId
+                    ? `https://dashboard.convex.dev/d/${deploymentId}`
+                    : "https://dashboard.convex.dev";
+                  window.open(dashboardUrl, "_blank");
+                }}
+                color="blue"
+                fullWidth
+                leftSection={<IconExternalLink size={16} />}
+              >
+                Open Convex Dashboard
               </Button>
 
               <Text size="xs" c="dimmed" ta="center">
