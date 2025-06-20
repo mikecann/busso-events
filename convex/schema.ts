@@ -31,6 +31,9 @@ const applicationTables = {
     // Track scheduled event scraping
     scrapeScheduledId: v.optional(v.id("_scheduled_functions")),
     scrapeScheduledAt: v.optional(v.number()),
+    // Track scheduled embedding generation
+    embeddingScheduledId: v.optional(v.id("_scheduled_functions")),
+    embeddingScheduledAt: v.optional(v.number()),
   })
     .index("by_event_date", ["eventDate"])
     .index("by_url", ["url"])

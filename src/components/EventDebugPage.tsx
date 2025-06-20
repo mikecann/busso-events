@@ -227,21 +227,6 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Group gap="xs">
             <Button
               onClick={() => {
-                setIsGeneratingEmbedding(true);
-                generateEmbedding({ eventId: typedEventId })
-                  .then(() => toast.success("Embedding generated successfully"))
-                  .catch(onApiError)
-                  .finally(() => setIsGeneratingEmbedding(false));
-              }}
-              disabled={isGeneratingEmbedding}
-              color="grape"
-              leftSection={<IconBrain size={16} />}
-              loading={isGeneratingEmbedding}
-            >
-              {isGeneratingEmbedding ? "Generating..." : "Generate Embedding"}
-            </Button>
-            <Button
-              onClick={() => {
                 if (
                   !confirm(
                     "Are you sure you want to delete this event? This action cannot be undone.",
@@ -361,6 +346,37 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
                 {event.descriptionEmbedding ? "Yes" : "No"}
               </Badge>
             </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Scheduled Embedding:
+              </Text>
+              <Text
+                size="sm"
+                c={
+                  event.embeddingScheduledAt &&
+                  event.embeddingScheduledAt <= Date.now()
+                    ? "green.6"
+                    : event.embeddingScheduledId
+                      ? "blue.6"
+                      : undefined
+                }
+                fw={
+                  event.embeddingScheduledAt &&
+                  event.embeddingScheduledAt <= Date.now()
+                    ? 500
+                    : undefined
+                }
+              >
+                {event.embeddingScheduledAt
+                  ? `${formatDate(event.embeddingScheduledAt)} (${formatSchedulingTime(event.embeddingScheduledAt)})`
+                  : "Not scheduled"}
+              </Text>
+              {event.embeddingScheduledId && (
+                <Text ff="monospace" size="xs" c="dimmed" mt="xs">
+                  Job ID: {event.embeddingScheduledId}
+                </Text>
+              )}
+            </Box>
             {event.sourceId && (
               <Box>
                 <Text fw={500} size="sm" c="gray.7">
@@ -445,6 +461,74 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               delay of 0-60 seconds to extract detailed information from the
               event URL, including location, organizer, pricing, and additional
               metadata.
+            </Text>
+          </Card>
+        </Card>
+
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Group justify="space-between" align="center" mb="lg">
+            <Title order={2}>Embedding Generation</Title>
+            <Button
+              onClick={() => {
+                setIsGeneratingEmbedding(true);
+                generateEmbedding({ eventId: typedEventId })
+                  .then(() => toast.success("Embedding generated successfully"))
+                  .catch(onApiError)
+                  .finally(() => setIsGeneratingEmbedding(false));
+              }}
+              disabled={isGeneratingEmbedding}
+              color="grape"
+              leftSection={<IconBrain size={16} />}
+              loading={isGeneratingEmbedding}
+            >
+              {isGeneratingEmbedding ? "Generating..." : "Generate Now"}
+            </Button>
+          </Group>
+
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="lg">
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Scheduled Embedding Job ID:
+              </Text>
+              <Text ff="monospace" size="sm">
+                {event.embeddingScheduledId || "Not scheduled"}
+              </Text>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Scheduled For:
+              </Text>
+              <Text
+                size="sm"
+                c={
+                  event.embeddingScheduledAt &&
+                  event.embeddingScheduledAt <= Date.now()
+                    ? "green.6"
+                    : undefined
+                }
+                fw={
+                  event.embeddingScheduledAt &&
+                  event.embeddingScheduledAt <= Date.now()
+                    ? 500
+                    : undefined
+                }
+              >
+                {event.embeddingScheduledAt
+                  ? `${formatDate(event.embeddingScheduledAt)} (${formatSchedulingTime(event.embeddingScheduledAt)})`
+                  : "Not scheduled"}
+              </Text>
+            </Box>
+          </SimpleGrid>
+
+          <Card bg="grape.0" padding="md" radius="md">
+            <Text size="sm" c="grape.8">
+              🧠{" "}
+              <Text span fw={500}>
+                Automatic embedding generation
+              </Text>{" "}
+              is scheduled after an event is scraped. It runs after a random
+              delay of 0-30 seconds to generate vector embeddings from the event
+              description, enabling semantic search and subscription matching.
             </Text>
           </Card>
         </Card>

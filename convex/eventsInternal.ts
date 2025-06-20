@@ -80,6 +80,10 @@ export const createInternal = internalMutation({
     // Schedule event scraping for this new event (random delay 0-60 seconds)
     await scheduleEventScraping(ctx, eventId);
 
+    // Schedule delayed embedding generation as fallback (5-10 minutes)
+    // This ensures embeddings are generated even if scraping fails
+    await scheduleEmbeddingGenerationDelayed(ctx, eventId);
+
     // Schedule subscription matching for this new event (8 hours delay)
     await scheduleSubscriptionMatching(ctx, eventId);
 
@@ -120,6 +124,19 @@ export const updateEventAfterScrape = internalMutation({
 
     await ctx.db.patch(args.eventId, updates);
 
+    // Cancel any existing delayed embedding generation and schedule immediate one
+    const event = await ctx.db.get(args.eventId);
+    if (event?.embeddingScheduledId) {
+      try {
+        await ctx.scheduler.cancel(event.embeddingScheduledId);
+      } catch (error) {
+        console.log("Could not cancel existing embedding job:", error);
+      }
+    }
+
+    // Schedule embedding generation for this event (random delay 0-30 seconds)
+    await scheduleEmbeddingGeneration(ctx, args.eventId);
+
     // Schedule subscription matching for this event (8 hours delay)
     await scheduleSubscriptionMatching(ctx, args.eventId);
   },
@@ -146,6 +163,10 @@ export const createEventInternal = internalMutation({
 
     // Schedule event scraping for this new event (random delay 0-60 seconds)
     await scheduleEventScraping(ctx, eventId);
+
+    // Schedule delayed embedding generation as fallback (5-10 minutes)
+    // This ensures embeddings are generated even if scraping fails
+    await scheduleEmbeddingGenerationDelayed(ctx, eventId);
 
     // Schedule subscription matching for this new event (8 hours delay)
     await scheduleSubscriptionMatching(ctx, eventId);
@@ -233,6 +254,15 @@ export const deleteEventInternal = internalMutation({
         await ctx.scheduler.cancel(event.scrapeScheduledId);
       } catch (error) {
         console.log("Could not cancel scheduled scrape job:", error);
+      }
+    }
+
+    // Cancel any scheduled embedding generation
+    if (event.embeddingScheduledId) {
+      try {
+        await ctx.scheduler.cancel(event.embeddingScheduledId);
+      } catch (error) {
+        console.log("Could not cancel scheduled embedding job:", error);
       }
     }
 
@@ -495,6 +525,157 @@ export const clearEventScrapeSchedule = internalMutation({
     await ctx.db.patch(args.eventId, {
       scrapeScheduledId: undefined,
       scrapeScheduledAt: undefined,
+    });
+  },
+});
+
+// Schedule embedding generation for an event
+async function scheduleEmbeddingGeneration(
+  ctx: MutationCtx,
+  eventId: Id<"events">,
+): Promise<Id<"_scheduled_functions">> {
+  // Generate random delay between 0 and 30 seconds
+  const randomDelayMs = Math.floor(Math.random() * 30 * 1000);
+  const scheduledAt = Date.now() + randomDelayMs;
+
+  console.log(
+    `🧠 Scheduling embedding generation for event ${eventId} in ${randomDelayMs}ms`,
+  );
+
+  const scheduledId = await ctx.scheduler.runAfter(
+    randomDelayMs,
+    internal.eventsInternal.performScheduledEmbeddingGeneration,
+    { eventId },
+  );
+
+  // Update the event with the scheduled function ID and time
+  await ctx.db.patch(eventId, {
+    embeddingScheduledId: scheduledId,
+    embeddingScheduledAt: scheduledAt,
+  });
+
+  return scheduledId;
+}
+
+// Schedule delayed embedding generation for newly created events (fallback)
+async function scheduleEmbeddingGenerationDelayed(
+  ctx: MutationCtx,
+  eventId: Id<"events">,
+): Promise<Id<"_scheduled_functions">> {
+  // Generate random delay between 5-10 minutes to allow scraping to complete first
+  const minDelayMs = 5 * 60 * 1000; // 5 minutes
+  const maxDelayMs = 10 * 60 * 1000; // 10 minutes
+  const randomDelayMs =
+    Math.floor(Math.random() * (maxDelayMs - minDelayMs)) + minDelayMs;
+  const scheduledAt = Date.now() + randomDelayMs;
+
+  console.log(
+    `🧠 Scheduling delayed embedding generation for event ${eventId} in ${randomDelayMs}ms`,
+  );
+
+  const scheduledId = await ctx.scheduler.runAfter(
+    randomDelayMs,
+    internal.eventsInternal.performScheduledEmbeddingGeneration,
+    { eventId },
+  );
+
+  // Update the event with the scheduled function ID and time
+  await ctx.db.patch(eventId, {
+    embeddingScheduledId: scheduledId,
+    embeddingScheduledAt: scheduledAt,
+  });
+
+  return scheduledId;
+}
+
+// Scheduled function to perform embedding generation
+export const performScheduledEmbeddingGeneration = internalAction({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    console.log(
+      `🧠 Starting scheduled embedding generation for event ${args.eventId}`,
+    );
+
+    try {
+      // Clear the scheduled function ID since it's now running
+      await ctx.runMutation(
+        internal.eventsInternal.clearEmbeddingGenerationSchedule,
+        {
+          eventId: args.eventId,
+        },
+      );
+
+      // Check if event already has an embedding to avoid duplicate work
+      const event = await ctx.runQuery(internal.eventsInternal.getEventById, {
+        eventId: args.eventId,
+      });
+
+      if (!event) {
+        console.log(
+          `❌ Event ${args.eventId} not found during embedding generation`,
+        );
+        return {
+          success: false,
+          message: `Event ${args.eventId} not found`,
+        };
+      }
+
+      if (event.descriptionEmbedding) {
+        console.log(
+          `✅ Event ${args.eventId} already has an embedding, skipping`,
+        );
+        return {
+          success: true,
+          message: `Event ${args.eventId} already has an embedding`,
+        };
+      }
+
+      // Generate the embedding
+      const result = await ctx.runAction(
+        internal.embeddings.generateEventDescriptionEmbedding,
+        {
+          eventId: args.eventId,
+        },
+      );
+
+      console.log(
+        `✅ Scheduled embedding generation completed for event ${args.eventId}:`,
+        result,
+      );
+      return {
+        success: result.success,
+        message: `Successfully generated embedding for event ${args.eventId}`,
+      };
+    } catch (error) {
+      console.error(
+        `❌ Scheduled embedding generation failed for event ${args.eventId}:`,
+        error,
+      );
+      return {
+        success: false,
+        message: `Scheduled embedding generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+    }
+  },
+});
+
+// Clear the scheduled embedding generation function ID
+export const clearEmbeddingGenerationSchedule = internalMutation({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.eventId, {
+      embeddingScheduledId: undefined,
+      embeddingScheduledAt: undefined,
     });
   },
 });
