@@ -113,26 +113,26 @@ export function SourcesListPage({
                       </Badge>
                     </Group>
 
-                    <Stack gap="sm">
-                      <Title order={3} size="lg">
-                        {source.name}
-                      </Title>
-                      <Text
-                        size="sm"
-                        c="dimmed"
-                        style={{ wordBreak: "break-all" }}
-                      >
-                        {source.startingUrl}
-                      </Text>
-                      <Group gap="xs">
-                        <Text fw={500} size="sm">
-                          Last scraped:
+                      <Stack gap="sm">
+                        <Title order={3} size="lg">
+                          {source.name}
+                        </Title>
+                        <Text
+                          size="sm"
+                          c="dimmed"
+                          style={{ wordBreak: "break-all" }}
+                        >
+                          {source.startingUrl}
                         </Text>
-                        <Text size="sm" c="dimmed">
-                          {formatDate(source.dateLastScrape)}
-                        </Text>
-                      </Group>
-                    </Stack>
+                        <Group gap="xs">
+                          <Text fw={500} size="sm">
+                            Last scraped:
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            {formatDate(source.dateLastScrape)}
+                          </Text>
+                        </Group>
+                      </Stack>
                   </Box>
 
                   <Box style={{ minWidth: "120px" }}>

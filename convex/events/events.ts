@@ -13,7 +13,7 @@ import {
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("events").order("desc").collect();
+    return await ctx.db.query("events").order("desc").take(69);
   },
 });
 

@@ -165,3 +165,4 @@ export function formatEventDateFriendly(timestamp: number) {
 export function isUpcoming(eventDate: number) {
   return eventDate > Date.now();
 }
+ 

@@ -17,19 +17,19 @@ import {
 export default function App() {
   return (
     <RouteProvider>
-      <Container size="xl">
-        <AuthLoading>
-          <Center style={{ minHeight: "100vh" }}>
-            <Loader size="lg" />
-          </Center>
-        </AuthLoading>
-        <Unauthenticated>
+    <Container size="xl">
+      <AuthLoading>
+        <Center style={{ minHeight: "100vh" }}>
+          <Loader size="lg" />
+        </Center>
+      </AuthLoading>
+      <Unauthenticated>
           <PublicApp />
-        </Unauthenticated>
-        <Authenticated>
-          <AuthenticatedApp />
-        </Authenticated>
-      </Container>
+      </Unauthenticated>
+      <Authenticated>
+        <AuthenticatedApp />
+      </Authenticated>
+    </Container>
     </RouteProvider>
   );
 }

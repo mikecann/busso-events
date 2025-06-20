@@ -87,11 +87,11 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
             <Group justify="space-between" align="flex-start">
               <Box>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Events Ready for Scraping
+              Events Ready for Scraping
                 </Text>
                 <Text size="2xl" fw={700} c="blue.6">
-                  {eventsReadyForScraping?.length || 0}
-                </Text>
+              {eventsReadyForScraping?.length || 0}
+            </Text>
               </Box>
               <ThemeIcon variant="light" size={38} radius="md" color="blue">
                 <IconDatabase size={18} />
@@ -103,7 +103,7 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
             <Group justify="space-between" align="flex-start">
               <Box>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Email Queue
+              Email Queue
                 </Text>
                 <Text size="2xl" fw={700} c="orange.6">
                   {queueStats?.unsent || 0}
@@ -115,7 +115,7 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
               <ThemeIcon variant="light" size={38} radius="md" color="orange">
                 <IconMail size={18} />
               </ThemeIcon>
-            </Group>
+              </Group>
           </Card>
 
           <Card shadow="sm" padding="xl" radius="lg" withBorder>
@@ -131,7 +131,7 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
               <ThemeIcon variant="light" size={38} radius="md" color="cyan">
                 <IconLoader size={18} />
               </ThemeIcon>
-            </Group>
+              </Group>
           </Card>
 
           <Card shadow="sm" padding="xl" radius="lg" withBorder>
@@ -214,7 +214,7 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
                     )}
                   </Box>
                 ))}
-              </Stack>
+            </Stack>
             ) : (
               <Text c="dimmed" ta="center" py="md">
                 No active jobs running

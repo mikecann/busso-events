@@ -122,7 +122,7 @@ export function Header({ currentRoute }: HeaderProps) {
             </Group>
           </Group>
 
-          {user && (
+            {user && (
             <Menu shadow="md" width={250} position="bottom-end">
               <Menu.Target>
                 <Group
@@ -164,12 +164,12 @@ export function Header({ currentRoute }: HeaderProps) {
                     </Text>
                     <Text size="xs" c="dimmed">
                       {user.email}
-                    </Text>
-                    {isAdmin && (
+                </Text>
+                {isAdmin && (
                       <Badge color="blue" size="xs" mt="2px">
-                        Admin
-                      </Badge>
-                    )}
+                    Admin
+                  </Badge>
+                )}
                   </div>
                 </Menu.Item>
 

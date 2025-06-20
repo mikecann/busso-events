@@ -10,3 +10,4 @@ app.use(workpool, { name: "eventScrapeWorkpool" });
 app.use(workpool, { name: "eventEmbeddingWorkpool" });
 
 export default app;
+ 
