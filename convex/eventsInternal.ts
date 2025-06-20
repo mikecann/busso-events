@@ -6,7 +6,14 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { components } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { Workpool, WorkId } from "@convex-dev/workpool";
+
+// Initialize the workpool for event scraping with max parallelism of 1
+const eventScrapePool = new Workpool(components.eventScrapeWorkpool, {
+  maxParallelism: 1,
+});
 
 export const getEventById = internalQuery({
   args: {
@@ -77,8 +84,8 @@ export const createInternal = internalMutation({
       sourceId: args.sourceId,
     });
 
-    // Schedule event scraping for this new event (random delay 0-60 seconds)
-    await scheduleEventScraping(ctx, eventId);
+    // Enqueue event scraping in workpool
+    await enqueueEventScraping(ctx, eventId);
 
     // Schedule delayed embedding generation as fallback (5-10 minutes)
     // This ensures embeddings are generated even if scraping fails
@@ -161,8 +168,8 @@ export const createEventInternal = internalMutation({
       sourceId: args.sourceId,
     });
 
-    // Schedule event scraping for this new event (random delay 0-60 seconds)
-    await scheduleEventScraping(ctx, eventId);
+    // Enqueue event scraping in workpool
+    await enqueueEventScraping(ctx, eventId);
 
     // Schedule delayed embedding generation as fallback (5-10 minutes)
     // This ensures embeddings are generated even if scraping fails
@@ -248,12 +255,12 @@ export const deleteEventInternal = internalMutation({
       }
     }
 
-    // Cancel any scheduled event scraping
-    if (event.scrapeScheduledId) {
+    // Cancel any workpool event scraping
+    if (event.scrapeWorkId) {
       try {
-        await ctx.scheduler.cancel(event.scrapeScheduledId);
+        await eventScrapePool.cancel(ctx, event.scrapeWorkId as WorkId);
       } catch (error) {
-        console.log("Could not cancel scheduled scrape job:", error);
+        console.log("Could not cancel workpool scrape job:", error);
       }
     }
 
@@ -440,32 +447,27 @@ export const performEventScrape = internalAction({
   },
 });
 
-// Schedule event scraping for a newly created event
-async function scheduleEventScraping(
+// Enqueue event scraping in workpool
+async function enqueueEventScraping(
   ctx: MutationCtx,
   eventId: Id<"events">,
-): Promise<Id<"_scheduled_functions">> {
-  // Generate random delay between 0 and 60 seconds (1 minute)
-  const randomDelayMs = Math.floor(Math.random() * 60 * 1000);
-  const scheduledAt = Date.now() + randomDelayMs;
+): Promise<string> {
+  console.log(`🔍 Enqueueing event scraping for event ${eventId} in workpool`);
 
-  console.log(
-    `📅 Scheduling event scraping for event ${eventId} in ${randomDelayMs}ms`,
-  );
-
-  const scheduledId = await ctx.scheduler.runAfter(
-    randomDelayMs,
-    internal.eventsInternal.performScheduledEventScrape,
+  // Enqueue the scraping action in the workpool
+  const workId = await eventScrapePool.enqueueAction(
+    ctx,
+    internal.eventsInternal.performEventScrape,
     { eventId },
   );
 
-  // Update the event with the scheduled function ID and time
+  // Update the event with the workpool job ID and enqueue time
   await ctx.db.patch(eventId, {
-    scrapeScheduledId: scheduledId,
-    scrapeScheduledAt: scheduledAt,
+    scrapeWorkId: workId,
+    scrapeEnqueuedAt: Date.now(),
   });
 
-  return scheduledId;
+  return workId;
 }
 
 // Scheduled function to perform event scraping
@@ -516,15 +518,15 @@ export const performScheduledEventScrape = internalAction({
   },
 });
 
-// Clear the scheduled scrape function ID
+// Clear the workpool scrape job ID
 export const clearEventScrapeSchedule = internalMutation({
   args: {
     eventId: v.id("events"),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.eventId, {
-      scrapeScheduledId: undefined,
-      scrapeScheduledAt: undefined,
+      scrapeWorkId: undefined,
+      scrapeEnqueuedAt: undefined,
     });
   },
 });
@@ -677,5 +679,38 @@ export const clearEmbeddingGenerationSchedule = internalMutation({
       embeddingScheduledId: undefined,
       embeddingScheduledAt: undefined,
     });
+  },
+});
+
+// Get workpool status for an event
+export const getEventWorkpoolStatus = internalQuery({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event?.scrapeWorkId) {
+      return null;
+    }
+
+    try {
+      const status = await eventScrapePool.status(
+        ctx,
+        event.scrapeWorkId as WorkId,
+      );
+      return {
+        workId: event.scrapeWorkId,
+        enqueuedAt: event.scrapeEnqueuedAt,
+        status,
+      };
+    } catch (error) {
+      console.error("Error getting workpool status:", error);
+      return {
+        workId: event.scrapeWorkId,
+        enqueuedAt: event.scrapeEnqueuedAt,
+        status: null,
+        error: "Failed to get status",
+      };
+    }
   },
 });

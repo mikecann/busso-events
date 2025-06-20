@@ -9,9 +9,11 @@ async function requireAdminAction(ctx: any) {
   if (!userId) {
     throw new Error("Must be authenticated");
   }
-  
+
   // Use internal query to check admin status
-  const isAdmin = await ctx.runQuery(internal.eventsInternal.checkUserIsAdmin, { userId });
+  const isAdmin = await ctx.runQuery(internal.eventsInternal.checkUserIsAdmin, {
+    userId,
+  });
   if (!isAdmin) {
     throw new Error("Admin access required");
   }
@@ -22,10 +24,7 @@ async function requireAdminAction(ctx: any) {
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db
-      .query("events")
-      .order("desc")
-      .collect();
+    return await ctx.db.query("events").order("desc").collect();
   },
 });
 
@@ -36,15 +35,35 @@ export const getById = query({
   },
 });
 
+export const getWorkpoolStatus = query({
+  args: { eventId: v.id("events") },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    workId: string;
+    enqueuedAt: number | undefined;
+    status: any;
+    error?: string;
+  } | null> => {
+    // This is a public query but we'll call the internal one
+    return await ctx.runQuery(internal.eventsInternal.getEventWorkpoolStatus, {
+      eventId: args.eventId,
+    });
+  },
+});
+
 export const search = query({
-  args: { 
+  args: {
     searchTerm: v.string(),
-    dateFilter: v.optional(v.union(
-      v.literal("all"),
-      v.literal("week"),
-      v.literal("month"),
-      v.literal("3months")
-    ))
+    dateFilter: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("week"),
+        v.literal("month"),
+        v.literal("3months"),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -54,13 +73,13 @@ export const search = query({
     if (args.dateFilter && args.dateFilter !== "all") {
       switch (args.dateFilter) {
         case "week":
-          maxDate = now + (7 * 24 * 60 * 60 * 1000); // 1 week
+          maxDate = now + 7 * 24 * 60 * 60 * 1000; // 1 week
           break;
         case "month":
-          maxDate = now + (30 * 24 * 60 * 60 * 1000); // 30 days
+          maxDate = now + 30 * 24 * 60 * 60 * 1000; // 30 days
           break;
         case "3months":
-          maxDate = now + (90 * 24 * 60 * 60 * 1000); // 90 days
+          maxDate = now + 90 * 24 * 60 * 60 * 1000; // 90 days
           break;
       }
     }
@@ -74,8 +93,8 @@ export const search = query({
         .withIndex("by_event_date")
         .order("asc")
         .collect();
-      
-      results = allEvents.filter(event => {
+
+      results = allEvents.filter((event) => {
         // Only show future events
         if (event.eventDate <= now) return false;
         // Apply date filter if specified
@@ -87,14 +106,14 @@ export const search = query({
       const titleResults = await ctx.db
         .query("events")
         .withSearchIndex("search_title", (q) =>
-          q.search("title", args.searchTerm)
+          q.search("title", args.searchTerm),
         )
         .collect();
 
       const descriptionResults = await ctx.db
         .query("events")
         .withSearchIndex("search_description", (q) =>
-          q.search("description", args.searchTerm)
+          q.search("description", args.searchTerm),
         )
         .collect();
 
@@ -102,11 +121,11 @@ export const search = query({
       const allResults = [...titleResults, ...descriptionResults];
       const uniqueResults = allResults.filter(
         (event, index, self) =>
-          index === self.findIndex((e) => e._id === event._id)
+          index === self.findIndex((e) => e._id === event._id),
       );
 
       // Apply date filters
-      results = uniqueResults.filter(event => {
+      results = uniqueResults.filter((event) => {
         // Only show future events
         if (event.eventDate <= now) return false;
         // Apply date filter if specified
@@ -145,9 +164,12 @@ export const startScrapeNow = action({
     await requireAdminAction(ctx);
 
     // Call the internal scrape action
-    const result: any = await ctx.runAction(internal.eventsInternal.performEventScrape, {
-      eventId: args.eventId,
-    });
+    const result: any = await ctx.runAction(
+      internal.eventsInternal.performEventScrape,
+      {
+        eventId: args.eventId,
+      },
+    );
 
     return result;
   },
@@ -155,7 +177,9 @@ export const startScrapeNow = action({
 
 export const generateMissingEmbeddings = action({
   args: {},
-  handler: async (ctx): Promise<{
+  handler: async (
+    ctx,
+  ): Promise<{
     success: boolean;
     processed: number;
     failed: number;

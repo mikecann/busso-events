@@ -28,9 +28,9 @@ const applicationTables = {
     // Track scheduled subscription matching
     subscriptionMatchScheduledId: v.optional(v.id("_scheduled_functions")),
     subscriptionMatchScheduledAt: v.optional(v.number()),
-    // Track scheduled event scraping
-    scrapeScheduledId: v.optional(v.id("_scheduled_functions")),
-    scrapeScheduledAt: v.optional(v.number()),
+    // Track workpool event scraping
+    scrapeWorkId: v.optional(v.string()), // WorkId is stored as string
+    scrapeEnqueuedAt: v.optional(v.number()),
     // Track scheduled embedding generation
     embeddingScheduledId: v.optional(v.id("_scheduled_functions")),
     embeddingScheduledAt: v.optional(v.number()),

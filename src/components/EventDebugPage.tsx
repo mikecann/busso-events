@@ -46,6 +46,9 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   // Cast the string eventId to proper Id type for Convex queries
   const typedEventId = eventId as Id<"events">;
   const event = useQuery(api.events.getById, { id: typedEventId });
+  const workpoolStatus = useQuery(api.events.getWorkpoolStatus, {
+    eventId: typedEventId,
+  });
   const updateEvent = useMutation(api.eventsAdmin.updateEvent);
   const deleteEvent = useMutation(api.eventsAdmin.deleteEvent);
   const scrapeEvent = useAction(api.eventsAdmin.scrapeEvent);
@@ -305,32 +308,41 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
             </Box>
             <Box>
               <Text fw={500} size="sm" c="gray.7">
-                Scheduled Scrape:
+                Workpool Scrape:
               </Text>
               <Text
                 size="sm"
                 c={
-                  event.scrapeScheduledAt &&
-                  event.scrapeScheduledAt <= Date.now()
+                  workpoolStatus?.status?.kind === "finished"
                     ? "green.6"
-                    : event.scrapeScheduledId
+                    : workpoolStatus?.status?.kind === "running"
                       ? "blue.6"
-                      : undefined
+                      : workpoolStatus?.status?.kind === "pending"
+                        ? "yellow.6"
+                        : undefined
                 }
                 fw={
-                  event.scrapeScheduledAt &&
-                  event.scrapeScheduledAt <= Date.now()
-                    ? 500
-                    : undefined
+                  workpoolStatus?.status?.kind === "finished" ? 500 : undefined
                 }
               >
-                {event.scrapeScheduledAt
-                  ? `${formatDate(event.scrapeScheduledAt)} (${formatSchedulingTime(event.scrapeScheduledAt)})`
-                  : "Not scheduled"}
+                {workpoolStatus
+                  ? `${workpoolStatus.status?.kind || "unknown"} ${
+                      workpoolStatus.status?.kind === "pending"
+                        ? `(${workpoolStatus.status.previousAttempts || 0} attempts)`
+                        : workpoolStatus.status?.kind === "running"
+                          ? `(${workpoolStatus.status.previousAttempts || 0} attempts)`
+                          : ""
+                    }`
+                  : "Not in workpool"}
               </Text>
-              {event.scrapeScheduledId && (
+              {workpoolStatus?.workId && (
                 <Text ff="monospace" size="xs" c="dimmed" mt="xs">
-                  Job ID: {event.scrapeScheduledId}
+                  Work ID: {workpoolStatus.workId}
+                </Text>
+              )}
+              {workpoolStatus?.enqueuedAt && (
+                <Text size="xs" c="dimmed" mt="xs">
+                  Enqueued: {formatDate(workpoolStatus.enqueuedAt)}
                 </Text>
               )}
             </Box>
@@ -419,34 +431,39 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="lg">
             <Box>
               <Text fw={500} size="sm" c="gray.7">
-                Scheduled Scrape Job ID:
+                Workpool Job ID:
               </Text>
               <Text ff="monospace" size="sm">
-                {event.scrapeScheduledId || "Not scheduled"}
+                {workpoolStatus?.workId || "Not in workpool"}
               </Text>
             </Box>
             <Box>
               <Text fw={500} size="sm" c="gray.7">
-                Scheduled For:
+                Status:
               </Text>
               <Text
                 size="sm"
                 c={
-                  event.scrapeScheduledAt &&
-                  event.scrapeScheduledAt <= Date.now()
+                  workpoolStatus?.status?.kind === "finished"
                     ? "green.6"
-                    : undefined
+                    : workpoolStatus?.status?.kind === "running"
+                      ? "blue.6"
+                      : workpoolStatus?.status?.kind === "pending"
+                        ? "yellow.6"
+                        : undefined
                 }
                 fw={
-                  event.scrapeScheduledAt &&
-                  event.scrapeScheduledAt <= Date.now()
-                    ? 500
-                    : undefined
+                  workpoolStatus?.status?.kind === "finished" ? 500 : undefined
                 }
               >
-                {event.scrapeScheduledAt
-                  ? `${formatDate(event.scrapeScheduledAt)} (${formatSchedulingTime(event.scrapeScheduledAt)})`
-                  : "Not scheduled"}
+                {workpoolStatus?.status?.kind || "Not in workpool"}
+                {workpoolStatus?.status &&
+                  (workpoolStatus.status.kind === "pending" ||
+                    workpoolStatus.status.kind === "running") && (
+                    <Text span size="xs" c="dimmed" ml="xs">
+                      ({workpoolStatus.status.previousAttempts || 0} attempts)
+                    </Text>
+                  )}
               </Text>
             </Box>
           </SimpleGrid>
@@ -457,10 +474,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               <Text span fw={500}>
                 Automatic scraping
               </Text>{" "}
-              is scheduled when a new event is created. It runs after a random
-              delay of 0-60 seconds to extract detailed information from the
-              event URL, including location, organizer, pricing, and additional
-              metadata.
+              is queued in a workpool when a new event is created. The workpool
+              processes scraping jobs with a maximum parallelism of 1 to avoid
+              rate limits, extracting detailed information from the event URL
+              including location, organizer, pricing, and additional metadata.
             </Text>
           </Card>
         </Card>
