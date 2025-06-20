@@ -4,6 +4,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
+import { formatDate, formatRelativeTime } from "../utils/dateUtils";
 import {
   Container,
   Title,
@@ -19,6 +20,7 @@ import {
   Center,
   Box,
   ActionIcon,
+  Divider,
 } from "@mantine/core";
 import {
   IconMail,
@@ -26,6 +28,10 @@ import {
   IconTrash,
   IconPlayerPause,
   IconPlayerPlay,
+  IconArrowLeft,
+  IconPlus,
+  IconClock,
+  IconCalendar,
 } from "@tabler/icons-react";
 
 interface SubscriptionsPageProps {
@@ -44,34 +50,6 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
     useState<Id<"subscriptions"> | null>(null);
 
   const onApiError = useAPIErrorHandler();
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatRelativeTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = timestamp - now;
-
-    if (diff <= 0) {
-      return "Ready to send";
-    }
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hours > 0) {
-      return `in ${hours}h ${minutes}m`;
-    } else {
-      return `in ${minutes}m`;
-    }
-  };
 
   const handleEdit = (subscription: {
     _id: Id<"subscriptions">;

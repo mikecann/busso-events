@@ -4,6 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
+import { formatEventDateFriendly } from "../utils/dateUtils";
 import {
   Container,
   Title,
@@ -82,20 +83,6 @@ export function CreateSubscriptionPage({
       })
       .finally(() => setIsLoadingPreview(false));
   }, [debouncedPrompt, previewMatchingEvents]);
-
-  const formatEventDate = (timestamp: number) => {
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return "Invalid Date";
-    }
-  };
 
   const getScoreColor = (score: number, meetsThreshold?: boolean) => {
     if (!meetsThreshold) return "gray";
@@ -308,7 +295,9 @@ export function CreateSubscriptionPage({
                                       <Group gap="xs" align="center">
                                         <IconCalendar size={12} />
                                         <Text size="xs" c="dimmed">
-                                          {formatEventDate(event.eventDate)}
+                                          {formatEventDateFriendly(
+                                            event.eventDate,
+                                          )}
                                         </Text>
                                       </Group>
                                       <Text size="xs" c="dimmed" lineClamp={3}>
@@ -404,7 +393,9 @@ export function CreateSubscriptionPage({
                                       <Group gap="xs" align="center">
                                         <IconCalendar size={12} />
                                         <Text size="xs" c="dimmed">
-                                          {formatEventDate(event.eventDate)}
+                                          {formatEventDateFriendly(
+                                            event.eventDate,
+                                          )}
                                         </Text>
                                       </Group>
                                       <Text size="xs" c="dimmed" lineClamp={3}>

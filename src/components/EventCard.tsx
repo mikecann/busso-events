@@ -1,4 +1,5 @@
 import { Doc } from "../../convex/_generated/dataModel";
+import { formatDateForCard, formatTime } from "../utils/dateUtils";
 import {
   Card,
   Image,
@@ -17,23 +18,7 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, onClick }: EventCardProps) {
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    const day = date.getDate();
-    const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-
-    return { month, day, weekday };
-  };
-
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const { month, day, weekday } = formatDate(event.eventDate);
+  const { month, day, weekday } = formatDateForCard(event.eventDate);
   const time = formatTime(event.eventDate);
 
   return (

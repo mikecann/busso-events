@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
+import { formatRelativeTimeBidirectional } from "../utils/dateUtils";
 import {
   Container,
   Title,
@@ -51,28 +52,6 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
 
   const onApiError = useAPIErrorHandler();
-
-  const formatRelativeTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = timestamp - now;
-    const absDiff = Math.abs(diff);
-
-    const minutes = Math.floor(absDiff / (1000 * 60));
-    const hours = Math.floor(absDiff / (1000 * 60 * 60));
-    const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
-
-    if (diff < 0) {
-      // Past
-      if (days > 0) return `${days}d ago`;
-      if (hours > 0) return `${hours}h ago`;
-      return `${minutes}m ago`;
-    } else {
-      // Future
-      if (days > 0) return `in ${days}d`;
-      if (hours > 0) return `in ${hours}h`;
-      return `in ${minutes}m`;
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -197,7 +176,8 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
                             : "Batch Source Scraping"}
                         </Text>
                         <Text size="xs" c="dimmed">
-                          Started {formatRelativeTime(job.startedAt)}
+                          Started{" "}
+                          {formatRelativeTimeBidirectional(job.startedAt)}
                         </Text>
                         {job.progress?.currentEvent && (
                           <Text size="xs" c="blue">
@@ -276,7 +256,7 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
                 schedulingInfo.nextMatches.length > 0 ? (
                   <Text size="xs" c="dimmed">
                     Next: {schedulingInfo.nextMatches[0].title}{" "}
-                    {formatRelativeTime(
+                    {formatRelativeTimeBidirectional(
                       schedulingInfo.nextMatches[0].scheduledAt!,
                     )}
                   </Text>
@@ -433,7 +413,7 @@ export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
                         : "Batch Source Scraping"}
                     </Text>
                     <Text size="xs" c="dimmed">
-                      {formatRelativeTime(job.startedAt)}
+                      {formatRelativeTimeBidirectional(job.startedAt)}
                       {job.completedAt &&
                         ` • Duration: ${Math.round((job.completedAt - job.startedAt) / 1000 / 60)}m`}
                     </Text>

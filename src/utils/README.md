@@ -1,4 +1,100 @@
-# Utility Hooks
+# Utility Functions and Hooks
+
+## Date Utilities
+
+The `dateUtils.ts` file contains comprehensive utilities for formatting timestamps and dates across the application:
+
+### Standard Date Formatting
+
+#### formatDate(timestamp)
+Formats a timestamp into a standard localized date string with optional "Never" fallback.
+- Returns: "Dec 15, 2024, 10:30 AM" or "Never" for undefined values
+
+#### formatDateShort(timestamp)
+Formats a timestamp into a short date string without time.
+- Returns: "Dec 15, 2024"
+
+#### formatDateDetailed(timestamp)
+Formats a timestamp into a detailed date string for debug pages.
+- Returns: "Saturday, December 15, 2024, 10:30 AM PST"
+
+#### formatEventDate(timestamp)
+Formats a timestamp into a detailed event date string with timezone info.
+- Returns: "Saturday, December 15, 2024, 10:30 AM PST"
+
+#### formatEventDateFriendly(timestamp)
+Formats a timestamp into a friendly event date string for cards and lists.
+- Returns: "Mon, Dec 15, 2024"
+
+### Time Formatting
+
+#### formatTime(timestamp)
+Formats just the time portion of a timestamp.
+- Returns: "10:30 AM"
+
+#### formatDateForCard(timestamp)
+Formats a timestamp for event cards, returning structured date components.
+- Returns: `{ month: "Dec", day: 15, weekday: "Mon" }`
+
+### Relative Time Formatting
+
+#### formatRelativeTime(timestamp)
+Formats a timestamp as relative time from now (past times only).
+- Returns: "2h ago", "3d ago", "Just now", or "Never" for undefined
+
+#### formatRelativeTimeBidirectional(timestamp)
+Formats a timestamp as relative time, handling both past and future times.
+- Returns: "2h ago", "in 3d", "in 45m"
+
+#### formatSchedulingTime(timestamp)
+Formats a timestamp for scheduling context, showing "Ready to run" for past times.
+- Returns: "Ready to run", "in 2h 30m"
+
+### Utility Functions
+
+#### isUpcoming(eventDate)
+Checks if a given timestamp represents an upcoming event.
+- Returns: boolean
+
+### Examples
+```typescript
+import { 
+  formatDate, 
+  formatRelativeTime, 
+  formatDateForCard,
+  formatEventDateFriendly,
+  isUpcoming 
+} from './dateUtils';
+
+// Standard formatting
+const formatted = formatDate(Date.now());
+const shortDate = formatDateShort(Date.now());
+
+// Event card formatting
+const { month, day, weekday } = formatDateForCard(eventTimestamp);
+const friendlyDate = formatEventDateFriendly(eventTimestamp);
+
+// Relative time formatting
+const relative = formatRelativeTime(lastScrapedTime);
+const bidirectional = formatRelativeTimeBidirectional(scheduledTime);
+const scheduling = formatSchedulingTime(scheduledTime);
+
+// Utility checks
+const upcoming = isUpcoming(eventTimestamp);
+```
+
+### Consolidation Notes
+These utilities have been extracted from various components to eliminate code duplication. Previously, similar formatting logic was scattered across:
+- `SubscriptionsPage.tsx`
+- `SourcesListPage.tsx` 
+- `EventDetailPage.tsx`
+- `EventCard.tsx`
+- `AppAdminPage.tsx`
+- `EventDebugPage.tsx`
+- `SourceDetailPage.tsx`
+- `CreateSubscriptionPage.tsx`
+
+All components now use the centralized utilities for consistent date/time formatting.
 
 ## useAPIErrorHandler
 

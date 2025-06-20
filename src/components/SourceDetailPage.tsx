@@ -7,6 +7,7 @@ import {
   formatDate,
   formatDateShort,
   formatRelativeTime,
+  formatTime,
   isUpcoming,
 } from "../utils/dateUtils";
 import {
@@ -403,13 +404,7 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                             {formatDateShort(event.eventDate)}
                           </Text>
                           <Text size="xs" c="dimmed">
-                            {new Date(event.eventDate).toLocaleTimeString(
-                              "en-US",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
+                            {formatTime(event.eventDate)}
                           </Text>
                         </Box>
                       </Table.Td>

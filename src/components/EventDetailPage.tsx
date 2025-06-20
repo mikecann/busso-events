@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { formatEventDate } from "../utils/dateUtils";
 import {
   Container,
   Card,
@@ -33,18 +34,6 @@ export function EventDetailPage({
   onDebugClick,
 }: EventDetailPageProps) {
   const event = useQuery(api.events.getById, { id: eventId as Id<"events"> });
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZoneName: "short",
-    });
-  };
 
   if (event === undefined) {
     return (
@@ -120,7 +109,7 @@ export function EventDetailPage({
                   <Text fw={500} size="sm" c="dimmed">
                     Event Date
                   </Text>
-                  <Text size="lg">{formatDate(event.eventDate)}</Text>
+                  <Text size="lg">{formatEventDate(event.eventDate)}</Text>
                 </Box>
               </Group>
 

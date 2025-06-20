@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { formatDate } from "../utils/dateUtils";
 import {
   Container,
   Title,
@@ -28,17 +29,6 @@ export function SourcesListPage({
   onNavigateToSourceDetail,
 }: SourcesListPageProps) {
   const sources = useQuery(api.eventSources.list);
-
-  const formatDate = (timestamp: number | undefined) => {
-    if (!timestamp) return "Never";
-    return new Date(timestamp).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   if (sources === undefined) {
     return (

@@ -4,7 +4,10 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
-import { formatDateDetailed as formatDate } from "../utils/dateUtils";
+import {
+  formatDateDetailed as formatDate,
+  formatSchedulingTime,
+} from "../utils/dateUtils";
 import { navigation } from "../router";
 import {
   Container,
@@ -60,24 +63,6 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const [isTriggeringMatching, setIsTriggeringMatching] = useState(false);
 
   const onApiError = useAPIErrorHandler();
-
-  const formatRelativeTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = timestamp - now;
-
-    if (diff <= 0) {
-      return "Ready to run";
-    }
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hours > 0) {
-      return `in ${hours}h ${minutes}m`;
-    } else {
-      return `in ${minutes}m`;
-    }
-  };
 
   const handleEdit = (field: string, currentValue: unknown) => {
     setEditingField(field);
@@ -437,7 +422,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
                 }
               >
                 {event.subscriptionMatchScheduledAt
-                  ? `${formatDate(event.subscriptionMatchScheduledAt)} (${formatRelativeTime(event.subscriptionMatchScheduledAt)})`
+                  ? `${formatDate(event.subscriptionMatchScheduledAt)} (${formatSchedulingTime(event.subscriptionMatchScheduledAt)})`
                   : "Not scheduled"}
               </Text>
             </Box>
