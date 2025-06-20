@@ -491,3 +491,49 @@ export const listRecentTestScrapes = query({
     return await ctx.db.query("testScrapes").order("desc").take(10);
   },
 });
+
+export const getSourcesStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const sources = await ctx.db.query("eventSources").collect();
+    const now = Date.now();
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
+    const activeSources = sources.filter((source) => source.isActive);
+    const sourcesNeedingScraping = activeSources.filter(
+      (source) => !source.dateLastScrape || source.dateLastScrape < oneDayAgo,
+    );
+
+    // Get recent scraping activity
+    const recentlyScraped = activeSources
+      .filter(
+        (source) => source.dateLastScrape && source.dateLastScrape > oneDayAgo,
+      )
+      .sort((a, b) => (b.dateLastScrape || 0) - (a.dateLastScrape || 0));
+
+    return {
+      totalSources: sources.length,
+      activeSources: activeSources.length,
+      sourcesNeedingScraping: sourcesNeedingScraping.length,
+      recentlyScraped: recentlyScraped
+        .map((source) => ({
+          id: source._id,
+          name: source.name,
+          lastScraped: source.dateLastScrape,
+        }))
+        .slice(0, 5),
+      nextScrapingCandidates: sourcesNeedingScraping
+        .map((source) => ({
+          id: source._id,
+          name: source.name,
+          lastScraped: source.dateLastScrape,
+          daysSinceLastScrape: source.dateLastScrape
+            ? Math.floor((now - source.dateLastScrape) / (24 * 60 * 60 * 1000))
+            : null,
+        }))
+        .slice(0, 5),
+    };
+  },
+});

@@ -1,4 +1,9 @@
-import { query, action, internalAction, internalMutation } from "./_generated/server";
+import {
+  query,
+  action,
+  internalAction,
+  internalMutation,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
@@ -21,7 +26,7 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
-    
+
     return await ctx.db
       .query("jobs")
       .withIndex("by_status")
@@ -36,16 +41,21 @@ export const createBatchEventScrapeJob = action({
     await requireAdmin(ctx);
 
     // Get events ready for scraping
-    const events: any[] = await ctx.runQuery(internal.eventsInternal.getEventsReadyForScrapingInternal);
-    
+    const events: any[] = await ctx.runQuery(
+      internal.eventsInternal.getEventsReadyForScrapingInternal,
+    );
+
     if (events.length === 0) {
       throw new Error("No events are ready for scraping");
     }
 
     // Create the job
-    const jobId: Id<"jobs"> = await ctx.runMutation(internal.jobs.createBatchEventScrapeJobInternal, {
-      totalEvents: events.length,
-    });
+    const jobId: Id<"jobs"> = await ctx.runMutation(
+      internal.jobs.createBatchEventScrapeJobInternal,
+      {
+        totalEvents: events.length,
+      },
+    );
 
     // Start processing the job
     await ctx.runAction(internal.jobs.processBatchEventScrapeJob, {
@@ -59,20 +69,27 @@ export const createBatchEventScrapeJob = action({
 
 export const createBatchSourceScrapeJob = action({
   args: {},
-  handler: async (ctx): Promise<{ jobId: Id<"jobs">; totalSources: number }> => {
+  handler: async (
+    ctx,
+  ): Promise<{ jobId: Id<"jobs">; totalSources: number }> => {
     await requireAdmin(ctx);
 
     // Get active event sources
-    const sources: any[] = await ctx.runQuery(internal.eventSources.getActiveSources);
-    
+    const sources: any[] = await ctx.runQuery(
+      internal.eventSources.getActiveSources,
+    );
+
     if (sources.length === 0) {
       throw new Error("No active event sources found");
     }
 
     // Create the job
-    const jobId: Id<"jobs"> = await ctx.runMutation(internal.jobs.createBatchSourceScrapeJobInternal, {
-      totalSources: sources.length,
-    });
+    const jobId: Id<"jobs"> = await ctx.runMutation(
+      internal.jobs.createBatchSourceScrapeJobInternal,
+      {
+        totalSources: sources.length,
+      },
+    );
 
     // Start processing the job
     await ctx.runAction(internal.jobs.processBatchSourceScrapeJob, {
@@ -147,7 +164,7 @@ export const updateJobProgress = internalMutation({
 
     // Create a copy of the current progress
     const updatedProgress: any = { ...job.progress };
-    
+
     // Update only the fields that are provided
     if (args.progress.processedEvents !== undefined) {
       updatedProgress.processedEvents = args.progress.processedEvents;
@@ -180,7 +197,12 @@ export const updateJobProgress = internalMutation({
 export const updateJobStatus = internalMutation({
   args: {
     jobId: v.id("jobs"),
-    status: v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("failed")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -219,11 +241,14 @@ export const processBatchEventScrapeJob = internalAction({
 
       for (let i = 0; i < args.eventIds.length; i++) {
         const eventId = args.eventIds[i];
-        
+
         try {
           // Get event details for progress tracking
-          const event = await ctx.runQuery(internal.eventsInternal.getEventById, { eventId });
-          
+          const event = await ctx.runQuery(
+            internal.eventsInternal.getEventById,
+            { eventId },
+          );
+
           // Update progress with current event
           await ctx.runMutation(internal.jobs.updateJobProgress, {
             jobId: args.jobId,
@@ -234,9 +259,12 @@ export const processBatchEventScrapeJob = internalAction({
           });
 
           // Perform the scrape
-          const result = await ctx.runAction(internal.eventsInternal.performEventScrape, {
-            eventId,
-          });
+          const result = await ctx.runAction(
+            internal.eventsInternal.performEventScrape,
+            {
+              eventId,
+            },
+          );
 
           if (result.success) {
             successfulScrapes++;
@@ -265,10 +293,9 @@ export const processBatchEventScrapeJob = internalAction({
         jobId: args.jobId,
         status: "completed",
       });
-
     } catch (error) {
       console.error("Batch event scrape job failed:", error);
-      
+
       // Mark job as failed
       await ctx.runMutation(internal.jobs.updateJobStatus, {
         jobId: args.jobId,
@@ -298,11 +325,14 @@ export const processBatchSourceScrapeJob = internalAction({
 
       for (let i = 0; i < args.sourceIds.length; i++) {
         const sourceId = args.sourceIds[i];
-        
+
         try {
           // Get source details for progress tracking
-          const source = await ctx.runQuery(internal.eventSources.getSourceById, { sourceId });
-          
+          const source = await ctx.runQuery(
+            internal.eventSources.getSourceById,
+            { sourceId },
+          );
+
           // Update progress with current source
           await ctx.runMutation(internal.jobs.updateJobProgress, {
             jobId: args.jobId,
@@ -313,9 +343,12 @@ export const processBatchSourceScrapeJob = internalAction({
           });
 
           // Perform the scrape
-          const result = await ctx.runAction(internal.eventSources.performSourceScrape, {
-            sourceId,
-          });
+          const result = await ctx.runAction(
+            internal.eventSources.performSourceScrape,
+            {
+              sourceId,
+            },
+          );
 
           if (result.success) {
             successfulScrapes++;
@@ -346,10 +379,9 @@ export const processBatchSourceScrapeJob = internalAction({
         jobId: args.jobId,
         status: "completed",
       });
-
     } catch (error) {
       console.error("Batch source scrape job failed:", error);
-      
+
       // Mark job as failed
       await ctx.runMutation(internal.jobs.updateJobStatus, {
         jobId: args.jobId,
@@ -357,5 +389,38 @@ export const processBatchSourceScrapeJob = internalAction({
         error: error instanceof Error ? error.message : "Unknown error",
       });
     }
+  },
+});
+
+export const getSystemStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    // Get recent jobs (last 24 hours)
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const recentJobs = await ctx.db
+      .query("jobs")
+      .withIndex("by_status")
+      .filter((q) => q.gte(q.field("startedAt"), oneDayAgo))
+      .order("desc")
+      .take(10);
+
+    // Get active jobs (running or pending)
+    const activeJobs = await ctx.db
+      .query("jobs")
+      .withIndex("by_status")
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "running"),
+          q.eq(q.field("status"), "pending"),
+        ),
+      )
+      .collect();
+
+    return {
+      activeJobs,
+      recentJobs,
+    };
   },
 });
