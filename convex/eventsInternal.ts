@@ -448,6 +448,18 @@ export const performEventScrape = internalAction({
         success: false,
         message: errorMessage,
       };
+    } finally {
+      // Always clear the workpool job ID when the job completes (success or failure)
+      try {
+        await ctx.runMutation(
+          internal.eventsInternal.clearEventScrapeSchedule,
+          {
+            eventId: args.eventId,
+          },
+        );
+      } catch (clearError) {
+        console.error("Failed to clear scrape workpool job ID:", clearError);
+      }
     }
   },
 });
@@ -474,54 +486,6 @@ async function enqueueEventScraping(
 
   return workId;
 }
-
-// Scheduled function to perform event scraping
-export const performScheduledEventScrape = internalAction({
-  args: {
-    eventId: v.id("events"),
-  },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    scrapedData?: any;
-  }> => {
-    console.log(`🔍 Starting scheduled scrape for event ${args.eventId}`);
-
-    try {
-      // Clear the scheduled function ID since it's now running
-      await ctx.runMutation(internal.eventsInternal.clearEventScrapeSchedule, {
-        eventId: args.eventId,
-      });
-
-      // Perform the actual scraping
-      const result: {
-        success: boolean;
-        message: string;
-        scrapedData?: any;
-      } = await ctx.runAction(internal.eventsInternal.performEventScrape, {
-        eventId: args.eventId,
-      });
-
-      console.log(
-        `✅ Scheduled scrape completed for event ${args.eventId}:`,
-        result,
-      );
-      return result;
-    } catch (error) {
-      console.error(
-        `❌ Scheduled scrape failed for event ${args.eventId}:`,
-        error,
-      );
-      return {
-        success: false,
-        message: `Scheduled scrape failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  },
-});
 
 // Clear the workpool scrape job ID
 export const clearEventScrapeSchedule = internalMutation({
@@ -599,14 +563,6 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
     );
 
     try {
-      // Clear the workpool job ID since it's now running
-      await ctx.runMutation(
-        internal.eventsInternal.clearEmbeddingGenerationSchedule,
-        {
-          eventId: args.eventId,
-        },
-      );
-
       // Check if event already has an embedding to avoid duplicate work
       const event = await ctx.runQuery(internal.eventsInternal.getEventById, {
         eventId: args.eventId,
@@ -657,6 +613,18 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
         success: false,
         message: `Workpool embedding generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
+    } finally {
+      // Always clear the workpool job ID when the job completes (success or failure)
+      try {
+        await ctx.runMutation(
+          internal.eventsInternal.clearEmbeddingGenerationSchedule,
+          {
+            eventId: args.eventId,
+          },
+        );
+      } catch (clearError) {
+        console.error("Failed to clear embedding workpool job ID:", clearError);
+      }
     }
   },
 });
