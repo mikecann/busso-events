@@ -24,6 +24,7 @@ import {
   ThemeIcon,
   TextInput,
   Modal,
+  Image,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -95,6 +96,25 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
 
   const isUpcoming = (eventDate: number) => {
     return eventDate > Date.now();
+  };
+
+  const formatRelativeTime = (timestamp: number | undefined) => {
+    if (!timestamp) return "Never";
+
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(diff / (1000 * 60 * 60 * 24 * 7));
+    const months = Math.floor(diff / (1000 * 60 * 60 * 24 * 30));
+
+    if (months > 0) return `${months}mo ago`;
+    if (weeks > 0) return `${weeks}w ago`;
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return "Just now";
   };
 
   if (source === undefined || eventsData === undefined) {
@@ -372,28 +392,40 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th style={{ width: "45%" }}>Event</Table.Th>
-                    <Table.Th style={{ width: "20%" }}>Date</Table.Th>
-                    <Table.Th style={{ width: "15%" }}>Status</Table.Th>
-                    <Table.Th style={{ width: "20%" }}>URL</Table.Th>
+                    <Table.Th style={{ width: "80px" }}>Image</Table.Th>
+                    <Table.Th style={{ width: "40%" }}>Event</Table.Th>
+                    <Table.Th style={{ width: "18%" }}>Date</Table.Th>
+                    <Table.Th style={{ width: "18%" }}>Last Scraped</Table.Th>
+                    <Table.Th style={{ width: "14%" }}>Embeddings</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {events.map((event) => (
                     <Table.Tr key={event._id}>
-                      <Table.Td style={{ width: "45%" }}>
+                      <Table.Td style={{ width: "80px" }}>
+                        <Image
+                          src={event.imageUrl || undefined}
+                          alt={event.title}
+                          width={60}
+                          height={60}
+                          radius="md"
+                          fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f3f4'/%3E%3Ctext x='50' y='55' text-anchor='middle' font-size='30' fill='%23666'%3E📅%3C/text%3E%3C/svg%3E"
+                          style={{ flexShrink: 0 }}
+                        />
+                      </Table.Td>
+                      <Table.Td style={{ width: "40%" }}>
                         <Box>
                           <Text fw={500} size="sm" lineClamp={2}>
                             {event.title}
                           </Text>
                           {event.description && (
-                            <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
+                            <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
                               {event.description}
                             </Text>
                           )}
                         </Box>
                       </Table.Td>
-                      <Table.Td style={{ width: "20%" }}>
+                      <Table.Td style={{ width: "18%" }}>
                         <Box>
                           <Text size="sm" fw={500}>
                             {formatDateShort(event.eventDate)}
@@ -409,30 +441,19 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                           </Text>
                         </Box>
                       </Table.Td>
-                      <Table.Td style={{ width: "15%" }}>
+                      <Table.Td style={{ width: "18%" }}>
+                        <Text size="sm" c="dimmed">
+                          {formatRelativeTime(event.lastScraped)}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td style={{ width: "14%" }}>
                         <Badge
-                          color={isUpcoming(event.eventDate) ? "blue" : "gray"}
+                          color={event.descriptionEmbedding ? "green" : "gray"}
                           size="sm"
                           variant="light"
                         >
-                          {isUpcoming(event.eventDate) ? "Upcoming" : "Past"}
+                          {event.descriptionEmbedding ? "Yes" : "No"}
                         </Badge>
-                      </Table.Td>
-                      <Table.Td style={{ width: "20%" }}>
-                        <Anchor
-                          href={event.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          size="sm"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                          }}
-                        >
-                          View Event
-                          <IconExternalLink size={12} />
-                        </Anchor>
                       </Table.Td>
                     </Table.Tr>
                   ))}
