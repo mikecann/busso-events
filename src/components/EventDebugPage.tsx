@@ -45,19 +45,19 @@ interface EventDebugPageProps {
 export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   // Cast the string eventId to proper Id type for Convex queries
   const typedEventId = eventId as Id<"events">;
-  const event = useQuery(api.events.getById, { id: typedEventId });
-  const workpoolStatus = useQuery(api.events.getWorkpoolStatus, {
+  const event = useQuery(api.events.events.getById, { id: typedEventId });
+  const workpoolStatus = useQuery(api.events.events.getWorkpoolStatus, {
     eventId: typedEventId,
   });
   const embeddingWorkpoolStatus = useQuery(
-    api.events.getEmbeddingWorkpoolStatus,
+    api.events.events.getEmbeddingWorkpoolStatus,
     {
       eventId: typedEventId,
     },
   );
-  const updateEvent = useMutation(api.eventsAdmin.updateEvent);
-  const deleteEvent = useMutation(api.eventsAdmin.deleteEvent);
-  const scrapeEvent = useAction(api.eventsAdmin.scrapeEvent);
+  const updateEvent = useMutation(api.events.eventsAdmin.updateEvent);
+  const deleteEvent = useMutation(api.events.eventsAdmin.deleteEvent);
+  const scrapeEvent = useAction(api.events.eventsAdmin.scrapeEvent);
   const generateEmbedding = useAction(api.embeddings.generateEventEmbedding);
   const triggerSubscriptionMatching = useAction(
     api.subscriptionMatching.triggerSubscriptionMatchingForEvent,
@@ -664,7 +664,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
                   <Text size="sm">
                     {Array.isArray(value)
                       ? value.join(", ")
-                      : value || "Not available"}
+                      : String(value || "Not available")}
                   </Text>
                 </Box>
               ))}

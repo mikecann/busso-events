@@ -33,7 +33,9 @@ export function EventDetailPage({
   onBack,
   onDebugClick,
 }: EventDetailPageProps) {
-  const event = useQuery(api.events.getById, { id: eventId as Id<"events"> });
+  const event = useQuery(api.events.events.getById, {
+    id: eventId as Id<"events">,
+  });
 
   if (event === undefined) {
     return (

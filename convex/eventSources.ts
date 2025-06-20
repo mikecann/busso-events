@@ -19,7 +19,7 @@ async function requireAdmin(ctx: any) {
   }
 
   // Use internal query to check admin status
-  const isAdmin = await ctx.runQuery(internal.eventsInternal.checkUserIsAdmin, {
+  const isAdmin = await ctx.runQuery(internal.events.eventsInternal.checkUserIsAdmin, {
     userId,
   });
   if (!isAdmin) {
@@ -284,7 +284,7 @@ export const performSourceScrape = internalAction({
 
           // Check if event already exists
           const existingEvent = await ctx.runQuery(
-            internal.eventsInternal.getEventByUrl,
+            internal.events.eventsInternal.getEventByUrl,
             {
               url: eventData.url,
             },
@@ -293,7 +293,7 @@ export const performSourceScrape = internalAction({
           if (!existingEvent) {
             // Create new event
             console.log(`➕ Creating new event: ${eventData.title}`);
-            await ctx.runMutation(internal.eventsInternal.createInternal, {
+            await ctx.runMutation(internal.events.eventsInternal.createInternal, {
               title: eventData.title,
               description:
                 eventData.description ||

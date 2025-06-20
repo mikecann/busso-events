@@ -26,7 +26,7 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
     "all" | "week" | "month" | "3months"
   >("all");
 
-  const events = useQuery(api.events.search, {
+  const events = useQuery(api.events.events.search, {
     searchTerm: searchTerm.trim() || "",
     dateFilter,
   });

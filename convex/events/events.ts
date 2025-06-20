@@ -1,24 +1,13 @@
-import { query, action } from "./_generated/server";
+import { query, action } from "../_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { api, internal } from "./_generated/api";
-
-// Helper function to check if user is admin (for actions)
-async function requireAdminAction(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Must be authenticated");
-  }
-
-  // Use internal query to check admin status
-  const isAdmin = await ctx.runQuery(internal.eventsInternal.checkUserIsAdmin, {
-    userId,
-  });
-  if (!isAdmin) {
-    throw new Error("Admin access required");
-  }
-  return userId;
-}
+import { api, internal } from "../_generated/api";
+import {
+  requireAdminAction,
+  calculateMaxDateFromFilter,
+  filterEventsByDate,
+  deduplicateEvents,
+  sortEventsByDate,
+} from "./common";
 
 // PUBLIC QUERIES - No authentication required
 export const list = query({
@@ -47,9 +36,12 @@ export const getWorkpoolStatus = query({
     error?: string;
   } | null> => {
     // This is a public query but we'll call the internal one
-    return await ctx.runQuery(internal.eventsInternal.getEventWorkpoolStatus, {
-      eventId: args.eventId,
-    });
+    return await ctx.runQuery(
+      internal.events.eventsInternal.getEventWorkpoolStatus,
+      {
+        eventId: args.eventId,
+      },
+    );
   },
 });
 
@@ -66,7 +58,7 @@ export const getEmbeddingWorkpoolStatus = query({
   } | null> => {
     // This is a public query but we'll call the internal one
     return await ctx.runQuery(
-      internal.eventsInternal.getEventEmbeddingWorkpoolStatus,
+      internal.events.eventsInternal.getEventEmbeddingWorkpoolStatus,
       {
         eventId: args.eventId,
       },
@@ -87,24 +79,6 @@ export const search = query({
     ),
   },
   handler: async (ctx, args) => {
-    const now = Date.now();
-    let maxDate: number | undefined;
-
-    // Calculate the maximum date based on filter
-    if (args.dateFilter && args.dateFilter !== "all") {
-      switch (args.dateFilter) {
-        case "week":
-          maxDate = now + 7 * 24 * 60 * 60 * 1000; // 1 week
-          break;
-        case "month":
-          maxDate = now + 30 * 24 * 60 * 60 * 1000; // 30 days
-          break;
-        case "3months":
-          maxDate = now + 90 * 24 * 60 * 60 * 1000; // 90 days
-          break;
-      }
-    }
-
     let results: any[] = [];
 
     if (!args.searchTerm.trim()) {
@@ -115,13 +89,7 @@ export const search = query({
         .order("asc")
         .collect();
 
-      results = allEvents.filter((event) => {
-        // Only show future events
-        if (event.eventDate <= now) return false;
-        // Apply date filter if specified
-        if (maxDate && event.eventDate > maxDate) return false;
-        return true;
-      });
+      results = filterEventsByDate(allEvents, args.dateFilter);
     } else {
       // Search with text and apply date filter
       const titleResults = await ctx.db
@@ -140,23 +108,14 @@ export const search = query({
 
       // Combine and deduplicate results
       const allResults = [...titleResults, ...descriptionResults];
-      const uniqueResults = allResults.filter(
-        (event, index, self) =>
-          index === self.findIndex((e) => e._id === event._id),
-      );
+      const uniqueResults = deduplicateEvents(allResults);
 
       // Apply date filters
-      results = uniqueResults.filter((event) => {
-        // Only show future events
-        if (event.eventDate <= now) return false;
-        // Apply date filter if specified
-        if (maxDate && event.eventDate > maxDate) return false;
-        return true;
-      });
+      results = filterEventsByDate(uniqueResults, args.dateFilter);
     }
 
     // Sort by event date (ascending - soonest first)
-    return results.sort((a, b) => a.eventDate - b.eventDate);
+    return sortEventsByDate(results);
   },
 });
 
@@ -186,7 +145,7 @@ export const startScrapeNow = action({
 
     // Call the internal scrape action
     const result: any = await ctx.runAction(
-      internal.eventsInternal.performEventScrape,
+      internal.events.eventsInternal.performEventScrape,
       {
         eventId: args.eventId,
       },

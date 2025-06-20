@@ -374,7 +374,7 @@ export const processEventForSubscriptionMatching = internalAction({
       console.log(`Processing event ${args.eventId} for subscription matching`);
 
       // Get the event
-      const event = await ctx.runQuery(internal.eventsInternal.getEventById, {
+      const event = await ctx.runQuery(internal.events.eventsInternal.getEventById, {
         eventId: args.eventId,
       });
 
@@ -468,7 +468,7 @@ async function checkEventAgainstSubscription(
       );
     }
 
-    const event = await ctx.runQuery(internal.eventsInternal.getEventById, {
+    const event = await ctx.runQuery(internal.events.eventsInternal.getEventById, {
       eventId,
     });
     if (!event) return;

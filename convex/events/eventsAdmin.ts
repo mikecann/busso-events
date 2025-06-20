@@ -1,32 +1,14 @@
-import { query, mutation, action } from "./_generated/server";
+import { query, mutation, action } from "../_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { internal } from "./_generated/api";
-
-// Helper function to check if user is admin
-async function requireAdmin(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Must be authenticated");
-  }
-
-  const isAdmin = await ctx.runQuery(internal.eventsInternal.checkUserIsAdmin, {
-    userId,
-  });
-
-  if (!isAdmin) {
-    throw new Error("Admin access required");
-  }
-
-  return userId;
-}
+import { internal } from "../_generated/api";
+import { requireAdmin, validateEventData } from "./common";
 
 export const getEventsReadyForScraping = query({
   args: {},
   handler: async (ctx): Promise<any[]> => {
     await requireAdmin(ctx);
     return await ctx.runQuery(
-      internal.eventsInternal.getEventsReadyForScrapingInternal,
+      internal.events.eventsInternal.getEventsReadyForScrapingInternal,
     );
   },
 });
@@ -44,7 +26,11 @@ export const updateEvent = mutation({
     await requireAdmin(ctx);
 
     const { id, ...updates } = args;
-    await ctx.runMutation(internal.eventsInternal.updateEventInternal, {
+
+    // Validate the update data
+    validateEventData(updates);
+
+    await ctx.runMutation(internal.events.eventsInternal.updateEventInternal, {
       eventId: id,
       ...updates,
     });
@@ -58,7 +44,7 @@ export const deleteEvent = mutation({
   handler: async (ctx, args): Promise<void> => {
     await requireAdmin(ctx);
 
-    await ctx.runMutation(internal.eventsInternal.deleteEventInternal, {
+    await ctx.runMutation(internal.events.eventsInternal.deleteEventInternal, {
       eventId: args.id,
     });
   },
@@ -79,9 +65,12 @@ export const scrapeEvent = action({
     // Note: We can't check admin status in actions, so this is open
     // In a real app, you'd want to add proper authorization
 
-    return await ctx.runAction(internal.eventsInternal.performEventScrape, {
-      eventId: args.eventId,
-    });
+    return await ctx.runAction(
+      internal.events.eventsInternal.performEventScrape,
+      {
+        eventId: args.eventId,
+      },
+    );
   },
 });
 

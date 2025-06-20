@@ -42,7 +42,7 @@ export const createBatchEventScrapeJob = action({
 
     // Get events ready for scraping
     const events: any[] = await ctx.runQuery(
-      internal.eventsInternal.getEventsReadyForScrapingInternal,
+      internal.events.eventsInternal.getEventsReadyForScrapingInternal,
     );
 
     if (events.length === 0) {
@@ -245,7 +245,7 @@ export const processBatchEventScrapeJob = internalAction({
         try {
           // Get event details for progress tracking
           const event = await ctx.runQuery(
-            internal.eventsInternal.getEventById,
+            internal.events.eventsInternal.getEventById,
             { eventId },
           );
 
@@ -260,7 +260,7 @@ export const processBatchEventScrapeJob = internalAction({
 
           // Perform the scrape
           const result = await ctx.runAction(
-            internal.eventsInternal.performEventScrape,
+            internal.events.eventsInternal.performEventScrape,
             {
               eventId,
             },

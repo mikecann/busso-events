@@ -3,17 +3,22 @@ import {
   internalMutation,
   internalAction,
   MutationCtx,
-} from "./_generated/server";
+} from "../_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
-import { components } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { internal } from "../_generated/api";
+import { components } from "../_generated/api";
+import { Id } from "../_generated/dataModel";
 import {
   Workpool,
   WorkId,
   vWorkIdValidator,
   vResultValidator,
 } from "@convex-dev/workpool";
+import {
+  EventScrapeResult,
+  convertEventDetailsToScrapedData,
+  selectBestImageUrl,
+} from "./common";
 
 // Initialize the workpool for event scraping with max parallelism of 1
 const eventScrapePool = new Workpool(components.eventScrapeWorkpool, {
@@ -278,20 +283,13 @@ export const performEventScrape = internalAction({
   args: {
     eventId: v.id("events"),
   },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    scrapedData?: any;
-  }> => {
+  handler: async (ctx, args): Promise<EventScrapeResult> => {
     try {
       console.log(`🔍 Starting event scrape for eventId: ${args.eventId}`);
 
       // Get the event
       const event: any = await ctx.runQuery(
-        internal.eventsInternal.getEventById,
+        internal.events.eventsInternal.getEventById,
         {
           eventId: args.eventId,
         },
@@ -341,74 +339,35 @@ export const performEventScrape = internalAction({
       console.log(`📝 Extracted event details:`, eventDetails);
 
       // Convert the extracted event details to the format expected by scrapedData
-      const scrapedData: any = {
-        location: eventDetails.location || undefined,
-        organizer: eventDetails.organizer || undefined,
-        price: eventDetails.price || undefined,
-        category: eventDetails.category || undefined,
-        tags: eventDetails.tags || [],
-        registrationUrl: eventDetails.registrationUrl || event.url,
-        contactInfo: eventDetails.contactInfo || undefined,
-        additionalDetails: eventDetails.additionalDetails || undefined,
-        originalEventDate: eventDetails.eventDate || undefined,
-      };
+      const scrapedData = convertEventDetailsToScrapedData(
+        eventDetails,
+        event.url,
+      );
 
       // Extract the best image URL from the scraped data
-      let bestImageUrl = undefined;
-      if (eventDetails.imageUrls && Array.isArray(eventDetails.imageUrls)) {
-        // Filter out non-image URLs and find the best quality image
-        const imageUrls = eventDetails.imageUrls.filter((url: string) => {
-          // Skip URLs that are likely page URLs rather than images
-          if (url.includes("/event/") || url.includes("/events/")) return false;
-          // Only include URLs that look like image files
-          return (
-            /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(url) ||
-            url.includes("media.")
-          );
-        });
+      const bestImageUrl =
+        eventDetails.imageUrls && Array.isArray(eventDetails.imageUrls)
+          ? selectBestImageUrl(eventDetails.imageUrls)
+          : undefined;
 
-        if (imageUrls.length > 0) {
-          // Prefer larger images by looking for size indicators in the URL
-          const sortedImages = imageUrls.sort((a: string, b: string) => {
-            // Extract width from transformation parameters (e.g., tr=w-3240,h-1920)
-            const getWidth = (url: string) => {
-              const match = url.match(/tr=w-(\d+)/);
-              return match ? parseInt(match[1]) : 0;
-            };
-
-            const aWidth = getWidth(a);
-            const bWidth = getWidth(b);
-
-            // If both have width info, prefer larger
-            if (aWidth && bWidth) return bWidth - aWidth;
-
-            // If only one has width info, prefer that one
-            if (aWidth) return -1;
-            if (bWidth) return 1;
-
-            // Otherwise prefer URLs without size restrictions (likely original)
-            if (a.includes("scaled") && !b.includes("scaled")) return 1;
-            if (!a.includes("scaled") && b.includes("scaled")) return -1;
-
-            return 0;
-          });
-
-          bestImageUrl = sortedImages[0];
-          console.log(`🖼️ Selected image URL: ${bestImageUrl}`);
-        }
+      if (bestImageUrl) {
+        console.log(`🖼️ Selected image URL: ${bestImageUrl}`);
       }
 
       // Update the event with scraped data
-      await ctx.runMutation(internal.eventsInternal.updateEventAfterScrape, {
-        eventId: args.eventId,
-        scrapedData,
-        // Enhance description if we got additional details
-        description: eventDetails.description
-          ? eventDetails.description
-          : event.description,
-        // Update image URL if we found a good one
-        imageUrl: bestImageUrl,
-      });
+      await ctx.runMutation(
+        internal.events.eventsInternal.updateEventAfterScrape,
+        {
+          eventId: args.eventId,
+          scrapedData,
+          // Enhance description if we got additional details
+          description: eventDetails.description
+            ? eventDetails.description
+            : event.description,
+          // Update image URL if we found a good one
+          imageUrl: bestImageUrl,
+        },
+      );
 
       const message = `Successfully scraped event '${event.title}' from URL: ${event.url}`;
       console.log(`✅ ${message}`);
@@ -432,7 +391,7 @@ export const performEventScrape = internalAction({
       // Always clear the workpool job ID when the job completes (success or failure)
       try {
         await ctx.runMutation(
-          internal.eventsInternal.clearEventScrapeSchedule,
+          internal.events.eventsInternal.clearEventScrapeSchedule,
           {
             eventId: args.eventId,
           },
@@ -454,10 +413,10 @@ async function enqueueEventScraping(
   // Enqueue the scraping action in the workpool with onComplete handler
   const workId = await eventScrapePool.enqueueAction(
     ctx,
-    internal.eventsInternal.performEventScrape,
+    internal.events.eventsInternal.performEventScrape,
     { eventId },
     {
-      onComplete: internal.eventsInternal.onScrapeComplete,
+      onComplete: internal.events.eventsInternal.onScrapeComplete,
       context: { eventId },
     },
   );
@@ -526,7 +485,7 @@ async function enqueueEmbeddingGeneration(
 
   const workId = await eventEmbeddingPool.enqueueAction(
     ctx,
-    internal.eventsInternal.performWorkpoolEmbeddingGeneration,
+    internal.events.eventsInternal.performWorkpoolEmbeddingGeneration,
     { eventId },
   );
 
@@ -550,7 +509,7 @@ async function enqueueEmbeddingGenerationDelayed(
 
   const workId = await eventEmbeddingPool.enqueueAction(
     ctx,
-    internal.eventsInternal.performWorkpoolEmbeddingGeneration,
+    internal.events.eventsInternal.performWorkpoolEmbeddingGeneration,
     { eventId },
   );
 
@@ -581,9 +540,12 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
 
     try {
       // Check if event already has an embedding to avoid duplicate work
-      const event = await ctx.runQuery(internal.eventsInternal.getEventById, {
-        eventId: args.eventId,
-      });
+      const event = await ctx.runQuery(
+        internal.events.eventsInternal.getEventById,
+        {
+          eventId: args.eventId,
+        },
+      );
 
       if (!event) {
         console.log(
@@ -634,7 +596,7 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
       // Always clear the workpool job ID when the job completes (success or failure)
       try {
         await ctx.runMutation(
-          internal.eventsInternal.clearEmbeddingGenerationSchedule,
+          internal.events.eventsInternal.clearEmbeddingGenerationSchedule,
           {
             eventId: args.eventId,
           },

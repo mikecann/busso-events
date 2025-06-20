@@ -64,7 +64,7 @@ export const generateEventDescriptionEmbedding = internalAction({
   handler: async (ctx, args): Promise<{ success: boolean }> => {
     try {
       // Get the event
-      const event = await ctx.runQuery(internal.eventsInternal.getEventById, {
+      const event = await ctx.runQuery(internal.events.eventsInternal.getEventById, {
         eventId: args.eventId,
       });
 

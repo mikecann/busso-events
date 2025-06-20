@@ -40,14 +40,14 @@ interface AppAdminPageProps {
 
 export function AppAdminPage({ onNavigateToSources }: AppAdminPageProps) {
   const eventsReadyForScraping = useQuery(
-    api.eventsAdmin.getEventsReadyForScraping,
+    api.events.eventsAdmin.getEventsReadyForScraping,
   );
   const generateMissingEmbeddings = useAction(
     api.embeddings.generateMissingEmbeddings,
   );
   const queueStats = useQuery(api.emailQueue.getQueueStats);
   const jobsStatus = useQuery(api.jobs.getSystemStatus);
-  const schedulingInfo = useQuery(api.eventsAdmin.getSchedulingInfo);
+  const schedulingInfo = useQuery(api.events.eventsAdmin.getSchedulingInfo);
   const sourcesStatus = useQuery(api.eventSources.getSourcesStatus);
 
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
