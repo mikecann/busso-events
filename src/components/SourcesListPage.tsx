@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { Id, Doc } from "../../convex/_generated/dataModel";
 import { formatDate } from "../utils/dateUtils";
 import {
   Container,
@@ -86,7 +86,7 @@ export function SourcesListPage({
           </Card>
         ) : (
           <Stack gap="lg">
-            {sources.map((source) => (
+            {sources.map((source: Doc<"eventSources">) => (
               <Card
                 key={source._id}
                 shadow="sm"

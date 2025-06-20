@@ -2,9 +2,11 @@ import {
   internalQuery,
   internalMutation,
   internalAction,
+  MutationCtx,
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 export const getEventById = internalQuery({
   args: {
@@ -75,6 +77,9 @@ export const createInternal = internalMutation({
       sourceId: args.sourceId,
     });
 
+    // Schedule event scraping for this new event (random delay 0-60 seconds)
+    await scheduleEventScraping(ctx, eventId);
+
     // Schedule subscription matching for this new event (8 hours delay)
     await scheduleSubscriptionMatching(ctx, eventId);
 
@@ -138,6 +143,9 @@ export const createEventInternal = internalMutation({
       url: args.url,
       sourceId: args.sourceId,
     });
+
+    // Schedule event scraping for this new event (random delay 0-60 seconds)
+    await scheduleEventScraping(ctx, eventId);
 
     // Schedule subscription matching for this new event (8 hours delay)
     await scheduleSubscriptionMatching(ctx, eventId);
@@ -216,6 +224,15 @@ export const deleteEventInternal = internalMutation({
         await ctx.scheduler.cancel(event.subscriptionMatchScheduledId);
       } catch (error) {
         console.log("Could not cancel subscription match job:", error);
+      }
+    }
+
+    // Cancel any scheduled event scraping
+    if (event.scrapeScheduledId) {
+      try {
+        await ctx.scheduler.cancel(event.scrapeScheduledId);
+      } catch (error) {
+        console.log("Could not cancel scheduled scrape job:", error);
       }
     }
 
@@ -390,5 +407,94 @@ export const performEventScrape = internalAction({
         message: errorMessage,
       };
     }
+  },
+});
+
+// Schedule event scraping for a newly created event
+async function scheduleEventScraping(
+  ctx: MutationCtx,
+  eventId: Id<"events">,
+): Promise<Id<"_scheduled_functions">> {
+  // Generate random delay between 0 and 60 seconds (1 minute)
+  const randomDelayMs = Math.floor(Math.random() * 60 * 1000);
+  const scheduledAt = Date.now() + randomDelayMs;
+
+  console.log(
+    `📅 Scheduling event scraping for event ${eventId} in ${randomDelayMs}ms`,
+  );
+
+  const scheduledId = await ctx.scheduler.runAfter(
+    randomDelayMs,
+    internal.eventsInternal.performScheduledEventScrape,
+    { eventId },
+  );
+
+  // Update the event with the scheduled function ID and time
+  await ctx.db.patch(eventId, {
+    scrapeScheduledId: scheduledId,
+    scrapeScheduledAt: scheduledAt,
+  });
+
+  return scheduledId;
+}
+
+// Scheduled function to perform event scraping
+export const performScheduledEventScrape = internalAction({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    scrapedData?: any;
+  }> => {
+    console.log(`🔍 Starting scheduled scrape for event ${args.eventId}`);
+
+    try {
+      // Clear the scheduled function ID since it's now running
+      await ctx.runMutation(internal.eventsInternal.clearEventScrapeSchedule, {
+        eventId: args.eventId,
+      });
+
+      // Perform the actual scraping
+      const result: {
+        success: boolean;
+        message: string;
+        scrapedData?: any;
+      } = await ctx.runAction(internal.eventsInternal.performEventScrape, {
+        eventId: args.eventId,
+      });
+
+      console.log(
+        `✅ Scheduled scrape completed for event ${args.eventId}:`,
+        result,
+      );
+      return result;
+    } catch (error) {
+      console.error(
+        `❌ Scheduled scrape failed for event ${args.eventId}:`,
+        error,
+      );
+      return {
+        success: false,
+        message: `Scheduled scrape failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+    }
+  },
+});
+
+// Clear the scheduled scrape function ID
+export const clearEventScrapeSchedule = internalMutation({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.eventId, {
+      scrapeScheduledId: undefined,
+      scrapeScheduledAt: undefined,
+    });
   },
 });

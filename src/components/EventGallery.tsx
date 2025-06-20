@@ -4,7 +4,7 @@ import { useState } from "react";
 import { EventCard } from "./EventCard";
 import { SearchBar } from "./SearchBar";
 import { DateFilter } from "./DateFilter";
-import { Id } from "../../convex/_generated/dataModel";
+import { Id, Doc } from "../../convex/_generated/dataModel";
 import {
   Stack,
   Group,
@@ -69,7 +69,7 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
         </Card>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-          {events.map((event) => (
+          {events.map((event: Doc<"events">) => (
             <EventCard
               key={event._id}
               event={event}

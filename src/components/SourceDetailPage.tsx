@@ -50,7 +50,7 @@ import {
   IconX,
   IconCheck,
 } from "@tabler/icons-react";
-import { Id } from "../../convex/_generated/dataModel";
+import { Id, Doc } from "../../convex/_generated/dataModel";
 import { navigation } from "../router";
 
 interface SourceDetailPageProps {
@@ -367,7 +367,7 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {events.map((event) => (
+                  {events.map((event: Doc<"events">) => (
                     <Table.Tr
                       key={event._id}
                       style={{ cursor: "pointer" }}

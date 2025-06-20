@@ -227,27 +227,6 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Group gap="xs">
             <Button
               onClick={() => {
-                setIsScraping(true);
-                scrapeEvent({ eventId: typedEventId })
-                  .then((result) => {
-                    if (result.success) {
-                      toast.success("Event scraped successfully");
-                    } else {
-                      toast.error(`Scraping failed: ${result.message}`);
-                    }
-                  })
-                  .catch(onApiError)
-                  .finally(() => setIsScraping(false));
-              }}
-              disabled={isScraping}
-              color="yellow"
-              leftSection={<IconSearch size={16} />}
-              loading={isScraping}
-            >
-              {isScraping ? "Scraping..." : "Scrape"}
-            </Button>
-            <Button
-              onClick={() => {
                 setIsGeneratingEmbedding(true);
                 generateEmbedding({ eventId: typedEventId })
                   .then(() => toast.success("Embedding generated successfully"))
@@ -341,6 +320,37 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
             </Box>
             <Box>
               <Text fw={500} size="sm" c="gray.7">
+                Scheduled Scrape:
+              </Text>
+              <Text
+                size="sm"
+                c={
+                  event.scrapeScheduledAt &&
+                  event.scrapeScheduledAt <= Date.now()
+                    ? "green.6"
+                    : event.scrapeScheduledId
+                      ? "blue.6"
+                      : undefined
+                }
+                fw={
+                  event.scrapeScheduledAt &&
+                  event.scrapeScheduledAt <= Date.now()
+                    ? 500
+                    : undefined
+                }
+              >
+                {event.scrapeScheduledAt
+                  ? `${formatDate(event.scrapeScheduledAt)} (${formatSchedulingTime(event.scrapeScheduledAt)})`
+                  : "Not scheduled"}
+              </Text>
+              {event.scrapeScheduledId && (
+                <Text ff="monospace" size="xs" c="dimmed" mt="xs">
+                  Job ID: {event.scrapeScheduledId}
+                </Text>
+              )}
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
                 Has Embedding:
               </Text>
               <Badge
@@ -362,6 +372,81 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               </Box>
             )}
           </SimpleGrid>
+        </Card>
+
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Group justify="space-between" align="center" mb="lg">
+            <Title order={2}>Event Scraping</Title>
+            <Button
+              onClick={() => {
+                setIsScraping(true);
+                scrapeEvent({ eventId: typedEventId })
+                  .then((result) => {
+                    if (result.success) {
+                      toast.success("Event scraped successfully");
+                    } else {
+                      toast.error(`Scraping failed: ${result.message}`);
+                    }
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsScraping(false));
+              }}
+              disabled={isScraping}
+              color="yellow"
+              leftSection={<IconSearch size={16} />}
+              loading={isScraping}
+            >
+              {isScraping ? "Scraping..." : "Scrape Now"}
+            </Button>
+          </Group>
+
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="lg">
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Scheduled Scrape Job ID:
+              </Text>
+              <Text ff="monospace" size="sm">
+                {event.scrapeScheduledId || "Not scheduled"}
+              </Text>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Scheduled For:
+              </Text>
+              <Text
+                size="sm"
+                c={
+                  event.scrapeScheduledAt &&
+                  event.scrapeScheduledAt <= Date.now()
+                    ? "green.6"
+                    : undefined
+                }
+                fw={
+                  event.scrapeScheduledAt &&
+                  event.scrapeScheduledAt <= Date.now()
+                    ? 500
+                    : undefined
+                }
+              >
+                {event.scrapeScheduledAt
+                  ? `${formatDate(event.scrapeScheduledAt)} (${formatSchedulingTime(event.scrapeScheduledAt)})`
+                  : "Not scheduled"}
+              </Text>
+            </Box>
+          </SimpleGrid>
+
+          <Card bg="orange.0" padding="md" radius="md">
+            <Text size="sm" c="orange.8">
+              🔍{" "}
+              <Text span fw={500}>
+                Automatic scraping
+              </Text>{" "}
+              is scheduled when a new event is created. It runs after a random
+              delay of 0-60 seconds to extract detailed information from the
+              event URL, including location, organizer, pricing, and additional
+              metadata.
+            </Text>
+          </Card>
         </Card>
 
         <Card shadow="sm" padding="xl" radius="lg" withBorder>

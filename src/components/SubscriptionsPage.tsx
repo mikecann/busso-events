@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { Id, Doc } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
@@ -111,7 +111,7 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
         </Card>
       ) : (
         <Stack gap="lg">
-          {subscriptions.map((subscription) => (
+          {subscriptions.map((subscription: any) => (
             <Card
               key={subscription._id}
               shadow="sm"
@@ -232,7 +232,7 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
                             Queued Events ({subscription.totalQueuedEvents})
                           </Title>
                           <Stack gap="xs">
-                            {subscription.queuedEvents.map((queueItem) => (
+                            {subscription.queuedEvents.map((queueItem: any) => (
                               <Box key={queueItem._id}>
                                 <Group gap="xs" align="center">
                                   <Text fw={500} size="sm" c="blue.8">

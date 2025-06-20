@@ -164,7 +164,7 @@ export const sendSubscriptionEmailInternal = internalAction({
       console.log("🔄 Marking events as sent...");
       await ctx.runMutation(internal.emailQueue.markEventsAsSent, {
         subscriptionId: args.subscriptionId,
-        eventIds: queuedEvents.map((e: any) => e.eventId),
+        eventIds: queuedEvents.map((e: { eventId: any }) => e.eventId),
       });
 
       console.log("✅ Events marked as sent");

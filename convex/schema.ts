@@ -28,6 +28,9 @@ const applicationTables = {
     // Track scheduled subscription matching
     subscriptionMatchScheduledId: v.optional(v.id("_scheduled_functions")),
     subscriptionMatchScheduledAt: v.optional(v.number()),
+    // Track scheduled event scraping
+    scrapeScheduledId: v.optional(v.id("_scheduled_functions")),
+    scrapeScheduledAt: v.optional(v.number()),
   })
     .index("by_event_date", ["eventDate"])
     .index("by_url", ["url"])
