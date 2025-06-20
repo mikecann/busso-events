@@ -372,16 +372,16 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>Event</Table.Th>
-                    <Table.Th>Date</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>URL</Table.Th>
+                    <Table.Th style={{ width: "45%" }}>Event</Table.Th>
+                    <Table.Th style={{ width: "20%" }}>Date</Table.Th>
+                    <Table.Th style={{ width: "15%" }}>Status</Table.Th>
+                    <Table.Th style={{ width: "20%" }}>URL</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {events.map((event) => (
                     <Table.Tr key={event._id}>
-                      <Table.Td>
+                      <Table.Td style={{ width: "45%" }}>
                         <Box>
                           <Text fw={500} size="sm" lineClamp={2}>
                             {event.title}
@@ -393,9 +393,9 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                           )}
                         </Box>
                       </Table.Td>
-                      <Table.Td>
+                      <Table.Td style={{ width: "20%" }}>
                         <Box>
-                          <Text size="sm">
+                          <Text size="sm" fw={500}>
                             {formatDateShort(event.eventDate)}
                           </Text>
                           <Text size="xs" c="dimmed">
@@ -409,26 +409,29 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                           </Text>
                         </Box>
                       </Table.Td>
-                      <Table.Td>
+                      <Table.Td style={{ width: "15%" }}>
                         <Badge
                           color={isUpcoming(event.eventDate) ? "blue" : "gray"}
                           size="sm"
+                          variant="light"
                         >
                           {isUpcoming(event.eventDate) ? "Upcoming" : "Past"}
                         </Badge>
                       </Table.Td>
-                      <Table.Td>
+                      <Table.Td style={{ width: "20%" }}>
                         <Anchor
                           href={event.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           size="sm"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
                         >
                           View Event
-                          <IconExternalLink
-                            size={12}
-                            style={{ marginLeft: 4 }}
-                          />
+                          <IconExternalLink size={12} />
                         </Anchor>
                       </Table.Td>
                     </Table.Tr>
