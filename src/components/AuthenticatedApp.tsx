@@ -88,7 +88,10 @@ export function AuthenticatedApp() {
         {route.name === "eventDebug" && isAdmin && (
           <EventDebugPage
             eventId={route.params.eventId}
-            onBack={() => navigation.admin().push()}
+            onBack={() => {
+              // Use browser history to go back to where we came from
+              window.history.back();
+            }}
           />
         )}
 

@@ -4,6 +4,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
+import { formatDateDetailed as formatDate } from "../utils/dateUtils";
 import { navigation } from "../router";
 import {
   Container,
@@ -60,17 +61,6 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
 
   const onApiError = useAPIErrorHandler();
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZoneName: "short",
-    });
-  };
-
   const formatRelativeTime = (timestamp: number) => {
     const now = Date.now();
     const diff = timestamp - now;
@@ -114,10 +104,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <Title order={3}>Event not found</Title>
           <Button
             variant="subtle"
-            onClick={() => navigation.eventDetail(typedEventId).push()}
+            onClick={onBack}
             leftSection={<IconArrowLeft size={16} />}
           >
-            Back to Event
+            Back
           </Button>
         </Stack>
       </Center>
@@ -234,10 +224,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
         <Button
           leftSection={<IconArrowLeft size={16} />}
           variant="subtle"
-          onClick={() => navigation.eventDetail(typedEventId).push()}
+          onClick={onBack}
           style={{ alignSelf: "flex-start" }}
         >
-          Back to Event
+          Back
         </Button>
 
         <Group justify="space-between" align="flex-start">

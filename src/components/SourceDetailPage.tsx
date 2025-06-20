@@ -4,6 +4,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
 import {
+  formatDate,
+  formatDateShort,
+  formatRelativeTime,
+  isUpcoming,
+} from "../utils/dateUtils";
+import {
   Container,
   Title,
   Text,
@@ -44,6 +50,7 @@ import {
   IconCheck,
 } from "@tabler/icons-react";
 import { Id } from "../../convex/_generated/dataModel";
+import { navigation } from "../router";
 
 interface SourceDetailPageProps {
   sourceId: string;
@@ -75,47 +82,6 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
   const [editUrl, setEditUrl] = useState("");
 
   const onApiError = useAPIErrorHandler();
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatDateShort = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const isUpcoming = (eventDate: number) => {
-    return eventDate > Date.now();
-  };
-
-  const formatRelativeTime = (timestamp: number | undefined) => {
-    if (!timestamp) return "Never";
-
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / (1000 * 60));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const weeks = Math.floor(diff / (1000 * 60 * 60 * 24 * 7));
-    const months = Math.floor(diff / (1000 * 60 * 60 * 24 * 30));
-
-    if (months > 0) return `${months}mo ago`;
-    if (weeks > 0) return `${weeks}w ago`;
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return "Just now";
-  };
 
   if (source === undefined || eventsData === undefined) {
     return (
@@ -401,7 +367,13 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                 </Table.Thead>
                 <Table.Tbody>
                   {events.map((event) => (
-                    <Table.Tr key={event._id}>
+                    <Table.Tr
+                      key={event._id}
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        navigation.eventDebug(event._id as Id<"events">).push()
+                      }
+                    >
                       <Table.Td style={{ width: "80px" }}>
                         <Image
                           src={event.imageUrl || undefined}
