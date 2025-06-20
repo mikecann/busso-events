@@ -31,9 +31,9 @@ const applicationTables = {
     // Track workpool event scraping
     scrapeWorkId: v.optional(v.string()), // WorkId is stored as string
     scrapeEnqueuedAt: v.optional(v.number()),
-    // Track scheduled embedding generation
-    embeddingScheduledId: v.optional(v.id("_scheduled_functions")),
-    embeddingScheduledAt: v.optional(v.number()),
+    // Track workpool embedding generation
+    embeddingWorkId: v.optional(v.string()),
+    embeddingEnqueuedAt: v.optional(v.number()),
   })
     .index("by_event_date", ["eventDate"])
     .index("by_url", ["url"])

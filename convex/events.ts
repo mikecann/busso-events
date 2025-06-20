@@ -53,6 +53,27 @@ export const getWorkpoolStatus = query({
   },
 });
 
+export const getEmbeddingWorkpoolStatus = query({
+  args: { eventId: v.id("events") },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    workId: string;
+    enqueuedAt: number | undefined;
+    status: any;
+    error?: string;
+  } | null> => {
+    // This is a public query but we'll call the internal one
+    return await ctx.runQuery(
+      internal.eventsInternal.getEventEmbeddingWorkpoolStatus,
+      {
+        eventId: args.eventId,
+      },
+    );
+  },
+});
+
 export const search = query({
   args: {
     searchTerm: v.string(),

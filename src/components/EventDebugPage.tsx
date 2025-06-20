@@ -49,6 +49,12 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   const workpoolStatus = useQuery(api.events.getWorkpoolStatus, {
     eventId: typedEventId,
   });
+  const embeddingWorkpoolStatus = useQuery(
+    api.events.getEmbeddingWorkpoolStatus,
+    {
+      eventId: typedEventId,
+    },
+  );
   const updateEvent = useMutation(api.eventsAdmin.updateEvent);
   const deleteEvent = useMutation(api.eventsAdmin.deleteEvent);
   const scrapeEvent = useAction(api.eventsAdmin.scrapeEvent);
@@ -362,32 +368,9 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               <Text fw={500} size="sm" c="gray.7">
                 Scheduled Embedding:
               </Text>
-              <Text
-                size="sm"
-                c={
-                  event.embeddingScheduledAt &&
-                  event.embeddingScheduledAt <= Date.now()
-                    ? "green.6"
-                    : event.embeddingScheduledId
-                      ? "blue.6"
-                      : undefined
-                }
-                fw={
-                  event.embeddingScheduledAt &&
-                  event.embeddingScheduledAt <= Date.now()
-                    ? 500
-                    : undefined
-                }
-              >
-                {event.embeddingScheduledAt
-                  ? `${formatDate(event.embeddingScheduledAt)} (${formatSchedulingTime(event.embeddingScheduledAt)})`
-                  : "Not scheduled"}
+              <Text size="sm">
+                {event.descriptionEmbedding ? "Generated" : "Not generated"}
               </Text>
-              {event.embeddingScheduledId && (
-                <Text ff="monospace" size="xs" c="dimmed" mt="xs">
-                  Job ID: {event.embeddingScheduledId}
-                </Text>
-              )}
             </Box>
             {event.sourceId && (
               <Box>
@@ -505,34 +488,68 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="lg">
             <Box>
               <Text fw={500} size="sm" c="gray.7">
-                Scheduled Embedding Job ID:
+                Workpool Job ID:
               </Text>
               <Text ff="monospace" size="sm">
-                {event.embeddingScheduledId || "Not scheduled"}
+                {embeddingWorkpoolStatus?.workId || "Not queued"}
               </Text>
             </Box>
             <Box>
               <Text fw={500} size="sm" c="gray.7">
-                Scheduled For:
+                Enqueued At:
               </Text>
-              <Text
-                size="sm"
-                c={
-                  event.embeddingScheduledAt &&
-                  event.embeddingScheduledAt <= Date.now()
-                    ? "green.6"
-                    : undefined
-                }
-                fw={
-                  event.embeddingScheduledAt &&
-                  event.embeddingScheduledAt <= Date.now()
-                    ? 500
-                    : undefined
-                }
-              >
-                {event.embeddingScheduledAt
-                  ? `${formatDate(event.embeddingScheduledAt)} (${formatSchedulingTime(event.embeddingScheduledAt)})`
-                  : "Not scheduled"}
+              <Text size="sm">
+                {embeddingWorkpoolStatus?.enqueuedAt
+                  ? formatDate(embeddingWorkpoolStatus.enqueuedAt)
+                  : "Not queued"}
+              </Text>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Status:
+              </Text>
+              <Group gap="xs">
+                {embeddingWorkpoolStatus?.status ? (
+                  <>
+                    <Badge
+                      color={
+                        embeddingWorkpoolStatus.status.kind === "pending"
+                          ? "yellow"
+                          : embeddingWorkpoolStatus.status.kind === "inProgress"
+                            ? "blue"
+                            : embeddingWorkpoolStatus.status.kind === "success"
+                              ? "green"
+                              : "red"
+                      }
+                    >
+                      {embeddingWorkpoolStatus.status.kind}
+                    </Badge>
+                    {embeddingWorkpoolStatus.status.retryCount > 0 && (
+                      <Badge color="orange" variant="light">
+                        Retries: {embeddingWorkpoolStatus.status.retryCount}
+                      </Badge>
+                    )}
+                  </>
+                ) : embeddingWorkpoolStatus?.error ? (
+                  <Badge color="red">
+                    Error: {embeddingWorkpoolStatus.error}
+                  </Badge>
+                ) : (
+                  <Text size="sm" c="gray.6">
+                    Not queued
+                  </Text>
+                )}
+              </Group>
+            </Box>
+            <Box>
+              <Text fw={500} size="sm" c="gray.7">
+                Queue Position:
+              </Text>
+              <Text size="sm">
+                {embeddingWorkpoolStatus?.status?.kind === "pending" &&
+                embeddingWorkpoolStatus.status.queuePosition !== undefined
+                  ? `#${embeddingWorkpoolStatus.status.queuePosition + 1}`
+                  : "N/A"}
               </Text>
             </Box>
           </SimpleGrid>
@@ -543,9 +560,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               <Text span fw={500}>
                 Automatic embedding generation
               </Text>{" "}
-              is scheduled after an event is scraped. It runs after a random
-              delay of 0-30 seconds to generate vector embeddings from the event
-              description, enabling semantic search and subscription matching.
+              is queued in a workpool after an event is scraped. The workpool
+              processes embedding jobs with a maximum parallelism of 2 to avoid
+              overwhelming the OpenAI API, generating vector embeddings from the
+              event description for semantic search and subscription matching.
             </Text>
           </Card>
         </Card>
