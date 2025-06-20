@@ -8,7 +8,12 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { components } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { Workpool, WorkId } from "@convex-dev/workpool";
+import {
+  Workpool,
+  WorkId,
+  vWorkIdValidator,
+  vResultValidator,
+} from "@convex-dev/workpool";
 
 // Initialize the workpool for event scraping with max parallelism of 1
 const eventScrapePool = new Workpool(components.eventScrapeWorkpool, {
@@ -90,14 +95,8 @@ export const createInternal = internalMutation({
     });
 
     // Enqueue event scraping in workpool
+    // The onComplete handler will take care of embedding generation and subscription matching
     await enqueueEventScraping(ctx, eventId);
-
-    // Enqueue delayed embedding generation as fallback (5-10 minutes)
-    // This ensures embeddings are generated even if scraping fails
-    await enqueueEmbeddingGenerationDelayed(ctx, eventId);
-
-    // Schedule subscription matching for this new event (8 hours delay)
-    await scheduleSubscriptionMatching(ctx, eventId);
 
     return eventId;
   },
@@ -136,21 +135,8 @@ export const updateEventAfterScrape = internalMutation({
 
     await ctx.db.patch(args.eventId, updates);
 
-    // Cancel any existing delayed embedding generation and enqueue immediate one
-    const event = await ctx.db.get(args.eventId);
-    if (event?.embeddingWorkId) {
-      try {
-        await eventEmbeddingPool.cancel(ctx, event.embeddingWorkId as WorkId);
-      } catch (error) {
-        console.log("Could not cancel existing embedding job:", error);
-      }
-    }
-
-    // Enqueue embedding generation for this event
-    await enqueueEmbeddingGeneration(ctx, args.eventId);
-
-    // Schedule subscription matching for this event (8 hours delay)
-    await scheduleSubscriptionMatching(ctx, args.eventId);
+    // Note: Embedding generation and subscription matching are now handled
+    // by the workpool onComplete callback for proper sequencing
   },
 });
 
@@ -174,14 +160,8 @@ export const createEventInternal = internalMutation({
     });
 
     // Enqueue event scraping in workpool
+    // The onComplete handler will take care of embedding generation and subscription matching
     await enqueueEventScraping(ctx, eventId);
-
-    // Enqueue delayed embedding generation as fallback (5-10 minutes)
-    // This ensures embeddings are generated even if scraping fails
-    await enqueueEmbeddingGenerationDelayed(ctx, eventId);
-
-    // Schedule subscription matching for this new event (8 hours delay)
-    await scheduleSubscriptionMatching(ctx, eventId);
 
     return eventId;
   },
@@ -464,18 +444,22 @@ export const performEventScrape = internalAction({
   },
 });
 
-// Enqueue event scraping in workpool
+// Enqueue event scraping in workpool with completion handler
 async function enqueueEventScraping(
   ctx: MutationCtx,
   eventId: Id<"events">,
 ): Promise<string> {
   console.log(`🔍 Enqueueing event scraping for event ${eventId} in workpool`);
 
-  // Enqueue the scraping action in the workpool
+  // Enqueue the scraping action in the workpool with onComplete handler
   const workId = await eventScrapePool.enqueueAction(
     ctx,
     internal.eventsInternal.performEventScrape,
     { eventId },
+    {
+      onComplete: internal.eventsInternal.onScrapeComplete,
+      context: { eventId },
+    },
   );
 
   // Update the event with the workpool job ID and enqueue time
@@ -486,6 +470,39 @@ async function enqueueEventScraping(
 
   return workId;
 }
+
+// Workpool completion handler for scraping
+export const onScrapeComplete = internalMutation({
+  args: {
+    workId: vWorkIdValidator,
+    result: vResultValidator,
+    context: v.object({
+      eventId: v.id("events"),
+    }),
+  },
+  handler: async (ctx, args) => {
+    console.log(
+      `🔍 Scrape completed for event ${args.context.eventId} with result: ${args.result.kind}`,
+    );
+
+    // Only enqueue embedding generation if scraping was successful
+    if (args.result.kind === "success") {
+      console.log(
+        `✅ Scraping successful, enqueueing embedding generation for event ${args.context.eventId}`,
+      );
+      await enqueueEmbeddingGeneration(ctx, args.context.eventId);
+    } else {
+      console.log(
+        `❌ Scraping failed or was canceled for event ${args.context.eventId}, enqueueing delayed embedding generation as fallback`,
+      );
+      // Still enqueue delayed embedding generation as fallback
+      await enqueueEmbeddingGenerationDelayed(ctx, args.context.eventId);
+    }
+
+    // Schedule subscription matching for this event (8 hours delay)
+    await scheduleSubscriptionMatching(ctx, args.context.eventId);
+  },
+});
 
 // Clear the workpool scrape job ID
 export const clearEventScrapeSchedule = internalMutation({
