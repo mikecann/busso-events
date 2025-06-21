@@ -1,32 +1,12 @@
-import {
-  query,
-  action,
-  internalAction,
-  internalMutation,
-} from "./_generated/server";
+import { internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
+import { adminQuery, adminAction } from "./utils";
 
-// Helper function to check if user is admin
-async function requireAdmin(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Must be authenticated");
-  }
-  const user = await ctx.db.get(userId);
-  if (!user || !user.isAdmin) {
-    throw new Error("Admin access required");
-  }
-  return user;
-}
-
-export const list = query({
+export const list = adminQuery({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-
     return await ctx.db
       .query("jobs")
       .withIndex("by_status")
@@ -35,13 +15,11 @@ export const list = query({
   },
 });
 
-export const createBatchEventScrapeJob = action({
+export const createBatchEventScrapeJob = adminAction({
   args: {},
   handler: async (ctx): Promise<{ jobId: Id<"jobs">; totalEvents: number }> => {
-    await requireAdmin(ctx);
-
     // Get events ready for scraping
-    const events: any[] = await ctx.runQuery(
+    const events: Doc<"events">[] = await ctx.runQuery(
       internal.events.eventsInternal.getEventsReadyForScrapingInternal,
     );
 
@@ -60,22 +38,20 @@ export const createBatchEventScrapeJob = action({
     // Start processing the job
     await ctx.runAction(internal.jobs.processBatchEventScrapeJob, {
       jobId,
-      eventIds: events.map((e: any) => e._id),
+      eventIds: events.map((e) => e._id),
     });
 
     return { jobId, totalEvents: events.length };
   },
 });
 
-export const createBatchSourceScrapeJob = action({
+export const createBatchSourceScrapeJob = adminAction({
   args: {},
   handler: async (
     ctx,
   ): Promise<{ jobId: Id<"jobs">; totalSources: number }> => {
-    await requireAdmin(ctx);
-
     // Get active event sources
-    const sources: any[] = await ctx.runQuery(
+    const sources: Doc<"eventSources">[] = await ctx.runQuery(
       internal.eventSources.getActiveSources,
     );
 
@@ -94,7 +70,7 @@ export const createBatchSourceScrapeJob = action({
     // Start processing the job
     await ctx.runAction(internal.jobs.processBatchSourceScrapeJob, {
       jobId,
-      sourceIds: sources.map((s: any) => s._id),
+      sourceIds: sources.map((s) => s._id),
     });
 
     return { jobId, totalSources: sources.length };
@@ -163,7 +139,7 @@ export const updateJobProgress = internalMutation({
     }
 
     // Create a copy of the current progress
-    const updatedProgress: any = { ...job.progress };
+    const updatedProgress: Record<string, unknown> = { ...job.progress };
 
     // Update only the fields that are provided
     if (args.progress.processedEvents !== undefined) {
@@ -206,7 +182,7 @@ export const updateJobStatus = internalMutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       status: args.status,
     };
 
@@ -392,11 +368,9 @@ export const processBatchSourceScrapeJob = internalAction({
   },
 });
 
-export const getSystemStatus = query({
+export const getSystemStatus = adminQuery({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-
     // Get recent jobs (last 24 hours)
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const recentJobs = await ctx.db

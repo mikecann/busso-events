@@ -319,23 +319,23 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               <Text
                 size="sm"
                 c={
-                  workpoolStatus?.status?.kind === "finished"
+                  workpoolStatus?.status?.state === "finished"
                     ? "green.6"
-                    : workpoolStatus?.status?.kind === "running"
+                    : workpoolStatus?.status?.state === "running"
                       ? "blue.6"
-                      : workpoolStatus?.status?.kind === "pending"
+                      : workpoolStatus?.status?.state === "pending"
                         ? "yellow.6"
                         : undefined
                 }
                 fw={
-                  workpoolStatus?.status?.kind === "finished" ? 500 : undefined
+                  workpoolStatus?.status?.state === "finished" ? 500 : undefined
                 }
               >
                 {workpoolStatus
-                  ? `${workpoolStatus.status?.kind || "unknown"} ${
-                      workpoolStatus.status?.kind === "pending"
+                  ? `${workpoolStatus.status?.state || "unknown"} ${
+                      workpoolStatus.status?.state === "pending"
                         ? `(${workpoolStatus.status.previousAttempts || 0} attempts)`
-                        : workpoolStatus.status?.kind === "running"
+                        : workpoolStatus.status?.state === "running"
                           ? `(${workpoolStatus.status.previousAttempts || 0} attempts)`
                           : ""
                     }`
@@ -427,22 +427,22 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
               <Text
                 size="sm"
                 c={
-                  workpoolStatus?.status?.kind === "finished"
+                  workpoolStatus?.status?.state === "finished"
                     ? "green.6"
-                    : workpoolStatus?.status?.kind === "running"
+                    : workpoolStatus?.status?.state === "running"
                       ? "blue.6"
-                      : workpoolStatus?.status?.kind === "pending"
+                      : workpoolStatus?.status?.state === "pending"
                         ? "yellow.6"
                         : undefined
                 }
                 fw={
-                  workpoolStatus?.status?.kind === "finished" ? 500 : undefined
+                  workpoolStatus?.status?.state === "finished" ? 500 : undefined
                 }
               >
-                {workpoolStatus?.status?.kind || "Not in workpool"}
+                {workpoolStatus?.status?.state || "Not in workpool"}
                 {workpoolStatus?.status &&
-                  (workpoolStatus.status.kind === "pending" ||
-                    workpoolStatus.status.kind === "running") && (
+                  (workpoolStatus.status.state === "pending" ||
+                    workpoolStatus.status.state === "running") && (
                     <Text span size="xs" c="dimmed" ml="xs">
                       ({workpoolStatus.status.previousAttempts || 0} attempts)
                     </Text>
@@ -513,21 +513,22 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
                   <>
                     <Badge
                       color={
-                        embeddingWorkpoolStatus.status.kind === "pending"
+                        embeddingWorkpoolStatus.status.state === "pending"
                           ? "yellow"
-                          : embeddingWorkpoolStatus.status.kind === "inProgress"
+                          : embeddingWorkpoolStatus.status.state ===
+                              "inProgress"
                             ? "blue"
-                            : embeddingWorkpoolStatus.status.kind === "success"
+                            : embeddingWorkpoolStatus.status.state === "success"
                               ? "green"
                               : "red"
                       }
                     >
-                      {embeddingWorkpoolStatus.status.kind}
+                      {embeddingWorkpoolStatus.status.state}
                     </Badge>
                     {embeddingWorkpoolStatus.status.retryCount > 0 && (
-                      <Badge color="orange" variant="light">
+                      <Text size="xs" c="dimmed">
                         Retries: {embeddingWorkpoolStatus.status.retryCount}
-                      </Badge>
+                      </Text>
                     )}
                   </>
                 ) : embeddingWorkpoolStatus?.error ? (
@@ -546,10 +547,10 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
                 Queue Position:
               </Text>
               <Text size="sm">
-                {embeddingWorkpoolStatus?.status?.kind === "pending" &&
+                {embeddingWorkpoolStatus?.status?.state === "pending" &&
                 embeddingWorkpoolStatus.status.queuePosition !== undefined
                   ? `#${embeddingWorkpoolStatus.status.queuePosition + 1}`
-                  : "N/A"}
+                  : ""}
               </Text>
             </Box>
           </SimpleGrid>

@@ -22,6 +22,7 @@
     "@tabler/icons-react": "^3.34.0",
     "clsx": "^2.1.1",
     "convex": "^1.23.0",
+    "convex-helpers": "^0.1.94",
     "openai": "^4.103.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

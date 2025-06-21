@@ -1,5 +1,6 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { internal } from "../_generated/api";
+import { Doc } from "../_generated/dataModel";
+
+// Admin authentication is now handled by custom functions in utils.ts
 
 // Common types
 export interface EventData {
@@ -26,49 +27,10 @@ export interface ScrapedEventData {
 export interface EventScrapeResult {
   success: boolean;
   message: string;
-  scrapedData?: any;
+  scrapedData?: unknown;
 }
 
-// Admin authentication helper - can be used in both queries and mutations
-export async function requireAdmin(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Must be authenticated");
-  }
-
-  const isAdmin = await ctx.runQuery(
-    internal.events.eventsInternal.checkUserIsAdmin,
-    {
-      userId,
-    },
-  );
-
-  if (!isAdmin) {
-    throw new Error("Admin access required");
-  }
-
-  return userId;
-}
-
-// Admin authentication helper for actions (can't use runQuery)
-export async function requireAdminAction(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Must be authenticated");
-  }
-
-  // Use internal query to check admin status
-  const isAdmin = await ctx.runQuery(
-    internal.events.eventsInternal.checkUserIsAdmin,
-    {
-      userId,
-    },
-  );
-  if (!isAdmin) {
-    throw new Error("Admin access required");
-  }
-  return userId;
-}
+// Admin authentication is now handled by custom functions in utils.ts
 
 // Date filter utilities
 export function calculateMaxDateFromFilter(
@@ -105,10 +67,10 @@ export function isEventInDateRange(
 }
 
 // Filter events by date criteria
-export function filterEventsByDate(
-  events: any[],
+export function filterEventsByDate<T extends { eventDate: number }>(
+  events: T[],
   dateFilter?: "all" | "week" | "month" | "3months",
-): any[] {
+): T[] {
   const maxDate = calculateMaxDateFromFilter(dateFilter);
 
   return events.filter((event) => {
@@ -121,7 +83,7 @@ export function filterEventsByDate(
 }
 
 // Deduplication utility for search results
-export function deduplicateEvents(events: any[]): any[] {
+export function deduplicateEvents<T extends { _id: string }>(events: T[]): T[] {
   return events.filter(
     (event, index, self) =>
       index === self.findIndex((e) => e._id === event._id),
@@ -129,25 +91,27 @@ export function deduplicateEvents(events: any[]): any[] {
 }
 
 // Sort events by date (ascending - soonest first)
-export function sortEventsByDate(events: any[]): any[] {
+export function sortEventsByDate<T extends { eventDate: number }>(
+  events: T[],
+): T[] {
   return events.sort((a, b) => a.eventDate - b.eventDate);
 }
 
 // Convert scraped event details to the scrapedData format
 export function convertEventDetailsToScrapedData(
-  eventDetails: any,
+  eventDetails: Record<string, unknown>,
   fallbackUrl: string,
 ): ScrapedEventData {
   return {
-    location: eventDetails.location || undefined,
-    organizer: eventDetails.organizer || undefined,
-    price: eventDetails.price || undefined,
-    category: eventDetails.category || undefined,
-    tags: eventDetails.tags || [],
-    registrationUrl: eventDetails.registrationUrl || fallbackUrl,
-    contactInfo: eventDetails.contactInfo || undefined,
-    additionalDetails: eventDetails.additionalDetails || undefined,
-    originalEventDate: eventDetails.eventDate || undefined,
+    location: (eventDetails.location as string) || undefined,
+    organizer: (eventDetails.organizer as string) || undefined,
+    price: (eventDetails.price as string) || undefined,
+    category: (eventDetails.category as string) || undefined,
+    tags: (eventDetails.tags as string[]) || [],
+    registrationUrl: (eventDetails.registrationUrl as string) || fallbackUrl,
+    contactInfo: (eventDetails.contactInfo as string) || undefined,
+    additionalDetails: (eventDetails.additionalDetails as string) || undefined,
+    originalEventDate: (eventDetails.eventDate as string) || undefined,
   };
 }
 

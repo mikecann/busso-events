@@ -1,13 +1,30 @@
 import { query, action } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
+import { Doc } from "../_generated/dataModel";
 import {
-  requireAdminAction,
   calculateMaxDateFromFilter,
   filterEventsByDate,
   deduplicateEvents,
   sortEventsByDate,
 } from "./common";
+import { adminAction } from "../utils";
+
+// Types for workpool status
+interface WorkpoolStatus {
+  state: "pending" | "running" | "finished" | "failed";
+  previousAttempts?: number;
+  retryCount?: number;
+  queuePosition?: number;
+  error?: string;
+}
+
+interface WorkpoolStatusResponse {
+  workId: string;
+  enqueuedAt: number | undefined;
+  status: WorkpoolStatus | null;
+  error?: string;
+}
 
 // PUBLIC QUERIES - No authentication required
 export const list = query({
@@ -26,15 +43,7 @@ export const getById = query({
 
 export const getWorkpoolStatus = query({
   args: { eventId: v.id("events") },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    workId: string;
-    enqueuedAt: number | undefined;
-    status: any;
-    error?: string;
-  } | null> => {
+  handler: async (ctx, args): Promise<WorkpoolStatusResponse | null> => {
     // This is a public query but we'll call the internal one
     return await ctx.runQuery(
       internal.events.eventsInternal.getEventWorkpoolStatus,
@@ -47,15 +56,7 @@ export const getWorkpoolStatus = query({
 
 export const getEmbeddingWorkpoolStatus = query({
   args: { eventId: v.id("events") },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    workId: string;
-    enqueuedAt: number | undefined;
-    status: any;
-    error?: string;
-  } | null> => {
+  handler: async (ctx, args): Promise<WorkpoolStatusResponse | null> => {
     // This is a public query but we'll call the internal one
     return await ctx.runQuery(
       internal.events.eventsInternal.getEventEmbeddingWorkpoolStatus,
@@ -78,8 +79,8 @@ export const search = query({
       ),
     ),
   },
-  handler: async (ctx, args) => {
-    let results: any[] = [];
+  handler: async (ctx, args): Promise<Doc<"events">[]> => {
+    let results: Doc<"events">[] = [];
 
     if (!args.searchTerm.trim()) {
       // No search term, just get all events and filter by date
@@ -132,8 +133,12 @@ export const enhancedSearch = action({
       ),
     ),
   },
-  handler: async (ctx, args) => {
-    let results: any[] = [];
+  handler: async (
+    ctx,
+    args,
+  ): Promise<(Doc<"events"> & { _searchType?: string; _score?: number })[]> => {
+    let results: (Doc<"events"> & { _searchType?: string; _score?: number })[] =
+      [];
 
     if (!args.searchTerm.trim()) {
       // No search term, just get all events and filter by date
@@ -152,7 +157,10 @@ export const enhancedSearch = action({
       );
 
       // Semantic search results (if search term is meaningful)
-      let embeddingResults: any[] = [];
+      let embeddingResults: (Doc<"events"> & {
+        _searchType: string;
+        _score: number;
+      })[] = [];
       if (searchTerm.length > 3) {
         try {
           // Generate embedding for the search term
@@ -194,9 +202,9 @@ export const enhancedSearch = action({
       }
 
       // Combine all results
-      const textResults = titleResults.map((event: any) => ({
+      const textResults = titleResults.map((event: Doc<"events">) => ({
         ...event,
-        _searchType: "text",
+        _searchType: "text" as const,
       }));
 
       const allResults = [...textResults, ...embeddingResults];
@@ -214,15 +222,13 @@ export const enhancedSearch = action({
 });
 
 // ADMIN ACTIONS
-export const testScrapeEvent = action({
+export const testScrapeEvent = adminAction({
   args: {
     url: v.string(),
   },
-  handler: async (ctx, args) => {
-    await requireAdminAction(ctx);
-
+  handler: async (ctx, args): Promise<unknown> => {
     // Call the event-specific scraping action
-    const result: any = await ctx.runAction(api.scraping.scrapeEventPage, {
+    const result = await ctx.runAction(api.scraping.scrapeEventPage, {
       url: args.url,
     });
 
@@ -230,15 +236,13 @@ export const testScrapeEvent = action({
   },
 });
 
-export const startScrapeNow = action({
+export const startScrapeNow = adminAction({
   args: {
     eventId: v.id("events"),
   },
-  handler: async (ctx, args) => {
-    await requireAdminAction(ctx);
-
+  handler: async (ctx, args): Promise<unknown> => {
     // Call the internal scrape action
-    const result: any = await ctx.runAction(
+    const result = await ctx.runAction(
       internal.events.eventsInternal.performEventScrape,
       {
         eventId: args.eventId,
@@ -249,7 +253,7 @@ export const startScrapeNow = action({
   },
 });
 
-export const generateMissingEmbeddings = action({
+export const generateMissingEmbeddings = adminAction({
   args: {},
   handler: async (
     ctx,
@@ -259,8 +263,6 @@ export const generateMissingEmbeddings = action({
     failed: number;
     total: number;
   }> => {
-    await requireAdminAction(ctx);
-
     return await ctx.runAction(api.embeddings.generateMissingEmbeddings);
   },
 });

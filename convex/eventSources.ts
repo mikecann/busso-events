@@ -1,50 +1,26 @@
 import {
-  query,
-  mutation,
-  action,
   internalAction,
   internalQuery,
   internalMutation,
 } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { adminQuery, adminMutation, adminAction } from "./utils";
 
-// Helper function to check if user is admin
-async function requireAdmin(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Must be authenticated");
-  }
-
-  // Use internal query to check admin status
-  const isAdmin = await ctx.runQuery(internal.events.eventsInternal.checkUserIsAdmin, {
-    userId,
-  });
-  if (!isAdmin) {
-    throw new Error("Admin access required");
-  }
-  return userId;
-}
-
-export const list = query({
+export const list = adminQuery({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-
     return await ctx.db.query("eventSources").order("desc").collect();
   },
 });
 
-export const create = mutation({
+export const create = adminMutation({
   args: {
     name: v.string(),
     startingUrl: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     return await ctx.db.insert("eventSources", {
       name: args.name,
       startingUrl: args.startingUrl,
@@ -53,7 +29,7 @@ export const create = mutation({
   },
 });
 
-export const update = mutation({
+export const update = adminMutation({
   args: {
     id: v.id("eventSources"),
     name: v.optional(v.string()),
@@ -61,8 +37,6 @@ export const update = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     const { id, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined),
@@ -72,18 +46,16 @@ export const update = mutation({
   },
 });
 
-export const remove = mutation({
+export const remove = adminMutation({
   args: {
     id: v.id("eventSources"),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     await ctx.db.delete(args.id);
   },
 });
 
-export const testScrape = action({
+export const testScrape = adminAction({
   args: {
     sourceId: v.id("eventSources"),
   },
@@ -97,8 +69,6 @@ export const testScrape = action({
     data?: any;
   }> => {
     console.log(`🧪 Starting test scrape for sourceId: ${args.sourceId}`);
-
-    await requireAdmin(ctx);
 
     try {
       const result = await ctx.runAction(
@@ -126,13 +96,11 @@ export const testScrape = action({
   },
 });
 
-export const startTestScrape = mutation({
+export const startTestScrape = adminMutation({
   args: {
     url: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     const testScrapeId = await ctx.db.insert("testScrapes", {
       url: args.url,
       status: "pending",
@@ -293,19 +261,22 @@ export const performSourceScrape = internalAction({
           if (!existingEvent) {
             // Create new event
             console.log(`➕ Creating new event: ${eventData.title}`);
-            await ctx.runMutation(internal.events.eventsInternal.createInternal, {
-              title: eventData.title,
-              description:
-                eventData.description ||
-                `Event: ${eventData.title}. More details available at ${eventData.url}`,
-              eventDate:
-                typeof eventData.eventDate === "string"
-                  ? new Date(eventData.eventDate).getTime()
-                  : eventData.eventDate,
-              imageUrl: eventData.imageUrl || "",
-              url: eventData.url,
-              sourceId: args.sourceId,
-            });
+            await ctx.runMutation(
+              internal.events.eventsInternal.createInternal,
+              {
+                title: eventData.title,
+                description:
+                  eventData.description ||
+                  `Event: ${eventData.title}. More details available at ${eventData.url}`,
+                eventDate:
+                  typeof eventData.eventDate === "string"
+                    ? new Date(eventData.eventDate).getTime()
+                    : eventData.eventDate,
+                imageUrl: eventData.imageUrl || "",
+                url: eventData.url,
+                sourceId: args.sourceId,
+              },
+            );
             eventsCreated++;
           } else {
             console.log(
@@ -473,30 +444,26 @@ export const getTestScrapeById = internalQuery({
 });
 
 // Public queries
-export const getTestScrapeByIdPublic = query({
+export const getTestScrapeByIdPublic = adminQuery({
   args: {
     testScrapeId: v.id("testScrapes"),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
     return await ctx.db.get(args.testScrapeId);
   },
 });
 
 // Query to fetch latest test scrapes for polling/subscription
-export const listRecentTestScrapes = query({
+export const listRecentTestScrapes = adminQuery({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
     return await ctx.db.query("testScrapes").order("desc").take(10);
   },
 });
 
-export const getSourcesStatus = query({
+export const getSourcesStatus = adminQuery({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-
     const sources = await ctx.db.query("eventSources").collect();
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
@@ -539,18 +506,17 @@ export const getSourcesStatus = query({
 });
 
 // Get a single event source by ID for admin users
-export const getById = query({
+export const getById = adminQuery({
   args: {
     sourceId: v.id("eventSources"),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
     return await ctx.db.get(args.sourceId);
   },
 });
 
 // Get events by source ID with pagination
-export const getEventsBySource = query({
+export const getEventsBySource = adminQuery({
   args: {
     sourceId: v.id("eventSources"),
     paginationOpts: v.object({
@@ -559,8 +525,6 @@ export const getEventsBySource = query({
     }),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     // Get events for this source, ordered by creation date (newest first)
     const events = await ctx.db
       .query("events")
