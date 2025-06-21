@@ -18,7 +18,11 @@ import {
   Divider,
 } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
-import { DebugSectionProps } from "../types";
+import { Id } from "../../../../convex/_generated/dataModel";
+
+interface DebugSectionProps {
+  eventId: Id<"events">;
+}
 
 export function EventBasicInfo({ eventId }: DebugSectionProps) {
   const event = useQuery(api.events.events.getById, { id: eventId });

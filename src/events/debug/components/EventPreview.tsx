@@ -3,7 +3,11 @@ import { api } from "../../../../convex/_generated/api";
 import { formatDateDetailed as formatDate } from "../../../utils/dateUtils";
 import { Card, Title, Text, Group, Stack, Image } from "@mantine/core";
 import { IconCalendar, IconExternalLink } from "@tabler/icons-react";
-import { DebugSectionProps } from "../types";
+import { Id } from "../../../../convex/_generated/dataModel";
+
+interface DebugSectionProps {
+  eventId: Id<"events">;
+}
 
 export function EventPreview({ eventId }: DebugSectionProps) {
   const event = useQuery(api.events.events.getById, { id: eventId });

@@ -17,7 +17,11 @@ import {
   SimpleGrid,
 } from "@mantine/core";
 import { IconRefresh } from "@tabler/icons-react";
-import { DebugSectionProps } from "../types";
+import { Id } from "../../../../convex/_generated/dataModel";
+
+interface DebugSectionProps {
+  eventId: Id<"events">;
+}
 
 export function SubscriptionMatching({ eventId }: DebugSectionProps) {
   const event = useQuery(api.events.events.getById, { id: eventId });
@@ -42,9 +46,7 @@ export function SubscriptionMatching({ eventId }: DebugSectionProps) {
             })
               .then((result) => {
                 if (result.success) {
-                  toast.success(
-                    "Subscription matching triggered successfully",
-                  );
+                  toast.success("Subscription matching triggered successfully");
                 } else {
                   toast.error("Failed to trigger subscription matching");
                 }
@@ -101,11 +103,11 @@ export function SubscriptionMatching({ eventId }: DebugSectionProps) {
           <Text span fw={500}>
             Subscription matching
           </Text>{" "}
-          runs automatically 8 hours after an event is created or updated.
-          It checks this event against all active user subscriptions and
-          adds matching events to email queues.
+          runs automatically 8 hours after an event is created or updated. It
+          checks this event against all active user subscriptions and adds
+          matching events to email queues.
         </Text>
       </Card>
     </Card>
   );
-} 
+}

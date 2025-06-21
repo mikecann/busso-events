@@ -22,7 +22,11 @@ import {
   IconX,
   IconAlertCircle,
 } from "@tabler/icons-react";
-import { DebugSectionProps } from "../types";
+import { Id } from "../../../../convex/_generated/dataModel";
+
+interface DebugSectionProps {
+  eventId: Id<"events">;
+}
 
 export function SearchTest({ eventId }: DebugSectionProps) {
   const [searchTerm, setSearchTerm] = useState("");

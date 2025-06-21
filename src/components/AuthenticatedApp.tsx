@@ -5,7 +5,7 @@ import { EventDetailPage } from "./EventDetailPage";
 import { SubscriptionsPage } from "./SubscriptionsPage";
 import { CreateSubscriptionPage } from "./CreateSubscriptionPage";
 import { AppAdminPage } from "./AppAdminPage";
-import { EventDebugPage } from "../events/debug";
+import { EventDebugPage } from "../events/debug/EventDebugPage";
 import { SourcesListPage } from "./SourcesListPage";
 import { AddSourcePage } from "./AddSourcePage";
 import { SourceDetailPage } from "./SourceDetailPage";

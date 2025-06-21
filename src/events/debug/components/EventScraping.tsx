@@ -15,7 +15,11 @@ import {
   SimpleGrid,
 } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
-import { DebugSectionProps } from "../types";
+import { Id } from "../../../../convex/_generated/dataModel";
+
+interface DebugSectionProps {
+  eventId: Id<"events">;
+}
 
 export function EventScraping({ eventId }: DebugSectionProps) {
   const workpoolStatus = useQuery(api.events.events.getWorkpoolStatus, {

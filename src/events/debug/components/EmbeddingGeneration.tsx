@@ -15,7 +15,11 @@ import {
   SimpleGrid,
 } from "@mantine/core";
 import { IconBrain } from "@tabler/icons-react";
-import { DebugSectionProps } from "../types";
+import { Id } from "../../../../convex/_generated/dataModel";
+
+interface DebugSectionProps {
+  eventId: Id<"events">;
+}
 
 export function EmbeddingGeneration({ eventId }: DebugSectionProps) {
   const embeddingWorkpoolStatus = useQuery(

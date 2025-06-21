@@ -1,7 +1,11 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Card, Title, Text, Box, SimpleGrid } from "@mantine/core";
-import { DebugSectionProps } from "../types";
+import { Id } from "../../../../convex/_generated/dataModel";
+
+interface DebugSectionProps {
+  eventId: Id<"events">;
+}
 
 export function ScrapedData({ eventId }: DebugSectionProps) {
   const event = useQuery(api.events.events.getById, { id: eventId });

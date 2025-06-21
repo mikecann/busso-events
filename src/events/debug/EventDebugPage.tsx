@@ -11,16 +11,17 @@ import {
   Text,
 } from "@mantine/core";
 import { IconArrowLeft } from "@tabler/icons-react";
-import { EventDebugPageProps } from "./types";
-import {
-  EventBasicInfo,
-  EventScraping,
-  EmbeddingGeneration,
-  SubscriptionMatching,
-  SearchTest,
-  ScrapedData,
-  EventPreview,
-} from "./components";
+interface EventDebugPageProps {
+  eventId: string;
+  onBack: () => void;
+}
+import { EventBasicInfo } from "./components/EventBasicInfo";
+import { EventScraping } from "./components/EventScraping";
+import { EmbeddingGeneration } from "./components/EmbeddingGeneration";
+import { SubscriptionMatching } from "./components/SubscriptionMatching";
+import { SearchTest } from "./components/SearchTest";
+import { ScrapedData } from "./components/ScrapedData";
+import { EventPreview } from "./components/EventPreview";
 
 export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
   // Cast the string eventId to proper Id type for Convex queries
