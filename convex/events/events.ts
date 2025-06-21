@@ -119,6 +119,100 @@ export const search = query({
   },
 });
 
+// Enhanced search action that combines text and semantic search
+export const enhancedSearch = action({
+  args: {
+    searchTerm: v.string(),
+    dateFilter: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("week"),
+        v.literal("month"),
+        v.literal("3months"),
+      ),
+    ),
+  },
+  handler: async (ctx, args) => {
+    let results: any[] = [];
+
+    if (!args.searchTerm.trim()) {
+      // No search term, just get all events and filter by date
+      const allEvents = await ctx.runQuery(
+        internal.embeddingQueries.getAllEvents,
+      );
+      results = filterEventsByDate(allEvents, args.dateFilter);
+    } else {
+      // Combine text search and semantic search
+      const searchTerm = args.searchTerm.trim();
+
+      // Text search results
+      const titleResults = await ctx.runQuery(
+        internal.subscriptionQueries.searchEventsByTitle,
+        { searchTerm, limit: 50 },
+      );
+
+      // Semantic search results (if search term is meaningful)
+      let embeddingResults: any[] = [];
+      if (searchTerm.length > 3) {
+        try {
+          // Generate embedding for the search term
+          const searchEmbedding = await ctx.runAction(
+            internal.embeddings.generateEmbedding,
+            { text: searchTerm },
+          );
+
+          // Use ctx.vectorSearch to get semantic search results
+          const vectorResults = await ctx.vectorSearch(
+            "events",
+            "by_embedding",
+            {
+              vector: searchEmbedding,
+              limit: 25,
+            },
+          );
+
+          // Get the full event documents for the vector search results
+          embeddingResults = [];
+          for (const result of vectorResults) {
+            const event = await ctx.runQuery(
+              internal.events.eventsInternal.getEventById,
+              {
+                eventId: result._id,
+              },
+            );
+            if (event) {
+              embeddingResults.push({
+                ...event,
+                _searchType: "semantic",
+                _score: result._score,
+              });
+            }
+          }
+        } catch (error) {
+          console.log("Semantic search failed, using text search only:", error);
+        }
+      }
+
+      // Combine all results
+      const textResults = titleResults.map((event: any) => ({
+        ...event,
+        _searchType: "text",
+      }));
+
+      const allResults = [...textResults, ...embeddingResults];
+
+      // Deduplicate results (prioritize semantic matches)
+      const uniqueResults = deduplicateEvents(allResults);
+
+      // Apply date filters
+      results = filterEventsByDate(uniqueResults, args.dateFilter);
+    }
+
+    // Sort by event date (ascending - soonest first)
+    return sortEventsByDate(results);
+  },
+});
+
 // ADMIN ACTIONS
 export const testScrapeEvent = action({
   args: {

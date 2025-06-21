@@ -121,16 +121,18 @@ export const searchEventsByTitle = internalQuery({
   },
 });
 
-// Temporarily simplified version without vector search
+// Vector search for events by embedding - placeholder for now
 export const searchEventsByEmbedding = internalQuery({
   args: {
     embedding: v.array(v.number()),
     limit: v.optional(v.number()),
   },
-  handler: async (_ctx, _args) => {
-    // For now, return empty array to avoid TypeScript errors
-    // This will be fixed once the vector index is properly set up
-    console.log("⚠️ Vector search temporarily disabled");
+  handler: async (ctx, args) => {
+    // Vector search can only be done in actions, not queries
+    // This is a placeholder that returns empty results
+    console.log(
+      "⚠️ Vector search can only be performed in actions, not queries",
+    );
     return [];
   },
 });
