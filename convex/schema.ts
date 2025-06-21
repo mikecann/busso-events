@@ -53,6 +53,9 @@ const applicationTables = {
     startingUrl: v.string(),
     isActive: v.boolean(),
     dateLastScrape: v.optional(v.number()),
+    // Track scheduled scraping
+    nextScrapeScheduledId: v.optional(v.id("_scheduled_functions")),
+    nextScrapeScheduledAt: v.optional(v.number()),
   }),
 
   testScrapes: defineTable({

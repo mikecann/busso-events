@@ -113,26 +113,52 @@ export function SourcesListPage({
                       </Badge>
                     </Group>
 
-                      <Stack gap="sm">
-                        <Title order={3} size="lg">
-                          {source.name}
-                        </Title>
+                    <Stack gap="sm">
+                      <Title order={3} size="lg">
+                        {source.name}
+                      </Title>
+                      <Text
+                        size="sm"
+                        c="dimmed"
+                        style={{ wordBreak: "break-all" }}
+                      >
+                        {source.startingUrl}
+                      </Text>
+                      <Group gap="xs">
+                        <Text fw={500} size="sm">
+                          Last scraped:
+                        </Text>
+                        <Text size="sm" c="dimmed">
+                          {formatDate(source.dateLastScrape)}
+                        </Text>
+                      </Group>
+                      <Group gap="xs">
+                        <Text fw={500} size="sm">
+                          Next scrape:
+                        </Text>
                         <Text
                           size="sm"
-                          c="dimmed"
-                          style={{ wordBreak: "break-all" }}
+                          c={
+                            source.nextScrapeScheduledAt &&
+                            source.nextScrapeScheduledAt <= Date.now()
+                              ? "green.6"
+                              : "dimmed"
+                          }
+                          fw={
+                            source.nextScrapeScheduledAt &&
+                            source.nextScrapeScheduledAt <= Date.now()
+                              ? 500
+                              : undefined
+                          }
                         >
-                          {source.startingUrl}
+                          {source.nextScrapeScheduledAt
+                            ? formatDate(source.nextScrapeScheduledAt)
+                            : source.isActive
+                              ? "Not scheduled"
+                              : "Inactive"}
                         </Text>
-                        <Group gap="xs">
-                          <Text fw={500} size="sm">
-                            Last scraped:
-                          </Text>
-                          <Text size="sm" c="dimmed">
-                            {formatDate(source.dateLastScrape)}
-                          </Text>
-                        </Group>
-                      </Stack>
+                      </Group>
+                    </Stack>
                   </Box>
 
                   <Box style={{ minWidth: "120px" }}>

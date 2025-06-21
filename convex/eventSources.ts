@@ -15,17 +15,42 @@ export const list = adminQuery({
   },
 });
 
+export const getById = adminQuery({
+  args: {
+    sourceId: v.id("eventSources"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.sourceId);
+  },
+});
+
 export const create = adminMutation({
   args: {
     name: v.string(),
     startingUrl: v.string(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("eventSources", {
+    const sourceId = await ctx.db.insert("eventSources", {
       name: args.name,
       startingUrl: args.startingUrl,
       isActive: true,
     });
+
+    // Schedule first scrape for new source (5 minutes delay to allow immediate manual testing)
+    const delayMs = 5 * 60 * 1000; // 5 minutes
+    const scheduledId = await ctx.scheduler.runAfter(
+      delayMs,
+      internal.eventSources.performScheduledSourceScrape,
+      { sourceId },
+    );
+
+    // Update the source with the scheduled job info
+    await ctx.db.patch(sourceId, {
+      nextScrapeScheduledId: scheduledId,
+      nextScrapeScheduledAt: Date.now() + delayMs,
+    });
+
+    return sourceId;
   },
 });
 
@@ -42,7 +67,35 @@ export const update = adminMutation({
       Object.entries(updates).filter(([_, value]) => value !== undefined),
     );
 
+    // Get the current source to check for status changes
+    const currentSource = await ctx.db.get(id);
+    if (!currentSource) {
+      throw new Error(`Event source with id '${id}' not found`);
+    }
+
     await ctx.db.patch(id, filteredUpdates);
+
+    // Handle scheduling changes based on isActive status
+    if (updates.isActive !== undefined) {
+      if (updates.isActive === false) {
+        // Source is being deactivated - cancel any scheduled scrape
+        if (currentSource.nextScrapeScheduledId) {
+          try {
+            await ctx.scheduler.cancel(currentSource.nextScrapeScheduledId);
+          } catch (error) {
+            console.log("Could not cancel scheduled scrape:", error);
+          }
+        }
+        // Clear scheduling info
+        await ctx.db.patch(id, {
+          nextScrapeScheduledId: undefined,
+          nextScrapeScheduledAt: undefined,
+        });
+      } else if (updates.isActive === true && !currentSource.isActive) {
+        // Source is being activated - schedule next scrape
+        await scheduleNextScrape(ctx, id);
+      }
+    }
   },
 });
 
@@ -51,6 +104,16 @@ export const remove = adminMutation({
     id: v.id("eventSources"),
   },
   handler: async (ctx, args) => {
+    // Get the source to cancel any scheduled scrapes
+    const source = await ctx.db.get(args.id);
+    if (source?.nextScrapeScheduledId) {
+      try {
+        await ctx.scheduler.cancel(source.nextScrapeScheduledId);
+      } catch (error) {
+        console.log("Could not cancel scheduled scrape on delete:", error);
+      }
+    }
+
     await ctx.db.delete(args.id);
   },
 });
@@ -91,6 +154,36 @@ export const testScrape = adminAction({
       return {
         success: false,
         message: errorMessage,
+      };
+    }
+  },
+});
+
+// Debug action to manually schedule a scrape
+export const debugScheduleScrape = adminAction({
+  args: {
+    sourceId: v.id("eventSources"),
+  },
+  handler: async (ctx, args) => {
+    console.log(
+      `🔧 Debug: Manually scheduling scrape for sourceId: ${args.sourceId}`,
+    );
+
+    try {
+      await ctx.runMutation(internal.eventSources.updateLastScrapeTime, {
+        sourceId: args.sourceId,
+        timestamp: Date.now(),
+      });
+
+      return {
+        success: true,
+        message: "Scrape scheduled successfully",
+      };
+    } catch (error) {
+      console.error(`❌ Debug schedule failed:`, error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
       };
     }
   },
@@ -142,11 +235,72 @@ export const updateLastScrapeTime = internalMutation({
     timestamp: v.number(),
   },
   handler: async (ctx, args) => {
+    console.log(
+      `🔄 updateLastScrapeTime called for sourceId: ${args.sourceId} at timestamp: ${new Date(args.timestamp).toISOString()}`,
+    );
+
     await ctx.db.patch(args.sourceId, {
       dateLastScrape: args.timestamp,
     });
+
+    console.log(`📅 Calling scheduleNextScrape for sourceId: ${args.sourceId}`);
+    // Schedule next scrape in 3 days
+    await scheduleNextScrape(ctx, args.sourceId);
   },
 });
+
+// Helper function to schedule next scraping for a source
+async function scheduleNextScrape(ctx: any, sourceId: any) {
+  console.log(`📅 scheduleNextScrape called for sourceId: ${sourceId}`);
+
+  const source = await ctx.db.get(sourceId);
+  if (!source) {
+    console.log(`❌ Source not found: ${sourceId}`);
+    return;
+  }
+
+  if (!source.isActive) {
+    console.log(`⏸️ Source is inactive, skipping scheduling: ${source.name}`);
+    return;
+  }
+
+  console.log(`✅ Scheduling next scrape for active source: ${source.name}`);
+
+  // Cancel any existing scheduled scraping for this source
+  if (source.nextScrapeScheduledId) {
+    try {
+      console.log(
+        `🗑️ Canceling existing scheduled scrape: ${source.nextScrapeScheduledId}`,
+      );
+      await ctx.scheduler.cancel(source.nextScrapeScheduledId);
+    } catch (error) {
+      // Ignore errors if the job was already completed or doesn't exist
+      console.log("Could not cancel existing scrape job:", error);
+    }
+  }
+
+  // Schedule next scraping in 3 days (72 hours)
+  const delayMs = 3 * 24 * 60 * 60 * 1000; // 3 days
+  const scheduledId = await ctx.scheduler.runAfter(
+    delayMs,
+    internal.eventSources.performScheduledSourceScrape,
+    { sourceId },
+  );
+
+  console.log(
+    `⏰ Scheduled next scrape with ID: ${scheduledId}, delay: ${delayMs}ms (${Math.round(delayMs / (24 * 60 * 60 * 1000))} days)`,
+  );
+
+  // Update the source with the scheduled job info
+  await ctx.db.patch(sourceId, {
+    nextScrapeScheduledId: scheduledId,
+    nextScrapeScheduledAt: Date.now() + delayMs,
+  });
+
+  console.log(
+    `✅ Successfully scheduled next scrape for ${source.name} at ${new Date(Date.now() + delayMs).toISOString()}`,
+  );
+}
 
 export const updateTestScrapeProgress = internalMutation({
   args: {
@@ -180,6 +334,18 @@ export const completeTestScrape = internalMutation({
       status: args.result.success ? "completed" : "failed",
       result: args.result,
       completedAt: Date.now(),
+    });
+  },
+});
+
+export const clearScheduledScrape = internalMutation({
+  args: {
+    sourceId: v.id("eventSources"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.sourceId, {
+      nextScrapeScheduledId: undefined,
+      nextScrapeScheduledAt: undefined,
     });
   },
 });
@@ -505,16 +671,6 @@ export const getSourcesStatus = adminQuery({
   },
 });
 
-// Get a single event source by ID for admin users
-export const getById = adminQuery({
-  args: {
-    sourceId: v.id("eventSources"),
-  },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.sourceId);
-  },
-});
-
 // Get events by source ID with pagination
 export const getEventsBySource = adminQuery({
   args: {
@@ -562,5 +718,79 @@ export const getEventsBySource = adminQuery({
             : null,
       },
     };
+  },
+});
+
+export const performScheduledSourceScrape = internalAction({
+  args: {
+    sourceId: v.id("eventSources"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      console.log(
+        `⏰ Starting scheduled scrape for sourceId: ${args.sourceId}`,
+      );
+
+      // Get the source to verify it's still active
+      const source = await ctx.runQuery(internal.eventSources.getSourceById, {
+        sourceId: args.sourceId,
+      });
+
+      if (!source) {
+        console.log(
+          `❌ Source not found for scheduled scrape: ${args.sourceId}`,
+        );
+        return;
+      }
+
+      if (!source.isActive) {
+        console.log(
+          `⏸️ Source is inactive, skipping scheduled scrape: ${source.name}`,
+        );
+        // Clear the scheduled scrape since source is inactive
+        await ctx.runMutation(internal.eventSources.clearScheduledScrape, {
+          sourceId: args.sourceId,
+        });
+        return;
+      }
+
+      console.log(
+        `✅ Running scheduled scrape for active source: ${source.name}`,
+      );
+
+      // Perform the scrape using the existing scrape logic
+      const result = await ctx.runAction(
+        internal.eventSources.performSourceScrape,
+        {
+          sourceId: args.sourceId,
+        },
+      );
+
+      if (result.success) {
+        console.log(
+          `✅ Scheduled scrape completed successfully for ${source.name}: ${result.message}`,
+        );
+      } else {
+        console.error(
+          `❌ Scheduled scrape failed for ${source.name}: ${result.message}`,
+        );
+      }
+
+      // Clear the scheduled scrape info since this job is now complete
+      // The performSourceScrape -> updateLastScrapeTime chain will schedule the next one
+      await ctx.runMutation(internal.eventSources.clearScheduledScrape, {
+        sourceId: args.sourceId,
+      });
+    } catch (error) {
+      console.error(
+        `💥 Error in scheduled source scrape for ${args.sourceId}:`,
+        error,
+      );
+
+      // Clear the scheduled scrape info even on error to prevent stuck jobs
+      await ctx.runMutation(internal.eventSources.clearScheduledScrape, {
+        sourceId: args.sourceId,
+      });
+    }
   },
 });

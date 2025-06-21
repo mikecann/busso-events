@@ -515,21 +515,22 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
                       color={
                         embeddingWorkpoolStatus.status.state === "pending"
                           ? "yellow"
-                          : embeddingWorkpoolStatus.status.state ===
-                              "inProgress"
+                          : embeddingWorkpoolStatus.status.state === "running"
                             ? "blue"
-                            : embeddingWorkpoolStatus.status.state === "success"
+                            : embeddingWorkpoolStatus.status.state ===
+                                "finished"
                               ? "green"
                               : "red"
                       }
                     >
                       {embeddingWorkpoolStatus.status.state}
                     </Badge>
-                    {embeddingWorkpoolStatus.status.retryCount > 0 && (
-                      <Text size="xs" c="dimmed">
-                        Retries: {embeddingWorkpoolStatus.status.retryCount}
-                      </Text>
-                    )}
+                    {embeddingWorkpoolStatus.status.retryCount !== undefined &&
+                      embeddingWorkpoolStatus.status.retryCount > 0 && (
+                        <Text size="xs" c="dimmed">
+                          Retries: {embeddingWorkpoolStatus.status.retryCount}
+                        </Text>
+                      )}
                   </>
                 ) : embeddingWorkpoolStatus?.error ? (
                   <Badge color="red">

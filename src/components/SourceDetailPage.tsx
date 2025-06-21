@@ -167,6 +167,14 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                 ? formatDate(source.dateLastScrape)
                 : "Never"}
             </Text>
+            <Text c="dimmed">
+              Next scrape:{" "}
+              {source.nextScrapeScheduledAt
+                ? formatDate(source.nextScrapeScheduledAt)
+                : source.isActive
+                  ? "Not scheduled"
+                  : "Inactive"}
+            </Text>
           </Box>
 
           <Group gap="sm">
