@@ -1,7 +1,7 @@
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useMemo, useEffect } from "react";
-import { EventCard } from "./EventCard";
+import { EventCard } from "../events/EventCard";
 import { SearchBar } from "./SearchBar";
 import { DateFilter } from "./DateFilter";
 import { Id, Doc } from "../../convex/_generated/dataModel";

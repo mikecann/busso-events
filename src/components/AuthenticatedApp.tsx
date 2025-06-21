@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { EventGallery } from "./EventGallery";
-import { EventDetailPage } from "./EventDetailPage";
+import { EventDetailPage } from "../events/EventDetailPage";
 import { SubscriptionsPage } from "./SubscriptionsPage";
 import { CreateSubscriptionPage } from "./CreateSubscriptionPage";
 import { AppAdminPage } from "./AppAdminPage";

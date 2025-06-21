@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { EventGallery } from "./EventGallery";
-import { EventDetailPage } from "./EventDetailPage";
+import { EventDetailPage } from "../events/EventDetailPage";
 import { SignInForm } from "../SignInForm";
 import { useRoute, navigation } from "../router";
 import {

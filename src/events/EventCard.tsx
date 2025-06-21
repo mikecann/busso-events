@@ -47,17 +47,17 @@ export function EventCard({ event, onClick }: EventCardProps) {
       <Card.Section style={{ position: "relative" }}>
         {event.imageUrl ? (
           <Box style={{ position: "relative", overflow: "hidden" }}>
-          <Image
-            src={event.imageUrl}
-            alt={event.title}
+            <Image
+              src={event.imageUrl}
+              alt={event.title}
               height={200}
               style={{
                 transition: "transform 0.3s ease",
               }}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
             {/* Date overlay */}
             <Box
               style={{
@@ -132,25 +132,25 @@ export function EventCard({ event, onClick }: EventCardProps) {
 
       <Stack gap="md" p="lg" style={{ height: "100%" }}>
         <Stack gap="xs">
-        <Title
-          order={3}
+          <Title
+            order={3}
             size="xl"
             fw={600}
-          lineClamp={2}
+            lineClamp={2}
             style={{
               lineHeight: 1.3,
               color: "#2c2e33",
             }}
-        >
-          {event.title}
-        </Title>
+          >
+            {event.title}
+          </Title>
 
-        <Group gap="xs" align="center">
+          <Group gap="xs" align="center">
             <IconCalendar size={16} color="#868e96" />
             <Text size="sm" c="dimmed" fw={500}>
               {weekday}, {time}
-          </Text>
-        </Group>
+            </Text>
+          </Group>
 
           {event.scrapedData?.location && (
             <Group gap="xs" align="center">
