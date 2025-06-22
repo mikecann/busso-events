@@ -30,6 +30,14 @@ const eventEmbeddingPool = new Workpool(components.eventEmbeddingWorkpool, {
   maxParallelism: 2, // Allow 2 concurrent embedding generations
 });
 
+// Initialize the workpool for subscription matching with max parallelism of 1
+const subscriptionMatchPool = new Workpool(
+  components.subscriptionMatchWorkpool,
+  {
+    maxParallelism: 1, // Process subscription matching one at a time
+  },
+);
+
 export const getEventById = internalQuery({
   args: {
     eventId: v.id("events"),
@@ -188,35 +196,52 @@ export const createEventInternal = internalMutation({
   },
 });
 
-// Helper function to schedule subscription matching for an event
-async function scheduleSubscriptionMatching(ctx: any, eventId: any) {
-  const event = await ctx.db.get(eventId);
-  if (!event) return;
+// Helper function to enqueue subscription matching for an event in workpool
+async function enqueueSubscriptionMatching(
+  ctx: MutationCtx,
+  eventId: Id<"events">,
+): Promise<string> {
+  console.log(
+    `🎯 Enqueueing subscription matching for event ${eventId} in workpool`,
+  );
 
-  // Cancel any existing scheduled matching for this event
-  if (event.subscriptionMatchScheduledId) {
+  const event = await ctx.db.get(eventId);
+  if (!event) {
+    throw new Error(`Event ${eventId} not found`);
+  }
+
+  // Cancel any existing workpool job for this event
+  if (event.subscriptionMatchWorkId) {
     try {
-      await ctx.scheduler.cancel(event.subscriptionMatchScheduledId);
+      await subscriptionMatchPool.cancel(
+        ctx,
+        event.subscriptionMatchWorkId as WorkId,
+      );
     } catch (error) {
-      // Ignore errors if the job was already completed or doesn't exist
-      console.log("Could not cancel existing subscription match job:", error);
+      console.log(
+        "Could not cancel existing subscription match workpool job:",
+        error,
+      );
     }
   }
 
-  // Schedule new subscription matching in 8 hours
+  // Enqueue the subscription matching action in the workpool with 8 hour delay
   const delayMs = 8 * 60 * 60 * 1000; // 8 hours
-  const scheduledId = await ctx.scheduler.runAfter(
-    delayMs,
+  const workId = await subscriptionMatchPool.enqueueAction(
+    ctx,
     internal.subscriptions.subscriptionsMatching
       .processEventForSubscriptionMatching,
     { eventId },
+    { runAt: Date.now() + delayMs },
   );
 
-  // Update the event with the scheduled job info
+  // Update the event with the workpool job ID and enqueue time
   await ctx.db.patch(eventId, {
-    subscriptionMatchScheduledId: scheduledId,
-    subscriptionMatchScheduledAt: Date.now() + delayMs,
+    subscriptionMatchWorkId: workId,
+    subscriptionMatchEnqueuedAt: Date.now(),
   });
+
+  return workId;
 }
 
 export const updateEventInternal = internalMutation({
@@ -237,9 +262,9 @@ export const updateEventInternal = internalMutation({
     if (Object.keys(filteredUpdates).length > 0) {
       await ctx.db.patch(eventId, filteredUpdates);
 
-      // If description or title changed, reschedule subscription matching
+      // If description or title changed, re-enqueue subscription matching
       if (updates.description || updates.title) {
-        await scheduleSubscriptionMatching(ctx, eventId);
+        await enqueueSubscriptionMatching(ctx, eventId);
       }
     }
   },
@@ -253,12 +278,15 @@ export const deleteEventInternal = internalMutation({
     const event = await ctx.db.get(args.eventId);
     if (!event) return;
 
-    // Cancel any scheduled subscription matching
-    if (event.subscriptionMatchScheduledId) {
+    // Cancel any workpool subscription matching
+    if (event.subscriptionMatchWorkId) {
       try {
-        await ctx.scheduler.cancel(event.subscriptionMatchScheduledId);
+        await subscriptionMatchPool.cancel(
+          ctx,
+          event.subscriptionMatchWorkId as WorkId,
+        );
       } catch (error) {
-        console.log("Could not cancel subscription match job:", error);
+        console.log("Could not cancel subscription match workpool job:", error);
       }
     }
 
@@ -475,8 +503,8 @@ export const onScrapeComplete = internalMutation({
       await enqueueEmbeddingGenerationDelayed(ctx, args.context.eventId);
     }
 
-    // Schedule subscription matching for this event (8 hours delay)
-    await scheduleSubscriptionMatching(ctx, args.context.eventId);
+    // Enqueue subscription matching for this event (8 hours delay)
+    await enqueueSubscriptionMatching(ctx, args.context.eventId);
   },
 });
 
@@ -701,5 +729,51 @@ export const getEventEmbeddingWorkpoolStatus = internalQuery({
         error: "Failed to get status",
       };
     }
+  },
+});
+
+// Get subscription matching workpool status for an event
+export const getEventSubscriptionMatchWorkpoolStatus = internalQuery({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event?.subscriptionMatchWorkId) {
+      return null;
+    }
+
+    try {
+      const status = await subscriptionMatchPool.status(
+        ctx,
+        event.subscriptionMatchWorkId as WorkId,
+      );
+      return {
+        workId: event.subscriptionMatchWorkId,
+        enqueuedAt: event.subscriptionMatchEnqueuedAt,
+        status,
+      };
+    } catch (error) {
+      console.error("Error getting subscription match workpool status:", error);
+      return {
+        workId: event.subscriptionMatchWorkId,
+        enqueuedAt: event.subscriptionMatchEnqueuedAt,
+        status: null,
+        error: "Failed to get status",
+      };
+    }
+  },
+});
+
+// Clear the workpool subscription matching job ID
+export const clearSubscriptionMatchSchedule = internalMutation({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.eventId, {
+      subscriptionMatchWorkId: undefined,
+      subscriptionMatchEnqueuedAt: undefined,
+    });
   },
 });

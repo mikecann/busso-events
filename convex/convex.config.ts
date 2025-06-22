@@ -9,5 +9,7 @@ app.use(workpool, { name: "eventScrapeWorkpool" });
 // Configure workpool for embedding generation with limited parallelism to avoid OpenAI rate limits
 app.use(workpool, { name: "eventEmbeddingWorkpool" });
 
+// Configure workpool for subscription matching with maximum parallelism of 1
+app.use(workpool, { name: "subscriptionMatchWorkpool" });
+
 export default app;
- 

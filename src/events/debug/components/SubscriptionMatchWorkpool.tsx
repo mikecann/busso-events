@@ -21,7 +21,7 @@ interface DebugSectionProps {
   eventId: Id<"events">;
 }
 
-export function SubscriptionMatching({ eventId }: DebugSectionProps) {
+export function SubscriptionMatchWorkpool({ eventId }: DebugSectionProps) {
   const subscriptionMatchWorkpoolStatus = useQuery(
     api.events.events.getSubscriptionMatchWorkpoolStatus,
     { eventId },

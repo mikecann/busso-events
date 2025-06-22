@@ -18,7 +18,7 @@ interface EventDebugPageProps {
 import { EventBasicInfo } from "./components/EventBasicInfo";
 import { EventScraping } from "./components/EventScraping";
 import { EmbeddingGeneration } from "./components/EmbeddingGeneration";
-import { SubscriptionMatching } from "../../subscriptions/debug/components/SubscriptionMatching";
+import { SubscriptionMatchWorkpool } from "./components/SubscriptionMatchWorkpool";
 import { SearchTest } from "./components/SearchTest";
 import { ScrapedData } from "./components/ScrapedData";
 import { EventPreview } from "./components/EventPreview";
@@ -68,7 +68,7 @@ export function EventDebugPage({ eventId, onBack }: EventDebugPageProps) {
         <EventBasicInfo eventId={typedEventId} />
         <EventScraping eventId={typedEventId} />
         <EmbeddingGeneration eventId={typedEventId} />
-        <SubscriptionMatching eventId={typedEventId} />
+        <SubscriptionMatchWorkpool eventId={typedEventId} />
         <SearchTest eventId={typedEventId} />
         <ScrapedData eventId={typedEventId} />
         <EventPreview eventId={typedEventId} />

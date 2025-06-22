@@ -72,44 +72,34 @@ export const getSchedulingInfo = adminQuery({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Get events with scheduled subscription matching
-    const eventsWithScheduledMatching = await ctx.db
+    // Get events with workpool subscription matching jobs
+    const eventsWithQueuedMatching = await ctx.db
       .query("events")
-      .filter((q: any) =>
-        q.neq(q.field("subscriptionMatchScheduledAt"), undefined),
-      )
+      .filter((q: any) => q.neq(q.field("subscriptionMatchWorkId"), undefined))
       .collect();
 
-    // Count upcoming vs overdue
-    const upcomingMatching = eventsWithScheduledMatching.filter(
-      (event: Doc<"events">) =>
-        event.subscriptionMatchScheduledAt &&
-        event.subscriptionMatchScheduledAt > now,
-    );
+    // For workpool jobs, we can't easily determine "upcoming vs overdue" without checking each status
+    // So we'll just report total queued jobs and provide basic stats
+    const totalQueuedMatching = eventsWithQueuedMatching.length;
 
-    const overdueMatching = eventsWithScheduledMatching.filter(
-      (event: Doc<"events">) =>
-        event.subscriptionMatchScheduledAt &&
-        event.subscriptionMatchScheduledAt <= now,
-    );
-
-    // Get next few upcoming subscription matches
-    const nextMatches = upcomingMatching
+    // Get a sample of events for the next matches display
+    const nextMatches = eventsWithQueuedMatching
+      .filter((event: Doc<"events">) => event.subscriptionMatchEnqueuedAt)
       .sort(
         (a: Doc<"events">, b: Doc<"events">) =>
-          (a.subscriptionMatchScheduledAt || 0) -
-          (b.subscriptionMatchScheduledAt || 0),
+          (a.subscriptionMatchEnqueuedAt || 0) -
+          (b.subscriptionMatchEnqueuedAt || 0),
       )
       .slice(0, 5);
 
     return {
-      totalScheduledMatching: eventsWithScheduledMatching.length,
-      upcomingMatching: upcomingMatching.length,
-      overdueMatching: overdueMatching.length,
+      totalScheduledMatching: totalQueuedMatching,
+      upcomingMatching: totalQueuedMatching, // All queued jobs are considered "upcoming"
+      overdueMatching: 0, // Workpool handles this internally
       nextMatches: nextMatches.map((event: Doc<"events">) => ({
         eventId: event._id,
         title: event.title,
-        scheduledAt: event.subscriptionMatchScheduledAt,
+        scheduledAt: event.subscriptionMatchEnqueuedAt, // This is when it was enqueued
       })),
     };
   },

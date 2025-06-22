@@ -25,9 +25,9 @@ const applicationTables = {
       }),
     ),
     descriptionEmbedding: v.optional(v.array(v.number())),
-    // Track scheduled subscription matching
-    subscriptionMatchScheduledId: v.optional(v.id("_scheduled_functions")),
-    subscriptionMatchScheduledAt: v.optional(v.number()),
+    // Track workpool subscription matching
+    subscriptionMatchWorkId: v.optional(v.string()), // WorkId is stored as string
+    subscriptionMatchEnqueuedAt: v.optional(v.number()),
     // Track workpool event scraping
     scrapeWorkId: v.optional(v.string()), // WorkId is stored as string
     scrapeEnqueuedAt: v.optional(v.number()),

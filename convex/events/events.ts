@@ -67,6 +67,19 @@ export const getEmbeddingWorkpoolStatus = query({
   },
 });
 
+export const getSubscriptionMatchWorkpoolStatus = query({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args): Promise<WorkpoolStatusResponse | null> => {
+    // This is a public query but we'll call the internal one
+    return await ctx.runQuery(
+      internal.events.eventsInternal.getEventSubscriptionMatchWorkpoolStatus,
+      {
+        eventId: args.eventId,
+      },
+    );
+  },
+});
+
 export const search = query({
   args: {
     searchTerm: v.string(),
