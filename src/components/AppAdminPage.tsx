@@ -32,16 +32,24 @@ import {
   IconLoader,
   IconSearch,
   IconExternalLink,
+  IconCpu,
 } from "@tabler/icons-react";
 
 interface AppAdminPageProps {
   onNavigateToSources: () => void;
   onNavigateToSubscriptionDebug: () => void;
+  onNavigateToWorkpoolDebug: (
+    workpoolType:
+      | "eventScrapeWorkpool"
+      | "eventEmbeddingWorkpool"
+      | "subscriptionMatchWorkpool",
+  ) => void;
 }
 
 export function AppAdminPage({
   onNavigateToSources,
   onNavigateToSubscriptionDebug,
+  onNavigateToWorkpoolDebug,
 }: AppAdminPageProps) {
   const eventsReadyForScraping = useQuery(
     api.events.eventsAdmin.getEventsReadyForScraping,
@@ -53,6 +61,7 @@ export function AppAdminPage({
   const jobsStatus = useQuery(api.jobs.getSystemStatus);
   const schedulingInfo = useQuery(api.events.eventsAdmin.getSchedulingInfo);
   const sourcesStatus = useQuery(api.eventSources.getSourcesStatus);
+  const workpoolsStatus = useQuery(api.events.eventsAdmin.getWorkpoolsStatus);
 
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
 
@@ -427,6 +436,135 @@ export function AppAdminPage({
             </Stack>
           </Card>
         </SimpleGrid>
+
+        {/* Workpools Status */}
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Title order={3} size="lg" mb="md">
+            <Group gap="xs">
+              <IconCpu size={20} />
+              Workpool Status
+            </Group>
+          </Title>
+
+          {workpoolsStatus ? (
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+              {/* Event Scraping Workpool */}
+              <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ cursor: "pointer" }}
+                onClick={() => onNavigateToWorkpoolDebug("eventScrapeWorkpool")}
+              >
+                <Group justify="space-between" align="flex-start" mb="sm">
+                  <Text size="xl">🕷️</Text>
+                  <Badge color="yellow" size="sm">
+                    {workpoolsStatus.eventScrapeWorkpool.queuedJobs} queued
+                  </Badge>
+                </Group>
+                <Title order={4} size="md" mb="xs">
+                  {workpoolsStatus.eventScrapeWorkpool.name}
+                </Title>
+                <Text size="sm" c="dimmed" mb="sm">
+                  {workpoolsStatus.eventScrapeWorkpool.description}
+                </Text>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    Max: {workpoolsStatus.eventScrapeWorkpool.maxParallelism}
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    View Details
+                  </Button>
+                </Group>
+              </Card>
+
+              {/* Embedding Generation Workpool */}
+              <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ cursor: "pointer" }}
+                onClick={() =>
+                  onNavigateToWorkpoolDebug("eventEmbeddingWorkpool")
+                }
+              >
+                <Group justify="space-between" align="flex-start" mb="sm">
+                  <Text size="xl">🧠</Text>
+                  <Badge color="grape" size="sm">
+                    {workpoolsStatus.eventEmbeddingWorkpool.queuedJobs} queued
+                  </Badge>
+                </Group>
+                <Title order={4} size="md" mb="xs">
+                  {workpoolsStatus.eventEmbeddingWorkpool.name}
+                </Title>
+                <Text size="sm" c="dimmed" mb="sm">
+                  {workpoolsStatus.eventEmbeddingWorkpool.description}
+                </Text>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    Max: {workpoolsStatus.eventEmbeddingWorkpool.maxParallelism}
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    View Details
+                  </Button>
+                </Group>
+              </Card>
+
+              {/* Subscription Matching Workpool */}
+              <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ cursor: "pointer" }}
+                onClick={() =>
+                  onNavigateToWorkpoolDebug("subscriptionMatchWorkpool")
+                }
+              >
+                <Group justify="space-between" align="flex-start" mb="sm">
+                  <Text size="xl">🎯</Text>
+                  <Badge color="blue" size="sm">
+                    {workpoolsStatus.subscriptionMatchWorkpool.queuedJobs}{" "}
+                    queued
+                  </Badge>
+                </Group>
+                <Title order={4} size="md" mb="xs">
+                  {workpoolsStatus.subscriptionMatchWorkpool.name}
+                </Title>
+                <Text size="sm" c="dimmed" mb="sm">
+                  {workpoolsStatus.subscriptionMatchWorkpool.description}
+                </Text>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    Max:{" "}
+                    {workpoolsStatus.subscriptionMatchWorkpool.maxParallelism}
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    View Details
+                  </Button>
+                </Group>
+              </Card>
+            </SimpleGrid>
+          ) : (
+            <Text c="dimmed" ta="center" py="md">
+              Loading workpool status...
+            </Text>
+          )}
+        </Card>
 
         {/* Recent Activity */}
         {jobsStatus?.recentJobs && jobsStatus.recentJobs.length > 0 && (

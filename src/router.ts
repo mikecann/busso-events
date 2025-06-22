@@ -37,6 +37,12 @@ export const { RouteProvider, useRoute, routes } = createRouter({
     (p) => `/admin/event/${p.eventId}/debug`,
   ),
   subscriptionDebug: defineRoute("/admin/subscriptions/debug"),
+  workpoolDebug: defineRoute(
+    {
+      workpoolType: param.path.string,
+    },
+    (p) => `/admin/workpools/${p.workpoolType}/debug`,
+  ),
 });
 
 // Type helper for route parameters
@@ -44,6 +50,7 @@ export type RouteParams = {
   eventDetail: { eventId: string };
   sourceDetail: { sourceId: string };
   eventDebug: { eventId: string };
+  workpoolDebug: { workpoolType: string };
 };
 
 // Navigation helpers
@@ -61,4 +68,10 @@ export const navigation = {
     routes.sourceDetail({ sourceId }),
   eventDebug: (eventId: Id<"events">) => routes.eventDebug({ eventId }),
   subscriptionDebug: () => routes.subscriptionDebug(),
+  workpoolDebug: (
+    workpoolType:
+      | "eventScrapeWorkpool"
+      | "eventEmbeddingWorkpool"
+      | "subscriptionMatchWorkpool",
+  ) => routes.workpoolDebug({ workpoolType }),
 } as const;

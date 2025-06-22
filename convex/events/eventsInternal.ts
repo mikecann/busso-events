@@ -777,3 +777,104 @@ export const clearSubscriptionMatchSchedule = internalMutation({
     });
   },
 });
+
+// Helper functions for workpool job management
+export const getEventsWithScrapeJobs = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("events")
+      .filter((q) => q.neq(q.field("scrapeWorkId"), undefined))
+      .collect();
+  },
+});
+
+export const getEventsWithEmbeddingJobs = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("events")
+      .filter((q) => q.neq(q.field("embeddingWorkId"), undefined))
+      .collect();
+  },
+});
+
+export const getEventsWithSubscriptionMatchJobs = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("events")
+      .filter((q) => q.neq(q.field("subscriptionMatchWorkId"), undefined))
+      .collect();
+  },
+});
+
+// Functions to cancel individual workpool jobs
+export const cancelEventScrapeJob = internalMutation({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event?.scrapeWorkId) return;
+
+    try {
+      await eventScrapePool.cancel(ctx, event.scrapeWorkId as WorkId);
+    } catch (error) {
+      console.log("Could not cancel workpool scrape job:", error);
+    }
+
+    // Clear the workpool job ID
+    await ctx.db.patch(args.eventId, {
+      scrapeWorkId: undefined,
+      scrapeEnqueuedAt: undefined,
+    });
+  },
+});
+
+export const cancelEventEmbeddingJob = internalMutation({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event?.embeddingWorkId) return;
+
+    try {
+      await eventEmbeddingPool.cancel(ctx, event.embeddingWorkId as WorkId);
+    } catch (error) {
+      console.log("Could not cancel workpool embedding job:", error);
+    }
+
+    // Clear the workpool job ID
+    await ctx.db.patch(args.eventId, {
+      embeddingWorkId: undefined,
+      embeddingEnqueuedAt: undefined,
+    });
+  },
+});
+
+export const cancelEventSubscriptionMatchJob = internalMutation({
+  args: {
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event?.subscriptionMatchWorkId) return;
+
+    try {
+      await subscriptionMatchPool.cancel(
+        ctx,
+        event.subscriptionMatchWorkId as WorkId,
+      );
+    } catch (error) {
+      console.log("Could not cancel subscription match workpool job:", error);
+    }
+
+    // Clear the workpool job ID
+    await ctx.db.patch(args.eventId, {
+      subscriptionMatchWorkId: undefined,
+      subscriptionMatchEnqueuedAt: undefined,
+    });
+  },
+});

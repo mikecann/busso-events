@@ -7,6 +7,7 @@ import { CreateSubscriptionPage } from "../subscriptions/CreateSubscriptionPage"
 import { AppAdminPage } from "./AppAdminPage";
 import { EventDebugPage } from "../events/debug/EventDebugPage";
 import { SubscriptionDebugPage } from "../subscriptions/debug/SubscriptionDebugPage";
+import { WorkpoolDebugPage } from "./WorkpoolDebugPage";
 import { SourcesListPage } from "./SourcesListPage";
 import { AddSourcePage } from "./AddSourcePage";
 import { SourceDetailPage } from "./SourceDetailPage";
@@ -86,6 +87,9 @@ export function AuthenticatedApp() {
             onNavigateToSubscriptionDebug={() =>
               navigation.subscriptionDebug().push()
             }
+            onNavigateToWorkpoolDebug={(workpoolType) =>
+              navigation.workpoolDebug(workpoolType).push()
+            }
           />
         )}
 
@@ -101,6 +105,21 @@ export function AuthenticatedApp() {
 
         {route.name === "subscriptionDebug" && isAdmin && (
           <SubscriptionDebugPage onBack={() => navigation.admin().push()} />
+        )}
+
+        {route.name === "workpoolDebug" && isAdmin && (
+          <WorkpoolDebugPage
+            workpoolType={
+              route.params.workpoolType as
+                | "eventScrapeWorkpool"
+                | "eventEmbeddingWorkpool"
+                | "subscriptionMatchWorkpool"
+            }
+            onBack={() => navigation.admin().push()}
+            onNavigateToEventDebug={(eventId) =>
+              navigation.eventDebug(eventId as Id<"events">).push()
+            }
+          />
         )}
 
         {route.name === "sources" && isAdmin && (
@@ -139,6 +158,7 @@ export function AuthenticatedApp() {
         {(route.name === "admin" ||
           route.name === "eventDebug" ||
           route.name === "subscriptionDebug" ||
+          route.name === "workpoolDebug" ||
           route.name === "sources" ||
           route.name === "addSource" ||
           route.name === "sourceDetail") &&
