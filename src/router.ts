@@ -36,6 +36,7 @@ export const { RouteProvider, useRoute, routes } = createRouter({
     },
     (p) => `/admin/event/${p.eventId}/debug`,
   ),
+  subscriptionDebug: defineRoute("/admin/subscriptions/debug"),
 });
 
 // Type helper for route parameters
@@ -59,4 +60,5 @@ export const navigation = {
   sourceDetail: (sourceId: Id<"eventSources">) =>
     routes.sourceDetail({ sourceId }),
   eventDebug: (eventId: Id<"events">) => routes.eventDebug({ eventId }),
+  subscriptionDebug: () => routes.subscriptionDebug(),
 } as const;

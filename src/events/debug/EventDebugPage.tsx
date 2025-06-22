@@ -18,7 +18,7 @@ interface EventDebugPageProps {
 import { EventBasicInfo } from "./components/EventBasicInfo";
 import { EventScraping } from "./components/EventScraping";
 import { EmbeddingGeneration } from "./components/EmbeddingGeneration";
-import { SubscriptionMatching } from "./components/SubscriptionMatching";
+import { SubscriptionMatching } from "../../subscriptions/debug/components/SubscriptionMatching";
 import { SearchTest } from "./components/SearchTest";
 import { ScrapedData } from "./components/ScrapedData";
 import { EventPreview } from "./components/EventPreview";

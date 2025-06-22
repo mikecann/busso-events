@@ -2,10 +2,11 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { EventGallery } from "./EventGallery";
 import { EventDetailPage } from "../events/EventDetailPage";
-import { SubscriptionsPage } from "./SubscriptionsPage";
-import { CreateSubscriptionPage } from "./CreateSubscriptionPage";
+import { SubscriptionsPage } from "../subscriptions/SubscriptionsPage";
+import { CreateSubscriptionPage } from "../subscriptions/CreateSubscriptionPage";
 import { AppAdminPage } from "./AppAdminPage";
 import { EventDebugPage } from "../events/debug/EventDebugPage";
+import { SubscriptionDebugPage } from "../subscriptions/debug/SubscriptionDebugPage";
 import { SourcesListPage } from "./SourcesListPage";
 import { AddSourcePage } from "./AddSourcePage";
 import { SourceDetailPage } from "./SourceDetailPage";
@@ -82,6 +83,9 @@ export function AuthenticatedApp() {
         {route.name === "admin" && isAdmin && (
           <AppAdminPage
             onNavigateToSources={() => navigation.sources().push()}
+            onNavigateToSubscriptionDebug={() =>
+              navigation.subscriptionDebug().push()
+            }
           />
         )}
 
@@ -93,6 +97,10 @@ export function AuthenticatedApp() {
               window.history.back();
             }}
           />
+        )}
+
+        {route.name === "subscriptionDebug" && isAdmin && (
+          <SubscriptionDebugPage onBack={() => navigation.admin().push()} />
         )}
 
         {route.name === "sources" && isAdmin && (
@@ -130,6 +138,7 @@ export function AuthenticatedApp() {
         {/* Handle admin-only routes for non-admin users */}
         {(route.name === "admin" ||
           route.name === "eventDebug" ||
+          route.name === "subscriptionDebug" ||
           route.name === "sources" ||
           route.name === "addSource" ||
           route.name === "sourceDetail") &&

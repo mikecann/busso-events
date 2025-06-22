@@ -79,11 +79,22 @@ export const getSubscriptionStats = adminQuery({
         sub.nextEmailScheduled <= now,
     ).length;
 
+    // Get unique users
+    const uniqueUsers = new Set(allSubscriptions.map((sub) => sub.userId)).size;
+
+    // Get total queued events across all subscriptions
+    const queuedEvents = await ctx.db.query("emailQueue").collect();
+    const totalQueuedEvents = queuedEvents.filter(
+      (item) => !item.emailSent,
+    ).length;
+
     return {
       total: allSubscriptions.length,
       active: activeCount,
       inactive: inactiveCount,
       readyForEmail,
+      uniqueUsers,
+      totalQueuedEvents,
       avgEmailFrequency:
         allSubscriptions.reduce(
           (acc, sub) => acc + (sub.emailFrequencyHours || 24),
