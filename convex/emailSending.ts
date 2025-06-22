@@ -6,10 +6,13 @@ import { internal } from "./_generated/api";
 let resend: any = null;
 try {
   if (process.env.CONVEX_RESEND_API_KEY) {
-    console.log("🔧 Initializing Resend with API key:", process.env.CONVEX_RESEND_API_KEY ? "Present" : "Missing");
+    console.log(
+      "🔧 Initializing Resend with API key:",
+      process.env.CONVEX_RESEND_API_KEY ? "Present" : "Missing",
+    );
     const { Resend } = require("resend");
     resend = new Resend(process.env.CONVEX_RESEND_API_KEY);
-    
+
     // Set base URL if provided (for Convex proxy)
     if (process.env.RESEND_BASE_URL) {
       console.log("🔧 Setting Resend base URL:", process.env.RESEND_BASE_URL);
@@ -29,11 +32,20 @@ export const sendSubscriptionEmail = action({
   args: {
     subscriptionId: v.id("subscriptions"),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; message: string; eventsSent?: number }> => {
-    console.log("📧 Starting sendSubscriptionEmail for subscription:", args.subscriptionId);
-    const result = await ctx.runAction(internal.emailSending.sendSubscriptionEmailInternal, {
-      subscriptionId: args.subscriptionId,
-    });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ success: boolean; message: string; eventsSent?: number }> => {
+    console.log(
+      "📧 Starting sendSubscriptionEmail for subscription:",
+      args.subscriptionId,
+    );
+    const result = await ctx.runAction(
+      internal.emailSending.sendSubscriptionEmailInternal,
+      {
+        subscriptionId: args.subscriptionId,
+      },
+    );
     console.log("📧 sendSubscriptionEmail result:", result);
     return result;
   },
@@ -43,15 +55,24 @@ export const sendSubscriptionEmailInternal = internalAction({
   args: {
     subscriptionId: v.id("subscriptions"),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; message: string; eventsSent?: number }> => {
-    console.log("🔍 Starting sendSubscriptionEmailInternal for subscription:", args.subscriptionId);
-    
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ success: boolean; message: string; eventsSent?: number }> => {
+    console.log(
+      "🔍 Starting sendSubscriptionEmailInternal for subscription:",
+      args.subscriptionId,
+    );
+
     try {
       if (!resend) {
-        console.error("❌ Resend not initialized - email service not configured");
-        return { 
-          success: false, 
-          message: "Email service not configured - CONVEX_RESEND_API_KEY environment variable is required" 
+        console.error(
+          "❌ Resend not initialized - email service not configured",
+        );
+        return {
+          success: false,
+          message:
+            "Email service not configured - CONVEX_RESEND_API_KEY environment variable is required",
         };
       }
 
@@ -59,9 +80,12 @@ export const sendSubscriptionEmailInternal = internalAction({
 
       // Get the subscription
       console.log("🔍 Fetching subscription data...");
-      const subscription = await ctx.runQuery(internal.subscriptionQueries.getSubscriptionById, {
-        subscriptionId: args.subscriptionId,
-      });
+      const subscription = await ctx.runQuery(
+        internal.subscriptions.subscriptionsInternal.getSubscriptionById,
+        {
+          subscriptionId: args.subscriptionId,
+        },
+      );
 
       if (!subscription) {
         console.error("❌ Subscription not found:", args.subscriptionId);
@@ -72,7 +96,7 @@ export const sendSubscriptionEmailInternal = internalAction({
         id: subscription._id,
         userId: subscription.userId,
         prompt: subscription.prompt,
-        isActive: subscription.isActive
+        isActive: subscription.isActive,
       });
 
       // Get the user
@@ -85,33 +109,39 @@ export const sendSubscriptionEmailInternal = internalAction({
         console.error("❌ User not found or no email address:", {
           userFound: !!user,
           hasEmail: user?.email ? "Yes" : "No",
-          email: user?.email
+          email: user?.email,
         });
-        return { success: false, message: "User not found or no email address" };
+        return {
+          success: false,
+          message: "User not found or no email address",
+        };
       }
 
       console.log("✅ User found:", {
         id: user._id,
         email: user.email,
-        name: user.name
+        name: user.name,
       });
 
       // Get queued events for this subscription
       console.log("🔍 Fetching queued events...");
-      const queuedEvents = await ctx.runQuery(internal.emailQueue.getQueuedEventsForSubscription, {
-        subscriptionId: args.subscriptionId,
-        includeAlreadySent: false,
-      });
+      const queuedEvents = await ctx.runQuery(
+        internal.emailQueue.getQueuedEventsForSubscription,
+        {
+          subscriptionId: args.subscriptionId,
+          includeAlreadySent: false,
+        },
+      );
 
       console.log("📊 Queued events found:", {
         count: queuedEvents.length,
-        events: queuedEvents.map(e => ({
+        events: queuedEvents.map((e: any) => ({
           eventId: e.eventId,
           eventTitle: e.event?.title,
           matchScore: e.matchScore,
           matchType: e.matchType,
-          emailSent: e.emailSent
-        }))
+          emailSent: e.emailSent,
+        })),
       });
 
       if (queuedEvents.length === 0) {
@@ -122,13 +152,13 @@ export const sendSubscriptionEmailInternal = internalAction({
       // Generate email content
       console.log("📝 Generating email content...");
       const emailHtml = generateEmailHtml(subscription, queuedEvents, user);
-      const emailSubject = `${queuedEvents.length} new event${queuedEvents.length > 1 ? 's' : ''} matching "${subscription.prompt}"`;
+      const emailSubject = `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching "${subscription.prompt}"`;
 
       console.log("📧 Email details:", {
         to: user.email,
         subject: emailSubject,
         htmlLength: emailHtml.length,
-        eventCount: queuedEvents.length
+        eventCount: queuedEvents.length,
       });
 
       // Send the email using Convex Resend proxy
@@ -137,7 +167,7 @@ export const sendSubscriptionEmailInternal = internalAction({
         from: "EventFinder Notifications <notifications@eventfinder.com>",
         to: user.email,
         subject: emailSubject,
-        htmlPreview: emailHtml.substring(0, 200) + "..."
+        htmlPreview: emailHtml.substring(0, 200) + "...",
       });
 
       const { data, error } = await resend.emails.send({
@@ -150,12 +180,15 @@ export const sendSubscriptionEmailInternal = internalAction({
       console.log("📧 Resend response:", {
         data,
         error,
-        success: !error
+        success: !error,
       });
 
       if (error) {
         console.error("❌ Failed to send email via Resend:", error);
-        return { success: false, message: `Failed to send email: ${JSON.stringify(error)}` };
+        return {
+          success: false,
+          message: `Failed to send email: ${JSON.stringify(error)}`,
+        };
       }
 
       console.log("✅ Email sent successfully via Resend, data:", data);
@@ -177,21 +210,23 @@ export const sendSubscriptionEmailInternal = internalAction({
 
       console.log("✅ Subscription email time updated");
 
-      const result = { 
-        success: true, 
+      const result = {
+        success: true,
         message: `Email sent successfully to ${user.email}`,
-        eventsSent: queuedEvents.length
+        eventsSent: queuedEvents.length,
       };
 
       console.log("🎉 Email sending completed successfully:", result);
       return result;
-
     } catch (error) {
       console.error("💥 Error in sendSubscriptionEmailInternal:", error);
-      console.error("💥 Error stack:", error instanceof Error ? error.stack : "No stack trace");
-      return { 
-        success: false, 
-        message: `Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`
+      console.error(
+        "💥 Error stack:",
+        error instanceof Error ? error.stack : "No stack trace",
+      );
+      return {
+        success: false,
+        message: `Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
   },
@@ -202,24 +237,30 @@ export const updateSubscriptionEmailTime = internalMutation({
     subscriptionId: v.id("subscriptions"),
   },
   handler: async (ctx, args): Promise<void> => {
-    console.log("🔄 Updating subscription email time for:", args.subscriptionId);
-    
+    console.log(
+      "🔄 Updating subscription email time for:",
+      args.subscriptionId,
+    );
+
     const now = Date.now();
     const subscription = await ctx.db.get(args.subscriptionId);
-    
+
     if (!subscription) {
-      console.error("❌ Subscription not found when updating email time:", args.subscriptionId);
+      console.error(
+        "❌ Subscription not found when updating email time:",
+        args.subscriptionId,
+      );
       return;
     }
 
     const emailFrequency = subscription.emailFrequencyHours || 24;
-    const nextEmailTime = now + (emailFrequency * 60 * 60 * 1000);
+    const nextEmailTime = now + emailFrequency * 60 * 60 * 1000;
 
     console.log("📅 Email time update details:", {
       subscriptionId: args.subscriptionId,
       currentTime: new Date(now).toISOString(),
       emailFrequencyHours: emailFrequency,
-      nextEmailTime: new Date(nextEmailTime).toISOString()
+      nextEmailTime: new Date(nextEmailTime).toISOString(),
     });
 
     await ctx.db.patch(args.subscriptionId, {
@@ -231,11 +272,15 @@ export const updateSubscriptionEmailTime = internalMutation({
   },
 });
 
-function generateEmailHtml(subscription: any, queuedEvents: any[], user: any): string {
+function generateEmailHtml(
+  subscription: any,
+  queuedEvents: any[],
+  user: any,
+): string {
   console.log("📝 Generating email HTML for:", {
     subscriptionPrompt: subscription.prompt,
     eventCount: queuedEvents.length,
-    userEmail: user.email
+    userEmail: user.email,
   });
 
   const formatDate = (timestamp: number) => {
@@ -255,26 +300,31 @@ function generateEmailHtml(subscription: any, queuedEvents: any[], user: any): s
     return "#ef4444"; // red
   };
 
-  const eventCards = queuedEvents.map(queueItem => {
-    const event = queueItem.event;
-    console.log("📝 Generating card for event:", {
-      title: event.title,
-      matchScore: queueItem.matchScore,
-      matchType: queueItem.matchType
-    });
+  const eventCards = queuedEvents
+    .map((queueItem) => {
+      const event = queueItem.event;
+      console.log("📝 Generating card for event:", {
+        title: event.title,
+        matchScore: queueItem.matchScore,
+        matchType: queueItem.matchType,
+      });
 
-    return `
+      return `
       <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; background-color: #ffffff;">
-        ${event.imageUrl ? `
+        ${
+          event.imageUrl
+            ? `
           <img src="${event.imageUrl}" alt="${event.title}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 16px;">
-        ` : ''}
+        `
+            : ""
+        }
         
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
           <span style="background-color: ${getScoreColor(queueItem.matchScore)}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
             Match: ${(queueItem.matchScore * 100).toFixed(0)}%
           </span>
           <span style="background-color: #6366f1; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
-            ${queueItem.matchType === 'semantic' ? 'AI Match' : 'Title Match'}
+            ${queueItem.matchType === "semantic" ? "AI Match" : "Title Match"}
           </span>
         </div>
         
@@ -295,7 +345,8 @@ function generateEmailHtml(subscription: any, queuedEvents: any[], user: any): s
         </a>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 
   const html = `
     <!DOCTYPE html>
@@ -312,7 +363,7 @@ function generateEmailHtml(subscription: any, queuedEvents: any[], user: any): s
           🎉 New Events Found!
         </h1>
         <p style="margin: 0; color: #6b7280; font-size: 16px;">
-          We found ${queuedEvents.length} new event${queuedEvents.length > 1 ? 's' : ''} matching your subscription:
+          We found ${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching your subscription:
         </p>
         <p style="margin: 8px 0 0 0; color: #3b82f6; font-weight: 600; font-size: 16px;">
           "${subscription.prompt}"

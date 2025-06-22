@@ -43,9 +43,11 @@ type PreviewEvent = {
 export function CreateSubscriptionPage({
   onBack,
 }: CreateSubscriptionPageProps) {
-  const createSubscription = useMutation(api.subscriptions.create);
+  const createSubscription = useMutation(
+    api.subscriptions.subscriptions.create,
+  );
   const previewMatchingEvents = useAction(
-    api.subscriptionMatching.previewMatchingEvents,
+    api.subscriptions.subscriptionsMatching.previewMatchingEvents,
   );
 
   const [prompt, setPrompt] = useState("");

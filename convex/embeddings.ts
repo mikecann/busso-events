@@ -43,19 +43,6 @@ export const updateEventEmbedding = internalMutation({
   },
 });
 
-// Update subscription with embedding
-export const updateSubscriptionEmbedding = internalMutation({
-  args: {
-    subscriptionId: v.id("subscriptions"),
-    embedding: v.array(v.number()),
-  },
-  handler: async (ctx, args): Promise<void> => {
-    await ctx.db.patch(args.subscriptionId, {
-      promptEmbedding: args.embedding,
-    });
-  },
-});
-
 // Generate and store embedding for an event's description
 export const generateEventDescriptionEmbedding = internalAction({
   args: {
@@ -64,9 +51,12 @@ export const generateEventDescriptionEmbedding = internalAction({
   handler: async (ctx, args): Promise<{ success: boolean }> => {
     try {
       // Get the event
-      const event = await ctx.runQuery(internal.events.eventsInternal.getEventById, {
-        eventId: args.eventId,
-      });
+      const event = await ctx.runQuery(
+        internal.events.eventsInternal.getEventById,
+        {
+          eventId: args.eventId,
+        },
+      );
 
       if (!event) {
         throw new Error("Event not found");
@@ -119,7 +109,7 @@ export const generateSubscriptionEmbedding = internalAction({
     try {
       // Get the subscription
       const subscription = await ctx.runQuery(
-        internal.subscriptionQueries.getSubscriptionById,
+        internal.subscriptions.subscriptionsInternal.getSubscriptionById,
         {
           subscriptionId: args.subscriptionId,
         },
@@ -138,10 +128,14 @@ export const generateSubscriptionEmbedding = internalAction({
       );
 
       // Update the subscription with the embedding
-      await ctx.runMutation(internal.embeddings.updateSubscriptionEmbedding, {
-        subscriptionId: args.subscriptionId,
-        embedding,
-      });
+      await ctx.runMutation(
+        internal.subscriptions.subscriptionsInternal
+          .updateSubscriptionEmbedding,
+        {
+          subscriptionId: args.subscriptionId,
+          embedding,
+        },
+      );
 
       return { success: true };
     } catch (error) {

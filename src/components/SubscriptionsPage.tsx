@@ -39,9 +39,13 @@ interface SubscriptionsPageProps {
 }
 
 export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
-  const subscriptions = useQuery(api.subscriptions.list);
-  const updateSubscription = useMutation(api.subscriptions.update);
-  const deleteSubscription = useMutation(api.subscriptions.remove);
+  const subscriptions = useQuery(api.subscriptions.subscriptions.list);
+  const updateSubscription = useMutation(
+    api.subscriptions.subscriptions.update,
+  );
+  const deleteSubscription = useMutation(
+    api.subscriptions.subscriptions.remove,
+  );
   const sendEmailNow = useAction(api.emailSending.sendSubscriptionEmail);
 
   const [editingId, setEditingId] = useState<Id<"subscriptions"> | null>(null);

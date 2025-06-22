@@ -26,7 +26,7 @@ interface DebugSectionProps {
 export function SubscriptionMatching({ eventId }: DebugSectionProps) {
   const event = useQuery(api.events.events.getById, { id: eventId });
   const triggerSubscriptionMatching = useAction(
-    api.subscriptionMatching.triggerSubscriptionMatchingForEvent,
+    api.subscriptions.subscriptionsMatching.triggerSubscriptionMatchingForEvent,
   );
 
   const [isTriggeringMatching, setIsTriggeringMatching] = useState(false);

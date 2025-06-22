@@ -152,7 +152,7 @@ export const enhancedSearch = action({
 
       // Text search results
       const titleResults = await ctx.runQuery(
-        internal.subscriptionQueries.searchEventsByTitle,
+        internal.subscriptions.subscriptionsInternal.searchEventsByTitle,
         { searchTerm, limit: 50 },
       );
 

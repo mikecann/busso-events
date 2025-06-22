@@ -191,7 +191,8 @@ async function scheduleSubscriptionMatching(ctx: any, eventId: any) {
   const delayMs = 8 * 60 * 60 * 1000; // 8 hours
   const scheduledId = await ctx.scheduler.runAfter(
     delayMs,
-    internal.subscriptionMatching.processEventForSubscriptionMatching,
+    internal.subscriptions.subscriptionsMatching
+      .processEventForSubscriptionMatching,
     { eventId },
   );
 

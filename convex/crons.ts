@@ -16,7 +16,8 @@ export const sendScheduledEmails = internalAction({
     try {
       // Get all subscriptions that are ready for email sending
       const readySubscriptions = await ctx.runQuery(
-        internal.subscriptionQueries.getSubscriptionsReadyForEmail,
+        internal.subscriptions.subscriptionsInternal
+          .getSubscriptionsReadyForEmail,
       );
 
       console.log("📊 Found subscriptions ready for email:", {
