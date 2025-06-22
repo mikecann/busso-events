@@ -19,6 +19,20 @@ import {
 } from "@mantine/core";
 import { IconRefresh, IconMail } from "@tabler/icons-react";
 
+// Type guards for subscription types
+function isPromptSubscription(
+  subscription: any,
+): subscription is any & { prompt: string; kind: "prompt" } {
+  return (
+    subscription.kind === "prompt" ||
+    (subscription.prompt !== undefined && subscription.kind !== "all_events")
+  );
+}
+
+function isAllEventsSubscription(subscription: any): boolean {
+  return subscription.kind === "all_events";
+}
+
 interface SubscriptionMatchingTestProps {
   subscriptionId: Id<"subscriptions">;
 }
@@ -64,8 +78,13 @@ export function SubscriptionMatchingTest({
   }
 
   const loadPreview = () => {
+    if (!isPromptSubscription(subscription)) {
+      toast.error("Preview is only available for prompt-based subscriptions");
+      return;
+    }
+
     setIsLoadingPreview(true);
-    previewMatching({ prompt: subscription.prompt })
+    previewMatching({ prompt: (subscription as any).prompt })
       .then((events) => setPreviewEvents(events))
       .catch(onApiError)
       .finally(() => setIsLoadingPreview(false));
@@ -76,15 +95,17 @@ export function SubscriptionMatchingTest({
       <Group justify="space-between" align="center" mb="lg">
         <Title order={2}>Subscription Matching Test</Title>
         <Group gap="xs">
-          <Button
-            onClick={loadPreview}
-            disabled={isLoadingPreview}
-            leftSection={<IconRefresh size={16} />}
-            loading={isLoadingPreview}
-            variant="light"
-          >
-            Preview Matches
-          </Button>
+          {isPromptSubscription(subscription) && (
+            <Button
+              onClick={loadPreview}
+              disabled={isLoadingPreview}
+              leftSection={<IconRefresh size={16} />}
+              loading={isLoadingPreview}
+              variant="light"
+            >
+              Preview Matches
+            </Button>
+          )}
           <Button
             onClick={() => {
               setIsTestingMatching(true);
@@ -111,10 +132,21 @@ export function SubscriptionMatchingTest({
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="lg">
         <Box>
           <Text fw={500} size="sm" c="gray.7">
-            Subscription Prompt:
+            Subscription Type:
           </Text>
           <Text size="sm" style={{ lineHeight: 1.6 }}>
-            "{subscription.prompt}"
+            {isPromptSubscription(subscription) ? (
+              <>
+                <Badge color="orange" size="sm" mr="xs">
+                  Prompt-based
+                </Badge>
+                <br />"{(subscription as any).prompt}"
+              </>
+            ) : (
+              <Badge color="purple" size="sm">
+                All Events
+              </Badge>
+            )}
           </Text>
         </Box>
         <Box>

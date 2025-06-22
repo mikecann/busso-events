@@ -52,8 +52,13 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
 
   const handleEdit = () => {
     setEditingId(subscription._id);
-    setEditPrompt(subscription.prompt);
+    setEditPrompt((subscription as any).prompt || "");
   };
+
+  const isPromptSubscription =
+    (subscription as any).kind === "prompt" ||
+    (subscription as any).prompt !== undefined;
+  const isAllEventsSubscription = (subscription as any).kind === "all_events";
 
   const handleCancelEdit = () => {
     setEditingId(null);
@@ -74,6 +79,12 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
             <Badge color={subscription.isActive ? "green" : "gray"} size="sm">
               {subscription.isActive ? "Active" : "Inactive"}
             </Badge>
+            <Badge
+              color={isAllEventsSubscription ? "purple" : "orange"}
+              size="sm"
+            >
+              {isAllEventsSubscription ? "All Events" : "Prompt-based"}
+            </Badge>
             {subscription.totalQueuedEvents > 0 && (
               <Badge color="blue" size="sm">
                 {subscription.totalQueuedEvents} queued event
@@ -82,7 +93,7 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
             )}
           </Group>
 
-          {editingId === subscription._id ? (
+          {editingId === subscription._id && isPromptSubscription ? (
             <Stack gap="sm">
               <Textarea
                 value={editPrompt}
@@ -115,9 +126,15 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
             </Stack>
           ) : (
             <Stack gap="md">
-              <Text size="md" style={{ lineHeight: 1.6 }}>
-                "{subscription.prompt}"
-              </Text>
+              {isPromptSubscription ? (
+                <Text size="md" style={{ lineHeight: 1.6 }}>
+                  "{(subscription as any).prompt}"
+                </Text>
+              ) : (
+                <Text size="md" style={{ lineHeight: 1.6 }} c="purple.7">
+                  Subscribed to all events
+                </Text>
+              )}
 
               <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
                 <Box>
@@ -250,7 +267,7 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
             {subscription.isActive ? "Pause" : "Activate"}
           </Button>
 
-          {editingId !== subscription._id && (
+          {editingId !== subscription._id && isPromptSubscription && (
             <Button
               onClick={handleEdit}
               variant="light"

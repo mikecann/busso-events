@@ -19,6 +19,60 @@ export const list = query({
   },
 });
 
+export const createPrompt = mutation({
+  args: {
+    prompt: v.string(),
+    isActive: v.optional(v.boolean()),
+    emailFrequencyHours: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    const userId = await requireAuth(ctx);
+
+    // Validate the data
+    validateSubscriptionData({
+      kind: "prompt",
+      prompt: args.prompt,
+      emailFrequencyHours: args.emailFrequencyHours,
+    });
+
+    return await ctx.runMutation(
+      internal.subscriptions.subscriptionsInternal.createPromptSubscription,
+      {
+        userId,
+        prompt: args.prompt,
+        isActive: args.isActive ?? true,
+        emailFrequencyHours: args.emailFrequencyHours || 24,
+      },
+    );
+  },
+});
+
+export const createAllEvents = mutation({
+  args: {
+    isActive: v.optional(v.boolean()),
+    emailFrequencyHours: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    const userId = await requireAuth(ctx);
+
+    // Validate the data
+    validateSubscriptionData({
+      kind: "all_events",
+      emailFrequencyHours: args.emailFrequencyHours,
+    });
+
+    return await ctx.runMutation(
+      internal.subscriptions.subscriptionsInternal.createAllEventsSubscription,
+      {
+        userId,
+        isActive: args.isActive ?? true,
+        emailFrequencyHours: args.emailFrequencyHours || 24,
+      },
+    );
+  },
+});
+
+// Keep the old create for backward compatibility (defaults to prompt subscription)
 export const create = mutation({
   args: {
     prompt: v.string(),
@@ -30,12 +84,13 @@ export const create = mutation({
 
     // Validate the data
     validateSubscriptionData({
+      kind: "prompt",
       prompt: args.prompt,
       emailFrequencyHours: args.emailFrequencyHours,
     });
 
     return await ctx.runMutation(
-      internal.subscriptions.subscriptionsInternal.createSubscription,
+      internal.subscriptions.subscriptionsInternal.createPromptSubscription,
       {
         userId,
         prompt: args.prompt,

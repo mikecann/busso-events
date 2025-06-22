@@ -51,6 +51,22 @@ export const getEventByUrl = internalQuery({
   },
 });
 
+export const getAllFutureEvents = internalQuery({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const limit = args.limit || 50;
+
+    return await ctx.db
+      .query("events")
+      .withIndex("by_event_date", (q) => q.gt("eventDate", now))
+      .order("asc")
+      .take(limit);
+  },
+});
+
 export const checkUserIsAdmin = internalQuery({
   args: {
     userId: v.id("users"),

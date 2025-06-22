@@ -11,7 +11,9 @@ import {
 } from "@mantine/core";
 
 export function SubscriptionStats() {
-  const stats = useQuery(api.subscriptions.subscriptionsAdmin.getSubscriptionStats);
+  const stats = useQuery(
+    api.subscriptions.subscriptionsAdmin.getSubscriptionStats,
+  );
 
   if (stats === undefined) {
     return (
@@ -67,6 +69,29 @@ export function SubscriptionStats() {
         </Box>
       </SimpleGrid>
 
+      <Title order={3} mt="xl" mb="md">
+        Subscription Types
+      </Title>
+      <SimpleGrid cols={{ base: 2, md: 2 }} spacing="lg">
+        <Box ta="center">
+          <Text size="xl" fw={700} c="orange.6">
+            {stats.promptSubscriptions}
+          </Text>
+          <Text size="sm" c="dimmed">
+            Prompt-based
+          </Text>
+        </Box>
+
+        <Box ta="center">
+          <Text size="xl" fw={700} c="purple.6">
+            {stats.allEventsSubscriptions}
+          </Text>
+          <Text size="sm" c="dimmed">
+            All Events
+          </Text>
+        </Box>
+      </SimpleGrid>
+
       <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg" mt="lg">
         <Box ta="center">
           <Text size="lg" fw={600} c="violet.6">
@@ -97,4 +122,4 @@ export function SubscriptionStats() {
       </SimpleGrid>
     </Card>
   );
-} 
+}

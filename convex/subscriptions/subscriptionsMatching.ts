@@ -7,7 +7,14 @@ import {
   SIMILARITY_THRESHOLD,
   getIsActive,
   cosineSimilarity,
+  isPromptSubscription,
+  isAllEventsSubscription,
 } from "./common";
+
+// Type for search results that include a score
+type EventWithScore = Doc<"events"> & {
+  _score?: number;
+};
 
 // Preview showing all events but marking those below threshold
 export const previewMatchingEvents = action({
@@ -31,7 +38,7 @@ export const previewMatchingEvents = action({
       );
 
       // Use vector search to find similar events
-      const embeddingResults: Doc<"events">[] = await ctx.runQuery(
+      const embeddingResults: EventWithScore[] = await ctx.runQuery(
         internal.subscriptions.subscriptionsInternal.searchEventsByEmbedding,
         {
           embedding: promptEmbedding,
@@ -39,7 +46,7 @@ export const previewMatchingEvents = action({
       );
 
       // Also do text search for comparison
-      const titleResults: Doc<"events">[] = await ctx.runQuery(
+      const titleResults: EventWithScore[] = await ctx.runQuery(
         internal.subscriptions.subscriptionsInternal.searchEventsByTitle,
         {
           searchTerm: args.prompt,
@@ -52,21 +59,21 @@ export const previewMatchingEvents = action({
           (event): EventSearchResult => ({
             ...event,
             matchType: "semantic",
-            score: (event as any)._score || 0,
+            score: event._score || 0,
           }),
         ),
         ...titleResults.map(
           (event): EventSearchResult => ({
             ...event,
             matchType: "title",
-            score: (event as any)._score || 0,
+            score: event._score || 0,
           }),
         ),
       ];
 
       // Deduplicate by ID, keeping the one with higher score
-      const uniqueResults = new Map();
-      allResults.forEach((event: any) => {
+      const uniqueResults = new Map<Id<"events">, EventSearchResult>();
+      allResults.forEach((event) => {
         const existing = uniqueResults.get(event._id);
         if (!existing || event.score > existing.score) {
           uniqueResults.set(event._id, event);
@@ -74,23 +81,23 @@ export const previewMatchingEvents = action({
       });
 
       // Filter to only future events and add threshold status
-      const filteredResults = Array.from(uniqueResults.values())
-        .filter((event: any) => event.eventDate > now)
-        .map((event: any) => ({
+      const filteredResults: EventSearchResult[] = Array.from(
+        uniqueResults.values(),
+      )
+        .filter((event) => event.eventDate > now)
+        .map((event) => ({
           ...event,
           meetsThreshold: event.score >= SIMILARITY_THRESHOLD,
           thresholdValue: SIMILARITY_THRESHOLD,
         }));
 
       // Sort by score (highest first) and return results
-      return filteredResults
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 15); // Show more results since we're including below-threshold ones
+      return filteredResults.sort((a, b) => b.score - a.score).slice(0, 15); // Show more results since we're including below-threshold ones
     } catch (error) {
       console.error("Error in previewMatchingEvents:", error);
 
       // Fallback to text search only
-      const titleResults: any[] = await ctx.runQuery(
+      const titleResults: EventWithScore[] = await ctx.runQuery(
         internal.subscriptions.subscriptionsInternal.searchEventsByTitle,
         {
           searchTerm: args.prompt,
@@ -98,20 +105,20 @@ export const previewMatchingEvents = action({
       );
 
       // Filter to only future events and add threshold status
-      const filteredResults = titleResults
-        .map((event: any) => ({
-          ...event,
-          matchType: "title",
-          score: event._score || 0,
-          meetsThreshold: (event._score || 0) >= SIMILARITY_THRESHOLD,
-          thresholdValue: SIMILARITY_THRESHOLD,
-        }))
-        .filter((event: any) => event.eventDate > now);
+      const filteredResults: EventSearchResult[] = titleResults
+        .map(
+          (event): EventSearchResult => ({
+            ...event,
+            matchType: "title",
+            score: event._score || 0,
+            meetsThreshold: (event._score || 0) >= SIMILARITY_THRESHOLD,
+            thresholdValue: SIMILARITY_THRESHOLD,
+          }),
+        )
+        .filter((event) => event.eventDate > now);
 
       // Sort by score and return
-      return filteredResults
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 15);
+      return filteredResults.sort((a, b) => b.score - a.score).slice(0, 15);
     }
   },
 });
@@ -137,6 +144,22 @@ export const findMatchingEventsForSubscription = action({
     const now = Date.now();
     const maxResults = args.maxResults || 10;
 
+    // Handle "all_events" subscriptions
+    if (isAllEventsSubscription(subscription)) {
+      // Get all future events, sorted by date
+      const allEvents = await ctx.runQuery(
+        internal.events.eventsInternal.getAllFutureEvents,
+        { limit: maxResults },
+      );
+      return allEvents;
+    }
+
+    // Handle prompt-based subscriptions
+    if (!isPromptSubscription(subscription)) {
+      console.error("Unknown subscription type");
+      return [];
+    }
+
     try {
       let promptEmbedding: number[] | undefined;
 
@@ -153,7 +176,7 @@ export const findMatchingEventsForSubscription = action({
       }
 
       // Use vector search to find similar events
-      const embeddingResults: any[] = await ctx.runQuery(
+      const embeddingResults: EventWithScore[] = await ctx.runQuery(
         internal.subscriptions.subscriptionsInternal.searchEventsByEmbedding,
         {
           embedding: promptEmbedding,
@@ -161,7 +184,7 @@ export const findMatchingEventsForSubscription = action({
       );
 
       // Also do text search
-      const titleResults: any[] = await ctx.runQuery(
+      const titleResults: EventWithScore[] = await ctx.runQuery(
         internal.subscriptions.subscriptionsInternal.searchEventsByTitle,
         {
           searchTerm: subscription.prompt,
@@ -169,9 +192,12 @@ export const findMatchingEventsForSubscription = action({
       );
 
       // Combine and deduplicate results
-      const allResults = [...embeddingResults, ...titleResults];
-      const uniqueResults = new Map();
-      allResults.forEach((event: any) => {
+      const allResults: EventWithScore[] = [
+        ...embeddingResults,
+        ...titleResults,
+      ];
+      const uniqueResults = new Map<Id<"events">, EventWithScore>();
+      allResults.forEach((event) => {
         const existing = uniqueResults.get(event._id);
         if (!existing || (event._score || 0) > (existing._score || 0)) {
           uniqueResults.set(event._id, event);
@@ -179,13 +205,15 @@ export const findMatchingEventsForSubscription = action({
       });
 
       // Filter to only future events that meet the threshold
-      const filteredResults = Array.from(uniqueResults.values())
-        .filter((event: any) => {
+      const filteredResults: Doc<"events">[] = Array.from(
+        uniqueResults.values(),
+      )
+        .filter((event) => {
           return (
             event.eventDate > now && (event._score || 0) >= SIMILARITY_THRESHOLD
           );
         })
-        .sort((a: any, b: any) => (b._score || 0) - (a._score || 0))
+        .sort((a, b) => (b._score || 0) - (a._score || 0))
         .slice(0, maxResults);
 
       return filteredResults;
@@ -193,7 +221,7 @@ export const findMatchingEventsForSubscription = action({
       console.error("Error finding matching events:", error);
 
       // Fallback to text search only
-      const titleResults: any[] = await ctx.runQuery(
+      const titleResults: EventWithScore[] = await ctx.runQuery(
         internal.subscriptions.subscriptionsInternal.searchEventsByTitle,
         {
           searchTerm: subscription.prompt,
@@ -202,11 +230,11 @@ export const findMatchingEventsForSubscription = action({
 
       return titleResults
         .filter(
-          (event: any) =>
+          (event) =>
             event.eventDate > now &&
             (event._score || 0) >= SIMILARITY_THRESHOLD,
         )
-        .sort((a: any, b: any) => (b._score || 0) - (a._score || 0))
+        .sort((a, b) => (b._score || 0) - (a._score || 0))
         .slice(0, maxResults);
     }
   },
@@ -245,42 +273,52 @@ async function checkEventAgainstSubscription(
     let matchScore = 0;
     let matchType = "none";
 
-    // If subscription has an embedding, use semantic matching
-    if (subscription.promptEmbedding && event.descriptionEmbedding) {
-      const similarity = cosineSimilarity(
-        subscription.promptEmbedding,
-        event.descriptionEmbedding,
-      );
-      if (similarity >= SIMILARITY_THRESHOLD) {
-        matchScore = similarity;
-        matchType = "semantic";
-      }
-    }
+    // Handle "all_events" subscriptions - they match everything
+    if (isAllEventsSubscription(subscription)) {
+      matchScore = 1.0; // Perfect match for all events
+      matchType = "all_events";
+    } else if (isPromptSubscription(subscription)) {
+      // Handle prompt-based subscriptions with semantic and keyword matching
 
-    // Also try text-based matching as fallback
-    if (matchScore === 0) {
-      const prompt = subscription.prompt.toLowerCase();
-      const title = event.title.toLowerCase();
-      const description = event.description.toLowerCase();
-
-      // Simple keyword matching
-      const keywords = prompt.split(/\s+/).filter((word) => word.length > 2);
-      let keywordMatches = 0;
-
-      for (const keyword of keywords) {
-        if (title.includes(keyword) || description.includes(keyword)) {
-          keywordMatches++;
+      // If subscription has an embedding, use semantic matching
+      if (subscription.promptEmbedding && event.descriptionEmbedding) {
+        const similarity = cosineSimilarity(
+          subscription.promptEmbedding,
+          event.descriptionEmbedding,
+        );
+        if (similarity >= SIMILARITY_THRESHOLD) {
+          matchScore = similarity;
+          matchType = "semantic";
         }
       }
 
-      if (keywordMatches > 0) {
-        matchScore = keywordMatches / keywords.length;
-        matchType = "keyword";
+      // Also try text-based matching as fallback
+      if (matchScore === 0) {
+        const prompt = subscription.prompt.toLowerCase();
+        const title = event.title.toLowerCase();
+        const description = event.description.toLowerCase();
 
-        // Only proceed if the match score meets a lower threshold for keyword matching
-        if (matchScore < 0.3) {
-          matchScore = 0;
-          matchType = "none";
+        // Simple keyword matching
+        const keywords = prompt
+          .split(/\s+/)
+          .filter((word: string) => word.length > 2);
+        let keywordMatches = 0;
+
+        for (const keyword of keywords) {
+          if (title.includes(keyword) || description.includes(keyword)) {
+            keywordMatches++;
+          }
+        }
+
+        if (keywordMatches > 0) {
+          matchScore = keywordMatches / keywords.length;
+          matchType = "keyword";
+
+          // Only proceed if the match score meets a lower threshold for keyword matching
+          if (matchScore < 0.3) {
+            matchScore = 0;
+            matchType = "none";
+          }
         }
       }
     }

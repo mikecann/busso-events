@@ -1,6 +1,10 @@
 import { action, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import {
+  isPromptSubscription,
+  isAllEventsSubscription,
+} from "./subscriptions/common";
 
 // Initialize Resend only if API key is available
 let resend: any = null;
@@ -95,7 +99,9 @@ export const sendSubscriptionEmailInternal = internalAction({
       console.log("✅ Subscription found:", {
         id: subscription._id,
         userId: subscription.userId,
-        prompt: subscription.prompt,
+        prompt: isPromptSubscription(subscription)
+          ? subscription.prompt
+          : "All events",
         isActive: subscription.isActive,
       });
 
@@ -152,7 +158,10 @@ export const sendSubscriptionEmailInternal = internalAction({
       // Generate email content
       console.log("📝 Generating email content...");
       const emailHtml = generateEmailHtml(subscription, queuedEvents, user);
-      const emailSubject = `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching "${subscription.prompt}"`;
+
+      const emailSubject = isPromptSubscription(subscription)
+        ? `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching "${subscription.prompt}"`
+        : `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} for you`;
 
       console.log("📧 Email details:", {
         to: user.email,
@@ -277,8 +286,12 @@ function generateEmailHtml(
   queuedEvents: any[],
   user: any,
 ): string {
+  const subscriptionDescription = isPromptSubscription(subscription)
+    ? subscription.prompt
+    : "all events";
+
   console.log("📝 Generating email HTML for:", {
-    subscriptionPrompt: subscription.prompt,
+    subscriptionPrompt: subscriptionDescription,
     eventCount: queuedEvents.length,
     userEmail: user.email,
   });
@@ -363,11 +376,21 @@ function generateEmailHtml(
           🎉 New Events Found!
         </h1>
         <p style="margin: 0; color: #6b7280; font-size: 16px;">
-          We found ${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching your subscription:
+          We found ${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} ${isPromptSubscription(subscription) ? "matching your subscription" : "for you"}:
         </p>
+        ${
+          isPromptSubscription(subscription)
+            ? `
         <p style="margin: 8px 0 0 0; color: #3b82f6; font-weight: 600; font-size: 16px;">
           "${subscription.prompt}"
         </p>
+        `
+            : `
+        <p style="margin: 8px 0 0 0; color: #3b82f6; font-weight: 600; font-size: 16px;">
+          All Events Subscription
+        </p>
+        `
+        }
       </div>
 
       ${eventCards}

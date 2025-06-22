@@ -80,19 +80,38 @@ const applicationTables = {
     completedAt: v.optional(v.number()),
   }).index("by_created", ["createdAt"]),
 
-  subscriptions: defineTable({
-    userId: v.id("users"),
-    prompt: v.string(),
-    // Support both old and new field names during migration
-    isActive: v.boolean(),
-    status: v.optional(v.string()), // Keep old field for migration
-    promptEmbedding: v.optional(v.array(v.number())),
-    // Email scheduling fields
-    lastEmailSent: v.optional(v.number()), // Timestamp of last email sent
-    nextEmailScheduled: v.optional(v.number()), // Timestamp when next email should be sent
-    emailFrequencyHours: v.optional(v.number()), // How often to send emails (default 24 hours)
-  })
+  subscriptions: defineTable(
+    v.union(
+      // Prompt-based subscription
+      v.object({
+        kind: v.literal("prompt"),
+        userId: v.id("users"),
+        prompt: v.string(),
+        promptEmbedding: v.optional(v.array(v.number())),
+        // Shared fields
+        isActive: v.boolean(),
+        lastEmailSent: v.optional(v.number()), // Timestamp of last email sent
+        nextEmailScheduled: v.optional(v.number()), // Timestamp when next email should be sent
+        emailFrequencyHours: v.optional(v.number()), // How often to send emails (default 24 hours)
+        // Legacy field for migration
+        status: v.optional(v.string()), // Keep old field for migration
+      }),
+      // All events subscription
+      v.object({
+        kind: v.literal("all_events"),
+        userId: v.id("users"),
+        // Shared fields
+        isActive: v.boolean(),
+        lastEmailSent: v.optional(v.number()), // Timestamp of last email sent
+        nextEmailScheduled: v.optional(v.number()), // Timestamp when next email should be sent
+        emailFrequencyHours: v.optional(v.number()), // How often to send emails (default 24 hours)
+        // Legacy field for migration
+        status: v.optional(v.string()), // Keep old field for migration
+      }),
+    ),
+  )
     .index("by_user", ["userId"])
+    .index("by_kind", ["kind"])
     .index("by_next_email", ["nextEmailScheduled"])
     .vectorIndex("by_prompt_embedding", {
       vectorField: "promptEmbedding",

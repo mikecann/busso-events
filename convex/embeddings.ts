@@ -2,6 +2,7 @@ import { action, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import OpenAI from "openai";
+import { isPromptSubscription } from "./subscriptions/common";
 
 const openai = new OpenAI({
   //baseURL: process.env.CONVEX_OPENAI_BASE_URL,
@@ -117,6 +118,14 @@ export const generateSubscriptionEmbedding = internalAction({
 
       if (!subscription) {
         throw new Error("Subscription not found");
+      }
+
+      // Only generate embeddings for prompt-based subscriptions
+      if (!isPromptSubscription(subscription)) {
+        console.log(
+          "Skipping embedding generation for non-prompt subscription",
+        );
+        return { success: true };
       }
 
       // Generate embedding for the prompt

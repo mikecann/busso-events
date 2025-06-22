@@ -12,10 +12,25 @@ import {
   Group,
   TextInput,
   Box,
+  Badge,
 } from "@mantine/core";
 import { IconArrowLeft, IconSearch } from "@tabler/icons-react";
 import { SubscriptionMatchingTest } from "./components/SubscriptionMatchingTest";
 import { SubscriptionStats } from "./components/SubscriptionStats";
+
+// Type guards for subscription types
+function isPromptSubscription(
+  subscription: any,
+): subscription is any & { prompt: string; kind: "prompt" } {
+  return (
+    subscription.kind === "prompt" ||
+    (subscription.prompt !== undefined && subscription.kind !== "all_events")
+  );
+}
+
+function isAllEventsSubscription(subscription: any): boolean {
+  return subscription.kind === "all_events";
+}
 
 interface SubscriptionDebugPageProps {
   onBack: () => void;
@@ -30,11 +45,19 @@ export function SubscriptionDebugPage({ onBack }: SubscriptionDebugPageProps) {
     api.subscriptions.subscriptionsAdmin.getAllSubscriptions,
   );
 
-  const filteredSubscriptions = subscriptions?.filter(
-    (sub) =>
-      sub.prompt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sub.userId?.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredSubscriptions = subscriptions?.filter((sub) => {
+    const promptMatch = isPromptSubscription(sub)
+      ? (sub as any).prompt.toLowerCase().includes(searchQuery.toLowerCase())
+      : false;
+    const userIdMatch = sub.userId
+      ?.toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const typeMatch =
+      searchQuery.toLowerCase().includes("all events") &&
+      isAllEventsSubscription(sub);
+
+    return promptMatch || userIdMatch || typeMatch;
+  });
 
   return (
     <Container size="xl">
@@ -84,7 +107,21 @@ export function SubscriptionDebugPage({ onBack }: SubscriptionDebugPageProps) {
                   <Group justify="space-between">
                     <Box>
                       <Text fw={500} size="sm" lineClamp={1}>
-                        {subscription.prompt}
+                        {isPromptSubscription(subscription) ? (
+                          <>
+                            <Badge color="orange" size="xs" mr="xs">
+                              Prompt
+                            </Badge>
+                            {(subscription as any).prompt}
+                          </>
+                        ) : (
+                          <>
+                            <Badge color="purple" size="xs" mr="xs">
+                              All Events
+                            </Badge>
+                            All Events Subscription
+                          </>
+                        )}
                       </Text>
                       <Text size="xs" c="dimmed">
                         User: {subscription.userId} | Status:{" "}

@@ -11,6 +11,19 @@ export async function requireAuth(ctx: QueryCtx): Promise<Id<"users">> {
   return userId;
 }
 
+// Type definitions for subscription kinds
+export type PromptSubscription = Doc<"subscriptions"> & {
+  kind: "prompt";
+  prompt: string;
+  promptEmbedding?: number[];
+};
+
+export type AllEventsSubscription = Doc<"subscriptions"> & {
+  kind: "all_events";
+};
+
+export type AnySubscription = PromptSubscription | AllEventsSubscription;
+
 // Helper function to get isActive status from either field (for backward compatibility)
 export function getIsActive(subscription: Doc<"subscriptions">): boolean {
   if (subscription.isActive !== undefined) {
@@ -18,6 +31,37 @@ export function getIsActive(subscription: Doc<"subscriptions">): boolean {
   }
   // Fallback to old status field
   return subscription.status === "active";
+}
+
+// Type guards for subscription kinds
+export function isPromptSubscription(
+  subscription: Doc<"subscriptions">,
+): subscription is PromptSubscription {
+  return (
+    (subscription as any).kind === "prompt" ||
+    (subscription as any).prompt !== undefined
+  );
+}
+
+export function isAllEventsSubscription(
+  subscription: Doc<"subscriptions">,
+): subscription is AllEventsSubscription {
+  return (subscription as any).kind === "all_events";
+}
+
+// Helper to get subscription kind (with backward compatibility)
+export function getSubscriptionKind(
+  subscription: Doc<"subscriptions">,
+): "prompt" | "all_events" {
+  if ((subscription as any).kind) {
+    return (subscription as any).kind;
+  }
+  // Legacy: if it has a prompt, it's a prompt subscription
+  if ((subscription as any).prompt !== undefined) {
+    return "prompt";
+  }
+  // Default fallback
+  return "prompt";
 }
 
 // Types for queued events
@@ -54,15 +98,76 @@ export const SIMILARITY_THRESHOLD = 0.2; // Events below this score are excluded
 
 // Validation utilities
 export function validateSubscriptionData(data: {
+  kind?: "prompt" | "all_events";
   prompt?: string;
   emailFrequencyHours?: number;
 }): void {
-  if (data.prompt && data.prompt.trim().length === 0) {
-    throw new Error("Subscription prompt cannot be empty");
+  if (
+    data.kind === "prompt" &&
+    (!data.prompt || data.prompt.trim().length === 0)
+  ) {
+    throw new Error("Prompt subscription requires a non-empty prompt");
   }
 
   if (data.emailFrequencyHours && data.emailFrequencyHours < 1) {
     throw new Error("Email frequency must be at least 1 hour");
+  }
+}
+
+// Helper to create subscription data
+export function createSubscriptionData(
+  userId: Id<"users">,
+  kind: "prompt",
+  options: {
+    prompt: string;
+    isActive?: boolean;
+    emailFrequencyHours?: number;
+  },
+): {
+  kind: "prompt";
+  userId: Id<"users">;
+  prompt: string;
+  isActive: boolean;
+  emailFrequencyHours: number;
+  lastEmailSent: number;
+  nextEmailScheduled: number;
+};
+export function createSubscriptionData(
+  userId: Id<"users">,
+  kind: "all_events",
+  options: {
+    isActive?: boolean;
+    emailFrequencyHours?: number;
+  },
+): {
+  kind: "all_events";
+  userId: Id<"users">;
+  isActive: boolean;
+  emailFrequencyHours: number;
+  lastEmailSent: number;
+  nextEmailScheduled: number;
+};
+export function createSubscriptionData(
+  userId: Id<"users">,
+  kind: "prompt" | "all_events",
+  options: any,
+): any {
+  const baseData = {
+    userId,
+    kind,
+    isActive: options.isActive ?? true,
+    emailFrequencyHours: options.emailFrequencyHours || 24,
+    lastEmailSent: 0, // Never sent
+    nextEmailScheduled: Date.now(), // Can send immediately
+  };
+
+  if (kind === "prompt") {
+    return {
+      ...baseData,
+      prompt: options.prompt,
+    };
+  } else {
+    return baseData;
   }
 }
 

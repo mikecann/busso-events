@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { adminQuery, adminAction } from "../utils";
 import { Doc } from "../_generated/dataModel";
+import { mutation } from "../_generated/server";
+import { requireAuth } from "./common";
 
 export const getAllSubscriptions = adminQuery({
   args: {},
@@ -71,6 +73,15 @@ export const getSubscriptionStats = adminQuery({
     ).length;
     const inactiveCount = allSubscriptions.length - activeCount;
 
+    // Count by subscription type
+    const promptCount = allSubscriptions.filter(
+      (sub) =>
+        (sub as any).kind === "prompt" || (sub as any).prompt !== undefined,
+    ).length;
+    const allEventsCount = allSubscriptions.filter(
+      (sub) => (sub as any).kind === "all_events",
+    ).length;
+
     const now = Date.now();
     const readyForEmail = allSubscriptions.filter(
       (sub) =>
@@ -92,6 +103,8 @@ export const getSubscriptionStats = adminQuery({
       total: allSubscriptions.length,
       active: activeCount,
       inactive: inactiveCount,
+      promptSubscriptions: promptCount,
+      allEventsSubscriptions: allEventsCount,
       readyForEmail,
       uniqueUsers,
       totalQueuedEvents,
@@ -100,6 +113,39 @@ export const getSubscriptionStats = adminQuery({
           (acc, sub) => acc + (sub.emailFrequencyHours || 24),
           0,
         ) / allSubscriptions.length || 0,
+    };
+  },
+});
+
+export const migrateSubscriptionsToDiscriminatedUnion = mutation({
+  args: {},
+  handler: async (ctx): Promise<{ migrated: number; total: number }> => {
+    const userId = await requireAuth(ctx);
+    const user = await ctx.db.get(userId);
+
+    if (!user?.isAdmin) {
+      throw new Error("Only admins can run migrations");
+    }
+
+    // Get all subscriptions that don't have a 'kind' field
+    const allSubscriptions = await ctx.db.query("subscriptions").collect();
+
+    let migrated = 0;
+
+    for (const subscription of allSubscriptions) {
+      // Check if the subscription already has a 'kind' field
+      if (!(subscription as any).kind) {
+        // If it has a prompt, it's a prompt subscription
+        if ((subscription as any).prompt !== undefined) {
+          await ctx.db.patch(subscription._id, { kind: "prompt" });
+          migrated++;
+        }
+      }
+    }
+
+    return {
+      migrated,
+      total: allSubscriptions.length,
     };
   },
 });

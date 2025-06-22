@@ -2,7 +2,12 @@ import { internalQuery, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
-import { getIsActive, QueuedEventItem, SubscriptionWithQueue } from "./common";
+import {
+  getIsActive,
+  QueuedEventItem,
+  SubscriptionWithQueue,
+  isPromptSubscription,
+} from "./common";
 
 export const getSubscriptionById = internalQuery({
   args: {
@@ -16,7 +21,9 @@ export const getSubscriptionById = internalQuery({
       console.log("✅ Subscription found:", {
         id: subscription._id,
         userId: subscription.userId,
-        prompt: subscription.prompt,
+        prompt: isPromptSubscription(subscription)
+          ? subscription.prompt
+          : "N/A (all events)",
         isActive: subscription.isActive,
         lastEmailSent: subscription.lastEmailSent
           ? new Date(subscription.lastEmailSent).toISOString()
@@ -61,7 +68,9 @@ export const getSubscriptionsReadyForEmail = internalQuery({
       subscriptions: allSubscriptions.map((s) => ({
         id: s._id,
         userId: s.userId,
-        prompt: s.prompt.substring(0, 30) + "...",
+        prompt: isPromptSubscription(s)
+          ? s.prompt.substring(0, 30) + "..."
+          : "All events",
         nextEmailScheduled: s.nextEmailScheduled
           ? new Date(s.nextEmailScheduled).toISOString()
           : "Not scheduled",
@@ -147,7 +156,7 @@ export const listUserSubscriptions = internalQuery({
   },
 });
 
-export const createSubscription = internalMutation({
+export const createPromptSubscription = internalMutation({
   args: {
     userId: v.id("users"),
     prompt: v.string(),
@@ -156,6 +165,7 @@ export const createSubscription = internalMutation({
   },
   handler: async (ctx, args) => {
     const subscriptionId = await ctx.db.insert("subscriptions", {
+      kind: "prompt",
       userId: args.userId,
       prompt: args.prompt,
       isActive: args.isActive,
@@ -177,6 +187,42 @@ export const createSubscription = internalMutation({
   },
 });
 
+export const createAllEventsSubscription = internalMutation({
+  args: {
+    userId: v.id("users"),
+    isActive: v.boolean(),
+    emailFrequencyHours: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const subscriptionId = await ctx.db.insert("subscriptions", {
+      kind: "all_events",
+      userId: args.userId,
+      isActive: args.isActive,
+      emailFrequencyHours: args.emailFrequencyHours,
+      lastEmailSent: 0, // Never sent
+      nextEmailScheduled: Date.now(), // Can send immediately
+    });
+
+    return subscriptionId;
+  },
+});
+
+// Keep the old function for backward compatibility (defaults to prompt subscription)
+export const createSubscription = internalMutation({
+  args: {
+    userId: v.id("users"),
+    prompt: v.string(),
+    isActive: v.boolean(),
+    emailFrequencyHours: v.number(),
+  },
+  handler: async (ctx, args): Promise<Id<"subscriptions">> => {
+    return await ctx.runMutation(
+      internal.subscriptions.subscriptionsInternal.createPromptSubscription,
+      args,
+    );
+  },
+});
+
 export const updateSubscription = internalMutation({
   args: {
     userId: v.id("users"),
@@ -195,7 +241,15 @@ export const updateSubscription = internalMutation({
     }
 
     const updates: any = {};
-    if (args.prompt !== undefined) updates.prompt = args.prompt;
+
+    // Only allow prompt updates for prompt subscriptions
+    if (args.prompt !== undefined) {
+      if (!isPromptSubscription(subscription)) {
+        throw new Error("Cannot update prompt for non-prompt subscription");
+      }
+      updates.prompt = args.prompt;
+    }
+
     if (args.isActive !== undefined) {
       updates.isActive = args.isActive;
       updates.status = undefined; // Remove old field
@@ -207,8 +261,8 @@ export const updateSubscription = internalMutation({
       await ctx.db.patch(args.subscriptionId, updates);
     }
 
-    // If prompt changed, regenerate embedding
-    if (args.prompt) {
+    // If prompt changed, regenerate embedding (only for prompt subscriptions)
+    if (args.prompt && isPromptSubscription(subscription)) {
       await ctx.scheduler.runAfter(
         0,
         internal.embeddings.generateSubscriptionEmbedding,

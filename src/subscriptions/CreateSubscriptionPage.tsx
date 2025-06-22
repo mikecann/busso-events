@@ -13,8 +13,10 @@ import {
   Group,
   Textarea,
   Box,
+  SegmentedControl,
+  Alert,
 } from "@mantine/core";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft, IconInfoCircle } from "@tabler/icons-react";
 import { SubscriptionPreview } from "./components/SubscriptionPreview";
 
 interface CreateSubscriptionPageProps {
@@ -24,10 +26,16 @@ interface CreateSubscriptionPageProps {
 export function CreateSubscriptionPage({
   onBack,
 }: CreateSubscriptionPageProps) {
-  const createSubscription = useMutation(
-    api.subscriptions.subscriptions.create,
+  const createPromptSubscription = useMutation(
+    api.subscriptions.subscriptions.createPrompt,
+  );
+  const createAllEventsSubscription = useMutation(
+    api.subscriptions.subscriptions.createAllEvents,
   );
 
+  const [subscriptionType, setSubscriptionType] = useState<
+    "prompt" | "all_events"
+  >("prompt");
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -58,44 +66,94 @@ export function CreateSubscriptionPage({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!prompt.trim()) {
-                toast.error("Please enter a prompt");
+
+              if (subscriptionType === "prompt" && !prompt.trim()) {
+                toast.error("Please enter a prompt for your subscription");
                 return;
               }
 
               setIsLoading(true);
-              createSubscription({
-                prompt: prompt.trim(),
-                isActive: true,
-              })
-                .then(() => {
-                  toast.success("Subscription created successfully!");
-                  onBack();
+
+              if (subscriptionType === "prompt") {
+                createPromptSubscription({
+                  prompt: prompt.trim(),
+                  isActive: true,
                 })
-                .catch(onApiError)
-                .finally(() => setIsLoading(false));
+                  .then(() => {
+                    toast.success("Subscription created successfully!");
+                    onBack();
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsLoading(false));
+              } else {
+                createAllEventsSubscription({
+                  isActive: true,
+                })
+                  .then(() => {
+                    toast.success("Subscription created successfully!");
+                    onBack();
+                  })
+                  .catch(onApiError)
+                  .finally(() => setIsLoading(false));
+              }
             }}
           >
             <Stack gap="lg">
               <Box>
                 <Text fw={500} size="sm" mb="xs">
-                  What kind of events are you interested in?
+                  Subscription Type
                 </Text>
-                <Textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="e.g., AI and machine learning conferences, startup networking events, tech talks about web development..."
-                  rows={4}
-                  required
-                  autosize
+                <SegmentedControl
+                  value={subscriptionType}
+                  onChange={(value) =>
+                    setSubscriptionType(value as "prompt" | "all_events")
+                  }
+                  data={[
+                    { label: "Specific Interests", value: "prompt" },
+                    { label: "All Events", value: "all_events" },
+                  ]}
+                  fullWidth
                 />
                 <Text size="sm" c="dimmed" mt="xs">
-                  Describe the types of events you'd like to be notified about.
-                  Be as specific or general as you'd like.
+                  Choose whether to get notified about specific types of events
+                  or all events
                 </Text>
               </Box>
 
-              <SubscriptionPreview prompt={prompt} onError={onApiError} />
+              {subscriptionType === "all_events" && (
+                <Alert
+                  icon={<IconInfoCircle size={16} />}
+                  color="blue"
+                  variant="light"
+                >
+                  You'll receive notifications for all future events. This can
+                  result in many emails.
+                </Alert>
+              )}
+
+              {subscriptionType === "prompt" && (
+                <Box>
+                  <Text fw={500} size="sm" mb="xs">
+                    What kind of events are you interested in?
+                  </Text>
+                  <Textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="e.g., AI and machine learning conferences, startup networking events, tech talks about web development..."
+                    rows={4}
+                    required
+                    autosize
+                  />
+                  <Text size="sm" c="dimmed" mt="xs">
+                    Describe the types of events you'd like to be notified
+                    about. Be as specific or general as you'd like.
+                  </Text>
+                </Box>
+              )}
+
+              {subscriptionType === "prompt" && (
+                <SubscriptionPreview prompt={prompt} onError={onApiError} />
+              )}
 
               <Group justify="space-between" pt="md">
                 <Button
@@ -110,7 +168,10 @@ export function CreateSubscriptionPage({
 
                 <Button
                   type="submit"
-                  disabled={isLoading || !prompt.trim()}
+                  disabled={
+                    isLoading ||
+                    (subscriptionType === "prompt" && !prompt.trim())
+                  }
                   size="lg"
                   style={{ flex: 1 }}
                   loading={isLoading}
