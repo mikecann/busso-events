@@ -19,6 +19,12 @@ export const { RouteProvider, useRoute, routes } = createRouter({
   dashboard: defineRoute("/dashboard"),
   subscriptions: defineRoute("/subscriptions"),
   createSubscription: defineRoute("/subscriptions/create"),
+  subscriptionDetail: defineRoute(
+    {
+      subscriptionId: param.path.string,
+    },
+    (p) => `/subscriptions/${p.subscriptionId}`,
+  ),
 
   // Admin routes
   admin: defineRoute("/admin"),
@@ -51,6 +57,7 @@ export type RouteParams = {
   sourceDetail: { sourceId: string };
   eventDebug: { eventId: string };
   workpoolDebug: { workpoolType: string };
+  subscriptionDetail: { subscriptionId: string };
 };
 
 // Navigation helpers
@@ -61,6 +68,8 @@ export const navigation = {
   dashboard: () => routes.dashboard(),
   subscriptions: () => routes.subscriptions(),
   createSubscription: () => routes.createSubscription(),
+  subscriptionDetail: (subscriptionId: Id<"subscriptions">) =>
+    routes.subscriptionDetail({ subscriptionId }),
   admin: () => routes.admin(),
   sources: () => routes.sources(),
   addSource: () => routes.addSource(),

@@ -44,7 +44,7 @@ export function SubscriptionMatchingTest({
     api.subscriptions.subscriptionsAdmin.getAllSubscriptions,
   );
   const subscription = allSubscriptions?.find(
-    (sub) => sub._id === subscriptionId,
+    (sub: any) => sub._id === subscriptionId,
   );
   const testMatching = useAction(
     api.subscriptions.subscriptionsAdmin.testSubscriptionMatching,

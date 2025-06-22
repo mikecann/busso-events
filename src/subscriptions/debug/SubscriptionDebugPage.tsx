@@ -45,7 +45,7 @@ export function SubscriptionDebugPage({ onBack }: SubscriptionDebugPageProps) {
     api.subscriptions.subscriptionsAdmin.getAllSubscriptions,
   );
 
-  const filteredSubscriptions = subscriptions?.filter((sub) => {
+  const filteredSubscriptions = subscriptions?.filter((sub: any) => {
     const promptMatch = isPromptSubscription(sub)
       ? (sub as any).prompt.toLowerCase().includes(searchQuery.toLowerCase())
       : false;
@@ -89,7 +89,7 @@ export function SubscriptionDebugPage({ onBack }: SubscriptionDebugPageProps) {
 
           {filteredSubscriptions && filteredSubscriptions.length > 0 ? (
             <Stack gap="sm">
-              {filteredSubscriptions.map((subscription) => (
+              {filteredSubscriptions.map((subscription: any) => (
                 <Card
                   key={subscription._id}
                   withBorder

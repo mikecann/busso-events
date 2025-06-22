@@ -4,6 +4,7 @@ import { EventGallery } from "./EventGallery";
 import { EventDetailPage } from "../events/EventDetailPage";
 import { SubscriptionsPage } from "../subscriptions/SubscriptionsPage";
 import { CreateSubscriptionPage } from "../subscriptions/CreateSubscriptionPage";
+import { SubscriptionDetailPage } from "../subscriptions/SubscriptionDetailPage";
 import { AppAdminPage } from "./AppAdminPage";
 import { EventDebugPage } from "../events/debug/EventDebugPage";
 import { SubscriptionDebugPage } from "../subscriptions/debug/SubscriptionDebugPage";
@@ -57,11 +58,21 @@ export function AuthenticatedApp() {
         {route.name === "subscriptions" && (
           <SubscriptionsPage
             onCreateNew={() => navigation.createSubscription().push()}
+            onNavigateToSubscription={(subscriptionId) =>
+              navigation.subscriptionDetail(subscriptionId).push()
+            }
           />
         )}
 
         {route.name === "createSubscription" && (
           <CreateSubscriptionPage
+            onBack={() => navigation.subscriptions().push()}
+          />
+        )}
+
+        {route.name === "subscriptionDetail" && (
+          <SubscriptionDetailPage
+            subscriptionId={route.params.subscriptionId as Id<"subscriptions">}
             onBack={() => navigation.subscriptions().push()}
           />
         )}

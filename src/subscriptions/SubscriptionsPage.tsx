@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import {
   Container,
   Title,
@@ -16,9 +17,13 @@ import { SubscriptionCard } from "./SubscriptionCard";
 
 interface SubscriptionsPageProps {
   onCreateNew: () => void;
+  onNavigateToSubscription: (subscriptionId: Id<"subscriptions">) => void;
 }
 
-export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
+export function SubscriptionsPage({
+  onCreateNew,
+  onNavigateToSubscription,
+}: SubscriptionsPageProps) {
   const subscriptions = useQuery(api.subscriptions.subscriptions.list);
 
   if (subscriptions === undefined) {
@@ -72,6 +77,7 @@ export function SubscriptionsPage({ onCreateNew }: SubscriptionsPageProps) {
             <SubscriptionCard
               key={subscription._id}
               subscription={subscription}
+              onClick={() => onNavigateToSubscription(subscription._id)}
             />
           ))}
         </Stack>

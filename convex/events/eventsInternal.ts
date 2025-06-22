@@ -75,6 +75,13 @@ export const getAllFutureEvents = internalQuery({
   },
 });
 
+export const getAllEventsInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("events").collect();
+  },
+});
+
 export const checkUserIsAdmin = internalQuery({
   args: {
     userId: v.id("users"),

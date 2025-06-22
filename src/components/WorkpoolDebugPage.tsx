@@ -237,7 +237,7 @@ export function WorkpoolDebugPage({
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {workpoolStatus.jobs.map((job) => (
+                  {workpoolStatus.jobs.map((job: any) => (
                     <Table.Tr key={job.eventId}>
                       <Table.Td>
                         <Box>

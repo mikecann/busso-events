@@ -33,6 +33,8 @@ import {
   IconSearch,
   IconExternalLink,
   IconCpu,
+  IconTrash,
+  IconBrush,
 } from "@tabler/icons-react";
 
 interface AppAdminPageProps {
@@ -57,6 +59,8 @@ export function AppAdminPage({
   const generateMissingEmbeddings = useAction(
     api.embeddings.generateMissingEmbeddings,
   );
+  const deleteAllEvents = useAction(api.events.eventsAdmin.deleteAllEvents);
+  const clearAllWorkpools = useAction(api.events.eventsAdmin.clearAllWorkpools);
   const queueStats = useQuery(api.emailQueue.getQueueStats);
   const jobsStatus = useQuery(api.jobs.getSystemStatus);
   const schedulingInfo = useQuery(api.events.eventsAdmin.getSchedulingInfo);
@@ -64,6 +68,8 @@ export function AppAdminPage({
   const workpoolsStatus = useQuery(api.events.eventsAdmin.getWorkpoolsStatus);
 
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
+  const [isDeletingAllEvents, setIsDeletingAllEvents] = useState(false);
+  const [isClearingAllWorkpools, setIsClearingAllWorkpools] = useState(false);
 
   const onApiError = useAPIErrorHandler();
 
@@ -80,6 +86,58 @@ export function AppAdminPage({
       default:
         return "gray";
     }
+  };
+
+  const handleDeleteAllEvents = () => {
+    if (
+      !confirm(
+        "⚠️ This will delete ALL events from the database. This action cannot be undone. Are you sure?",
+      )
+    ) {
+      return;
+    }
+
+    const confirmation = prompt(
+      "🚨 FINAL WARNING: This will permanently delete ALL events.\nType 'DELETE ALL' to confirm:",
+    );
+    if (confirmation !== "DELETE ALL") {
+      toast.error("Deletion cancelled - confirmation text did not match");
+      return;
+    }
+
+    setIsDeletingAllEvents(true);
+    deleteAllEvents({})
+      .then((result) => {
+        toast.success(`Successfully deleted ${result.deletedCount} events`);
+        if (result.failedCount > 0) {
+          toast.warning(`Failed to delete ${result.failedCount} events`);
+        }
+      })
+      .catch(onApiError)
+      .finally(() => setIsDeletingAllEvents(false));
+  };
+
+  const handleClearAllWorkpools = () => {
+    if (
+      !confirm(
+        "This will clear all pending jobs from all workpools. Are you sure?",
+      )
+    ) {
+      return;
+    }
+
+    setIsClearingAllWorkpools(true);
+    clearAllWorkpools({})
+      .then((result) => {
+        toast.success(
+          `Successfully cleared ${result.totalCleared} jobs from all workpools`,
+        );
+        if (result.totalFailed > 0) {
+          toast.warning(`Failed to clear ${result.totalFailed} jobs`);
+        }
+      })
+      .catch(onApiError)
+      .finally(() => setIsClearingAllWorkpools(false));
   };
 
   return (
@@ -428,6 +486,26 @@ export function AppAdminPage({
                 leftSection={<IconExternalLink size={16} />}
               >
                 Open Convex Dashboard
+              </Button>
+
+              <Button
+                onClick={handleDeleteAllEvents}
+                color="red"
+                fullWidth
+                leftSection={<IconTrash size={16} />}
+                loading={isDeletingAllEvents}
+              >
+                {isDeletingAllEvents ? "Deleting..." : "Delete All Events"}
+              </Button>
+
+              <Button
+                onClick={handleClearAllWorkpools}
+                color="orange"
+                fullWidth
+                leftSection={<IconBrush size={16} />}
+                loading={isClearingAllWorkpools}
+              >
+                {isClearingAllWorkpools ? "Clearing..." : "Clear All Workpools"}
               </Button>
 
               <Text size="xs" c="dimmed" ta="center">

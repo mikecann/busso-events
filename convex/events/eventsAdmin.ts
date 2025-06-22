@@ -352,3 +352,180 @@ export const getWorkpoolDetailedStatus = adminQuery({
     };
   },
 });
+
+export const deleteAllEvents = adminAction({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    deletedCount: number;
+    failedCount: number;
+    totalEvents: number;
+  }> => {
+    console.log("🗑️ Starting delete all events operation");
+
+    // Get all events
+    const allEvents = await ctx.runQuery(
+      internal.events.eventsInternal.getAllEventsInternal,
+    );
+    console.log(`📊 Found ${allEvents.length} events to delete`);
+
+    let deletedCount = 0;
+    let failedCount = 0;
+
+    // Delete events in batches to avoid timeout
+    for (const event of allEvents) {
+      try {
+        await ctx.runMutation(
+          internal.events.eventsInternal.deleteEventInternal,
+          {
+            eventId: event._id,
+          },
+        );
+        deletedCount++;
+
+        // Log progress every 100 deletions
+        if (deletedCount % 100 === 0) {
+          console.log(
+            `📈 Progress: ${deletedCount}/${allEvents.length} events deleted`,
+          );
+        }
+      } catch (error) {
+        console.error(`❌ Failed to delete event ${event._id}:`, error);
+        failedCount++;
+      }
+    }
+
+    console.log(
+      `✅ Delete all events completed: ${deletedCount} deleted, ${failedCount} failed`,
+    );
+
+    return {
+      success: true,
+      message: `Deleted ${deletedCount} events`,
+      deletedCount,
+      failedCount,
+      totalEvents: allEvents.length,
+    };
+  },
+});
+
+export const clearAllWorkpools = adminAction({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    totalCleared: number;
+    totalFailed: number;
+    results: {
+      eventScrapeWorkpool: { clearedCount: number; failedCount: number };
+      eventEmbeddingWorkpool: { clearedCount: number; failedCount: number };
+      subscriptionMatchWorkpool: { clearedCount: number; failedCount: number };
+    };
+  }> => {
+    console.log("🧹 Starting clear all workpools operation");
+
+    let totalCleared = 0;
+    let totalFailed = 0;
+
+    const results = {
+      eventScrapeWorkpool: { clearedCount: 0, failedCount: 0 },
+      eventEmbeddingWorkpool: { clearedCount: 0, failedCount: 0 },
+      subscriptionMatchWorkpool: { clearedCount: 0, failedCount: 0 },
+    };
+
+    // Clear Event Scraping Workpool
+    console.log("🧹 Clearing event scrape workpool...");
+    const eventsWithScrapeJobs = await ctx.runQuery(
+      internal.events.eventsInternal.getEventsWithScrapeJobs,
+    );
+
+    for (const event of eventsWithScrapeJobs) {
+      if (event.scrapeWorkId) {
+        try {
+          await ctx.runMutation(
+            internal.events.eventsInternal.cancelEventScrapeJob,
+            { eventId: event._id },
+          );
+          results.eventScrapeWorkpool.clearedCount++;
+          totalCleared++;
+        } catch (error) {
+          console.error(
+            `Failed to cancel scrape job for event ${event._id}:`,
+            error,
+          );
+          results.eventScrapeWorkpool.failedCount++;
+          totalFailed++;
+        }
+      }
+    }
+
+    // Clear Embedding Generation Workpool
+    console.log("🧹 Clearing embedding workpool...");
+    const eventsWithEmbeddingJobs = await ctx.runQuery(
+      internal.events.eventsInternal.getEventsWithEmbeddingJobs,
+    );
+
+    for (const event of eventsWithEmbeddingJobs) {
+      if (event.embeddingWorkId) {
+        try {
+          await ctx.runMutation(
+            internal.events.eventsInternal.cancelEventEmbeddingJob,
+            { eventId: event._id },
+          );
+          results.eventEmbeddingWorkpool.clearedCount++;
+          totalCleared++;
+        } catch (error) {
+          console.error(
+            `Failed to cancel embedding job for event ${event._id}:`,
+            error,
+          );
+          results.eventEmbeddingWorkpool.failedCount++;
+          totalFailed++;
+        }
+      }
+    }
+
+    // Clear Subscription Matching Workpool
+    console.log("🧹 Clearing subscription match workpool...");
+    const eventsWithSubscriptionMatchJobs = await ctx.runQuery(
+      internal.events.eventsInternal.getEventsWithSubscriptionMatchJobs,
+    );
+
+    for (const event of eventsWithSubscriptionMatchJobs) {
+      if (event.subscriptionMatchWorkId) {
+        try {
+          await ctx.runMutation(
+            internal.events.eventsInternal.cancelEventSubscriptionMatchJob,
+            { eventId: event._id },
+          );
+          results.subscriptionMatchWorkpool.clearedCount++;
+          totalCleared++;
+        } catch (error) {
+          console.error(
+            `Failed to cancel subscription match job for event ${event._id}:`,
+            error,
+          );
+          results.subscriptionMatchWorkpool.failedCount++;
+          totalFailed++;
+        }
+      }
+    }
+
+    console.log(
+      `✅ Clear all workpools completed: ${totalCleared} jobs cleared, ${totalFailed} failed`,
+    );
+
+    return {
+      success: true,
+      message: `Cleared ${totalCleared} jobs from all workpools`,
+      totalCleared,
+      totalFailed,
+      results,
+    };
+  },
+});

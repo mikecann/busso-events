@@ -1,9 +1,4 @@
-import { useState } from "react";
-import { useMutation, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id, Doc } from "../../convex/_generated/dataModel";
-import { toast } from "sonner";
-import { useAPIErrorHandler } from "../utils/hooks";
+import { Doc } from "../../convex/_generated/dataModel";
 import { formatDate, formatRelativeTime } from "../utils/dateUtils";
 import {
   Card,
@@ -11,19 +6,11 @@ import {
   Group,
   Badge,
   Text,
-  Button,
-  Textarea,
   Box,
   SimpleGrid,
   Title,
 } from "@mantine/core";
-import {
-  IconMail,
-  IconEdit,
-  IconTrash,
-  IconPlayerPause,
-  IconPlayerPlay,
-} from "@tabler/icons-react";
+import { IconChevronRight } from "@tabler/icons-react";
 
 interface SubscriptionCardProps {
   subscription: Doc<"subscriptions"> & {
@@ -32,41 +19,27 @@ interface SubscriptionCardProps {
     nextEmailScheduled: number;
     emailFrequencyHours: number;
   };
+  onClick: () => void;
 }
 
-export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
-  const updateSubscription = useMutation(
-    api.subscriptions.subscriptions.update,
-  );
-  const deleteSubscription = useMutation(
-    api.subscriptions.subscriptions.remove,
-  );
-  const sendEmailNow = useAction(api.emailSending.sendSubscriptionEmail);
-
-  const [editingId, setEditingId] = useState<Id<"subscriptions"> | null>(null);
-  const [editPrompt, setEditPrompt] = useState("");
-  const [sendingEmailFor, setSendingEmailFor] =
-    useState<Id<"subscriptions"> | null>(null);
-
-  const onApiError = useAPIErrorHandler();
-
-  const handleEdit = () => {
-    setEditingId(subscription._id);
-    setEditPrompt((subscription as any).prompt || "");
-  };
-
+export function SubscriptionCard({
+  subscription,
+  onClick,
+}: SubscriptionCardProps) {
   const isPromptSubscription =
     (subscription as any).kind === "prompt" ||
     (subscription as any).prompt !== undefined;
   const isAllEventsSubscription = (subscription as any).kind === "all_events";
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditPrompt("");
-  };
-
   return (
-    <Card shadow="sm" padding="xl" radius="lg" withBorder>
+    <Card
+      shadow="sm"
+      padding="xl"
+      radius="lg"
+      withBorder
+      style={{ cursor: "pointer" }}
+      onClick={onClick}
+    >
       <Group align="flex-start" justify="space-between">
         <Box style={{ flex: 1 }}>
           <Group gap="sm" mb="sm">
@@ -93,211 +66,90 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
             )}
           </Group>
 
-          {editingId === subscription._id && isPromptSubscription ? (
-            <Stack gap="sm">
-              <Textarea
-                value={editPrompt}
-                onChange={(e) => setEditPrompt(e.target.value)}
-                rows={3}
-                autosize
-              />
-              <Group gap="xs">
-                <Button
-                  onClick={() => {
-                    updateSubscription({
-                      id: subscription._id,
-                      prompt: editPrompt,
-                    })
-                      .then(() => {
-                        setEditingId(null);
-                        toast.success("Subscription updated");
-                      })
-                      .catch(onApiError);
-                  }}
-                  color="green"
+          <Stack gap="md">
+            {isPromptSubscription ? (
+              <Text size="md" style={{ lineHeight: 1.6 }}>
+                "{(subscription as any).prompt}"
+              </Text>
+            ) : (
+              <Text size="md" style={{ lineHeight: 1.6 }} c="purple.7">
+                Subscribed to all events
+              </Text>
+            )}
+
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+              <Box>
+                <Text fw={500} size="sm">
+                  Email frequency:
+                </Text>
+                <Text size="sm" c="dimmed">
+                  {subscription.emailFrequencyHours}h
+                </Text>
+              </Box>
+              <Box>
+                <Text fw={500} size="sm">
+                  Last email:
+                </Text>
+                <Text size="sm" c="dimmed">
+                  {subscription.lastEmailSent
+                    ? formatDate(subscription.lastEmailSent)
+                    : "Never"}
+                </Text>
+              </Box>
+              <Box>
+                <Text fw={500} size="sm">
+                  Next email:
+                </Text>
+                <Text
                   size="sm"
+                  c={
+                    subscription.nextEmailScheduled <= Date.now()
+                      ? "green"
+                      : "dimmed"
+                  }
+                  fw={subscription.nextEmailScheduled <= Date.now() ? 500 : 400}
                 >
-                  Save
-                </Button>
-                <Button onClick={handleCancelEdit} variant="default" size="sm">
-                  Cancel
-                </Button>
-              </Group>
-            </Stack>
-          ) : (
-            <Stack gap="md">
-              {isPromptSubscription ? (
-                <Text size="md" style={{ lineHeight: 1.6 }}>
-                  "{(subscription as any).prompt}"
+                  {formatRelativeTime(subscription.nextEmailScheduled)}
                 </Text>
-              ) : (
-                <Text size="md" style={{ lineHeight: 1.6 }} c="purple.7">
-                  Subscribed to all events
-                </Text>
-              )}
+              </Box>
+            </SimpleGrid>
 
-              <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-                <Box>
-                  <Text fw={500} size="sm">
-                    Email frequency:
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    {subscription.emailFrequencyHours}h
-                  </Text>
-                </Box>
-                <Box>
-                  <Text fw={500} size="sm">
-                    Last email:
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    {subscription.lastEmailSent
-                      ? formatDate(subscription.lastEmailSent)
-                      : "Never"}
-                  </Text>
-                </Box>
-                <Box>
-                  <Text fw={500} size="sm">
-                    Next email:
-                  </Text>
-                  <Text
-                    size="sm"
-                    c={
-                      subscription.nextEmailScheduled <= Date.now()
-                        ? "green"
-                        : "dimmed"
-                    }
-                    fw={
-                      subscription.nextEmailScheduled <= Date.now() ? 500 : 400
-                    }
-                  >
-                    {formatRelativeTime(subscription.nextEmailScheduled)}
-                  </Text>
-                </Box>
-              </SimpleGrid>
-
-              {subscription.queuedEvents.length > 0 && (
-                <Card withBorder radius="md" bg="blue.0">
-                  <Title order={4} c="blue.9" mb="sm">
-                    Queued Events ({subscription.totalQueuedEvents})
-                  </Title>
-                  <Stack gap="xs">
-                    {subscription.queuedEvents.map((queueItem: any) => (
-                      <Box key={queueItem._id}>
-                        <Group gap="xs" align="center">
-                          <Text fw={500} size="sm" c="blue.8">
-                            {queueItem.event?.title || "Event not found"}
-                          </Text>
-                          <Text size="xs" c="blue.6">
-                            ({(queueItem.matchScore * 100).toFixed(0)}% match)
-                          </Text>
-                        </Group>
-                        <Text size="xs" c="blue.6">
-                          📅{" "}
-                          {queueItem.event
-                            ? formatDate(queueItem.event.eventDate)
-                            : "Unknown date"}
+            {subscription.queuedEvents.length > 0 && (
+              <Card withBorder radius="md" bg="blue.0">
+                <Title order={4} c="blue.9" mb="sm">
+                  Queued Events ({subscription.totalQueuedEvents})
+                </Title>
+                <Stack gap="xs">
+                  {subscription.queuedEvents.map((queueItem: any) => (
+                    <Box key={queueItem._id}>
+                      <Group gap="xs" align="center">
+                        <Text fw={500} size="sm" c="blue.8">
+                          {queueItem.event?.title || "Event not found"}
                         </Text>
-                      </Box>
-                    ))}
-                    {subscription.totalQueuedEvents > 5 && (
+                        <Text size="xs" c="blue.6">
+                          ({(queueItem.matchScore * 100).toFixed(0)}% match)
+                        </Text>
+                      </Group>
                       <Text size="xs" c="blue.6">
-                        ... and {subscription.totalQueuedEvents - 5} more
+                        📅{" "}
+                        {queueItem.event
+                          ? formatDate(queueItem.event.eventDate)
+                          : "Unknown date"}
                       </Text>
-                    )}
-                  </Stack>
-                </Card>
-              )}
-            </Stack>
-          )}
+                    </Box>
+                  ))}
+                  {subscription.totalQueuedEvents > 5 && (
+                    <Text size="xs" c="blue.6">
+                      ... and {subscription.totalQueuedEvents - 5} more
+                    </Text>
+                  )}
+                </Stack>
+              </Card>
+            )}
+          </Stack>
         </Box>
 
-        <Stack gap="xs" style={{ minWidth: "120px" }}>
-          {subscription.totalQueuedEvents > 0 && (
-            <Button
-              onClick={() => {
-                setSendingEmailFor(subscription._id);
-                sendEmailNow({
-                  subscriptionId: subscription._id,
-                })
-                  .then((result) => {
-                    if (result.success) {
-                      toast.success(
-                        `Email sent successfully! ${result.eventsSent} events included.`,
-                      );
-                    } else {
-                      toast.error(result.message);
-                    }
-                  })
-                  .catch(onApiError)
-                  .finally(() => setSendingEmailFor(null));
-              }}
-              loading={sendingEmailFor === subscription._id}
-              color="green"
-              size="sm"
-              leftSection={<IconMail size={16} />}
-            >
-              {sendingEmailFor === subscription._id ? "Sending..." : "Send Now"}
-            </Button>
-          )}
-
-          <Button
-            onClick={() =>
-              updateSubscription({
-                id: subscription._id,
-                isActive: !subscription.isActive,
-              })
-                .then(() => {
-                  toast.success(
-                    `Subscription ${!subscription.isActive ? "activated" : "deactivated"}`,
-                  );
-                })
-                .catch(onApiError)
-            }
-            variant="light"
-            color={subscription.isActive ? "yellow" : "green"}
-            size="sm"
-            leftSection={
-              subscription.isActive ? (
-                <IconPlayerPause size={16} />
-              ) : (
-                <IconPlayerPlay size={16} />
-              )
-            }
-          >
-            {subscription.isActive ? "Pause" : "Activate"}
-          </Button>
-
-          {editingId !== subscription._id && isPromptSubscription && (
-            <Button
-              onClick={handleEdit}
-              variant="light"
-              color="blue"
-              size="sm"
-              leftSection={<IconEdit size={16} />}
-            >
-              Edit
-            </Button>
-          )}
-
-          <Button
-            onClick={() => {
-              if (
-                !confirm("Are you sure you want to delete this subscription?")
-              )
-                return;
-
-              deleteSubscription({ id: subscription._id })
-                .then(() => toast.success("Subscription deleted"))
-                .catch(onApiError);
-            }}
-            variant="light"
-            color="red"
-            size="sm"
-            leftSection={<IconTrash size={16} />}
-          >
-            Delete
-          </Button>
-        </Stack>
+        <IconChevronRight size={20} color="var(--mantine-color-dimmed)" />
       </Group>
     </Card>
   );

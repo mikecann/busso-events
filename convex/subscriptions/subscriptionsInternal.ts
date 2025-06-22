@@ -156,6 +156,44 @@ export const listUserSubscriptions = internalQuery({
   },
 });
 
+export const getUserSubscription = internalQuery({
+  args: {
+    userId: v.id("users"),
+    subscriptionId: v.id("subscriptions"),
+  },
+  handler: async (ctx, args): Promise<SubscriptionWithQueue | null> => {
+    // First verify the subscription belongs to this user
+    const subscription = await ctx.db.get(args.subscriptionId);
+
+    if (!subscription || subscription.userId !== args.userId) {
+      return null;
+    }
+
+    // Get queued events for this subscription (all of them, not just first 5)
+    const queuedEvents: QueuedEventItem[] = await ctx.runQuery(
+      internal.emailQueue.getQueuedEventsForSubscription,
+      {
+        subscriptionId: subscription._id,
+        includeAlreadySent: false,
+      },
+    );
+
+    // Calculate next email time
+    const emailFrequency = subscription.emailFrequencyHours || 24; // Default 24 hours
+    const lastEmailSent = subscription.lastEmailSent || 0;
+    const nextEmailTime = lastEmailSent + emailFrequency * 60 * 60 * 1000;
+
+    return {
+      ...subscription,
+      isActive: getIsActive(subscription),
+      queuedEvents: queuedEvents, // Return all queued events for detail page
+      totalQueuedEvents: queuedEvents.length,
+      nextEmailScheduled: nextEmailTime,
+      emailFrequencyHours: emailFrequency,
+    };
+  },
+});
+
 export const createPromptSubscription = internalMutation({
   args: {
     userId: v.id("users"),

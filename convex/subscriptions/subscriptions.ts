@@ -19,6 +19,20 @@ export const list = query({
   },
 });
 
+export const get = query({
+  args: {
+    subscriptionId: v.id("subscriptions"),
+  },
+  handler: async (ctx, args): Promise<SubscriptionWithQueue | null> => {
+    const userId = await requireAuth(ctx);
+
+    return await ctx.runQuery(
+      internal.subscriptions.subscriptionsInternal.getUserSubscription,
+      { userId, subscriptionId: args.subscriptionId },
+    );
+  },
+});
+
 export const createPrompt = mutation({
   args: {
     prompt: v.string(),
