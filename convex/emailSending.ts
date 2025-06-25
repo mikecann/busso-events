@@ -9,10 +9,28 @@ import {
   QueuedEventItem,
 } from "./subscriptions/common";
 import { Resend } from "resend";
+import { marked } from "marked";
 
 if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Detect environment and choose appropriate from address
+const getFromAddress = (): string => {
+  const isDevelopment =
+    process.env.NODE_ENV === "development" ||
+    process.env.CONVEX_ENVIRONMENT === "development" ||
+    !process.env.EMAIL_FROM_ADDRESS; // Fallback to test domain if no custom domain set
+
+  if (isDevelopment) {
+    return "EventFinder Dev <onboarding@resend.dev>";
+  }
+
+  return (
+    process.env.EMAIL_FROM_ADDRESS ||
+    "EventFinder Notifications <onboarding@resend.dev>"
+  );
+};
 
 // Send email with queued events for a subscription
 export const sendSubscriptionEmail = action({
@@ -129,8 +147,11 @@ export const sendSubscriptionEmailInternal = internalAction({
         : `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} for you`;
 
       // Send the email using Resend
+      const fromAddress = getFromAddress();
+      console.log(`📧 Sending email from: ${fromAddress} to: ${user.email}`);
+
       const { data, error } = await resend.emails.send({
-        from: "EventFinder Notifications <onboarding@resend.dev>", // Using Resend's test domain
+        from: fromAddress,
         to: user.email,
         subject: emailSubject,
         html: emailHtml,
@@ -260,9 +281,9 @@ function generateEmailHtml(
           📅 ${formatDate(event.eventDate)}
         </p>
         
-        <p style="margin: 0 0 16px 0; color: #374151; line-height: 1.5;">
-          ${event.description}
-        </p>
+        <div style="margin: 0 0 16px 0; color: #374151; line-height: 1.5;">
+          ${marked(event.description, { breaks: true })}
+        </div>
         
         <a href="${event.url}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 500;">
           View Event Details

@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { formatDateDetailed as formatDate } from "../../../utils/dateUtils";
+import { EventDescription } from "../../EventDescription";
 import { Card, Title, Text, Group, Stack, Image } from "@mantine/core";
 import { IconCalendar, IconExternalLink } from "@tabler/icons-react";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -36,7 +37,7 @@ export function EventPreview({ eventId }: DebugSectionProps) {
           <Title order={3} size="lg">
             {event.title}
           </Title>
-          <Text c="dimmed">{event.description}</Text>
+          <EventDescription description={event.description} c="dimmed" />
           <Group gap="lg">
             <Group gap="xs">
               <IconCalendar size={16} />

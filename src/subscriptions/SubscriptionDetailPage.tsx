@@ -5,6 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../utils/hooks";
 import { formatDate, formatRelativeTime } from "../utils/dateUtils";
+import { EventDescription } from "../events/EventDescription";
 import {
   Container,
   Title,
@@ -395,9 +396,13 @@ export function SubscriptionDetailPage({
                         Queued: {formatDate(queueItem.queuedAt)}
                       </Text>
                       {queueItem.event?.description && (
-                        <Text size="xs" c="dimmed" mt="xs" lineClamp={2}>
-                          {queueItem.event.description}
-                        </Text>
+                        <EventDescription
+                          description={queueItem.event.description}
+                          maxLines={2}
+                          size="xs"
+                          c="dimmed"
+                          mt="xs"
+                        />
                       )}
                     </Box>
                   </Group>

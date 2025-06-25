@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { formatEventDate } from "../utils/dateUtils";
+import { EventDescription } from "./EventDescription";
 import {
   Container,
   Card,
@@ -100,9 +101,11 @@ export function EventDetailPage({
               {event.title}
             </Title>
 
-            <Text size="lg" c="dimmed">
-              {event.description}
-            </Text>
+            <EventDescription
+              description={event.description}
+              size="lg"
+              c="dimmed"
+            />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl" mt="md">
               <Group gap="xs">

@@ -3,6 +3,7 @@ import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { formatEventDateFriendly } from "../../utils/dateUtils";
+import { EventDescription } from "../../events/EventDescription";
 import {
   Title,
   Text,
@@ -225,9 +226,12 @@ export function SubscriptionPreview({
                             {formatEventDateFriendly(event.eventDate)}
                           </Text>
                         </Group>
-                        <Text size="xs" c="dimmed" lineClamp={3}>
-                          {event.description}
-                        </Text>
+                        <EventDescription
+                          description={event.description}
+                          maxLines={3}
+                          size="xs"
+                          c="dimmed"
+                        />
                       </Stack>
                     </Card>
                   ))}
@@ -308,9 +312,12 @@ export function SubscriptionPreview({
                             {formatEventDateFriendly(event.eventDate)}
                           </Text>
                         </Group>
-                        <Text size="xs" c="dimmed" lineClamp={3}>
-                          {event.description}
-                        </Text>
+                        <EventDescription
+                          description={event.description}
+                          maxLines={3}
+                          size="xs"
+                          c="dimmed"
+                        />
                       </Stack>
                     </Card>
                   ))}

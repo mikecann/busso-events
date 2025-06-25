@@ -1,5 +1,6 @@
 import { Doc } from "../../convex/_generated/dataModel";
 import { formatDateForCard, formatTime } from "../utils/dateUtils";
+import { EventDescription } from "./EventDescription";
 import {
   Card,
   Image,
@@ -162,17 +163,16 @@ export function EventCard({ event, onClick }: EventCardProps) {
           )}
         </Stack>
 
-        <Text
+        <EventDescription
+          description={event.description}
+          maxLines={3}
           size="sm"
           c="dimmed"
-          lineClamp={3}
           style={{
             flex: 1,
             lineHeight: 1.5,
           }}
-        >
-          {event.description}
-        </Text>
+        />
 
         <Group
           gap="xs"

@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAPIErrorHandler } from "../utils/hooks";
+import { EventDescription } from "../events/EventDescription";
 import {
   formatDate,
   formatDateShort,
@@ -400,9 +401,13 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                             {event.title}
                           </Text>
                           {event.description && (
-                            <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
-                              {event.description}
-                            </Text>
+                            <EventDescription
+                              description={event.description}
+                              maxLines={2}
+                              size="xs"
+                              c="dimmed"
+                              mt={2}
+                            />
                           )}
                         </Box>
                       </Table.Td>
