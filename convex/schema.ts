@@ -2,6 +2,13 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 
+export const dateFilters = v.union(
+  v.literal("all"),
+  v.literal("week"),
+  v.literal("month"),
+  v.literal("3months"),
+);
+
 const applicationTables = {
   events: defineTable({
     title: v.string(),

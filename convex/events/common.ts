@@ -97,6 +97,35 @@ export function sortEventsByDate<T extends { eventDate: number }>(
   return events.sort((a, b) => a.eventDate - b.eventDate);
 }
 
+// Date range calculation for database queries
+export function calculateDateRangeForQuery(
+  dateFilter?: "all" | "week" | "month" | "3months",
+): { startDate: number; endDate?: number } {
+  const now = Date.now();
+  const startDate = now; // Only future events
+
+  if (!dateFilter || dateFilter === "all") {
+    return { startDate };
+  }
+
+  let endDate: number;
+  switch (dateFilter) {
+    case "week":
+      endDate = now + 7 * 24 * 60 * 60 * 1000; // 1 week
+      break;
+    case "month":
+      endDate = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+      break;
+    case "3months":
+      endDate = now + 90 * 24 * 60 * 60 * 1000; // 90 days
+      break;
+    default:
+      return { startDate };
+  }
+
+  return { startDate, endDate };
+}
+
 // Convert scraped event details to the scrapedData format
 export function convertEventDetailsToScrapedData(
   eventDetails: Record<string, unknown>,

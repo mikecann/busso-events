@@ -7,8 +7,11 @@ import {
   filterEventsByDate,
   deduplicateEvents,
   sortEventsByDate,
+  calculateDateRangeForQuery,
 } from "./common";
 import { adminAction } from "../utils";
+import { paginationOptsValidator } from "convex/server";
+import { dateFilters } from "../schema";
 
 // Types for workpool status
 interface WorkpoolStatus {
@@ -29,8 +32,28 @@ interface WorkpoolStatusResponse {
 // PUBLIC QUERIES - No authentication required
 export const list = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     return await ctx.db.query("events").order("desc").take(69);
+  },
+});
+
+export const listByDate = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    dateFilter: v.optional(dateFilters),
+  },
+  handler: async (ctx, args) => {
+    const { startDate, endDate } = calculateDateRangeForQuery(args.dateFilter);
+
+    let query = ctx.db
+      .query("events")
+      .withIndex("by_event_date", (q) =>
+        endDate
+          ? q.gte("eventDate", startDate).lt("eventDate", endDate)
+          : q.gte("eventDate", startDate),
+      );
+
+    return await query.paginate(args.paginationOpts);
   },
 });
 
