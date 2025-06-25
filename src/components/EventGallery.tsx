@@ -38,10 +38,12 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
   const enhancedSearch = useAction(api.events.events.enhancedSearch);
 
   // Use fallback query for empty search terms
-  const fallbackEvents = useQuery(api.events.events.search, {
-    searchTerm: "",
+  const fallbackEventsResult = useQuery(api.events.events.listByDate, {
+    paginationOpts: { numItems: 100, cursor: null },
     dateFilter,
   });
+
+  const fallbackEvents = fallbackEventsResult?.page;
 
   useEffect(() => {
     const performSearch = async () => {
