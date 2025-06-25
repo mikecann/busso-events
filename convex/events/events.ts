@@ -45,12 +45,10 @@ export const listByDate = query({
   handler: async (ctx, args) => {
     const { startDate, endDate } = calculateDateRangeForQuery(args.dateFilter);
 
-    let query = ctx.db
+    const query = ctx.db
       .query("events")
       .withIndex("by_event_date", (q) =>
-        endDate
-          ? q.gte("eventDate", startDate).lt("eventDate", endDate)
-          : q.gte("eventDate", startDate),
+        q.gte("eventDate", startDate).lt("eventDate", endDate),
       );
 
     return await query.paginate(args.paginationOpts);

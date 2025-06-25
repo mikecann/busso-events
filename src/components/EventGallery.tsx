@@ -1,10 +1,11 @@
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { EventCard } from "../events/EventCard";
 import { SearchBar } from "./SearchBar";
 import { DateFilter } from "./DateFilter";
 import { Id, Doc } from "../../convex/_generated/dataModel";
+import { useAPIErrorHandler } from "../utils/hooks";
 import {
   Stack,
   Group,
@@ -14,10 +15,9 @@ import {
   Card,
   Title,
   SimpleGrid,
-  Alert,
+  Button,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
-import { IconInfoCircle } from "@tabler/icons-react";
 
 interface EventGalleryProps {
   onEventClick: (eventId: Id<"events">) => void;
@@ -30,61 +30,65 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
   >("all");
   const [events, setEvents] = useState<Doc<"events">[] | undefined>(undefined);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [paginationCursor, setPaginationCursor] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Debounce search term to prevent queries on every keystroke
-  const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
-
+  const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 500);
   const enhancedSearch = useAction(api.events.events.enhancedSearch);
+  const onApiError = useAPIErrorHandler();
 
-  // Use fallback query for empty search terms
   const fallbackEventsResult = useQuery(api.events.events.listByDate, {
-    paginationOpts: { numItems: 100, cursor: null },
+    paginationOpts: { numItems: 9, cursor: paginationCursor },
     dateFilter,
   });
 
   const fallbackEvents = fallbackEventsResult?.page;
+  const hasMore = fallbackEventsResult?.isDone === false;
 
   useEffect(() => {
-    const performSearch = async () => {
-      setSearchError(null);
-
-      if (debouncedSearchTerm.trim() === "") {
-        // Use fallback query for empty search
+    if (debouncedSearchTerm.trim() === "") {
+      if (paginationCursor === null) {
+        // First page load or filter change
         setEvents(fallbackEvents);
-        setIsSearching(false);
-        return;
+      } else if (fallbackEvents && events) {
+        // Loading more results - append to existing
+        setEvents([...events, ...fallbackEvents]);
+        setIsLoadingMore(false);
       }
+      setIsSearching(false);
+      return;
+    }
 
-      setIsSearching(true);
-      try {
-        const results = await enhancedSearch({
-          searchTerm: debouncedSearchTerm.trim(),
-          dateFilter,
-        });
-        setEvents(results);
-      } catch (error) {
-        console.error("Enhanced search failed:", error);
-        setSearchError("Search failed. Please try again.");
-        // Fallback to basic search if enhanced search fails
-        try {
-          const basicResults = await enhancedSearch({
-            searchTerm: debouncedSearchTerm.trim(),
-            dateFilter,
-          });
-          setEvents(basicResults);
-          setSearchError("Using basic search (semantic search unavailable)");
-        } catch (fallbackError) {
-          console.error("Fallback search also failed:", fallbackError);
-          setEvents([]);
-        }
-      } finally {
-        setIsSearching(false);
-      }
-    };
+    setIsSearching(true);
+    enhancedSearch({
+      searchTerm: debouncedSearchTerm.trim(),
+      dateFilter,
+    })
+      .then(setEvents)
+      .catch(onApiError)
+      .finally(() => setIsSearching(false));
+  }, [
+    debouncedSearchTerm,
+    dateFilter,
+    enhancedSearch,
+    fallbackEvents,
+    onApiError,
+    paginationCursor,
+    events,
+  ]);
 
-    performSearch();
-  }, [debouncedSearchTerm, dateFilter, enhancedSearch, fallbackEvents]);
+  // Reset pagination when date filter changes
+  useEffect(() => {
+    setPaginationCursor(null);
+    setEvents(undefined);
+  }, [dateFilter]);
+
+  const loadMore = () => {
+    if (!hasMore || isLoadingMore || debouncedSearchTerm.trim() !== "") return;
+
+    setIsLoadingMore(true);
+    setPaginationCursor(fallbackEventsResult?.continueCursor || null);
+  };
 
   if (events === undefined) {
     return (
@@ -104,12 +108,6 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
         </div>
         <DateFilter value={dateFilter} onChange={setDateFilter} />
       </Group>
-
-      {searchError && (
-        <Alert icon={<IconInfoCircle size="1rem" />} color="yellow">
-          {searchError}
-        </Alert>
-      )}
 
       {isSearching && (
         <Center py="md">
@@ -143,15 +141,31 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
         </Card>
       ) : (
         !isSearching && (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            {events.map((event: Doc<"events">) => (
-              <EventCard
-                key={event._id}
-                event={event}
-                onClick={() => onEventClick(event._id)}
-              />
-            ))}
-          </SimpleGrid>
+          <>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+              {events.map((event) => (
+                <EventCard
+                  key={event._id}
+                  event={event}
+                  onClick={() => onEventClick(event._id)}
+                />
+              ))}
+            </SimpleGrid>
+
+            {/* Load More Button - only show when not searching and there are more results */}
+            {debouncedSearchTerm.trim() === "" && hasMore && (
+              <Center py="md">
+                <Button
+                  onClick={loadMore}
+                  loading={isLoadingMore}
+                  variant="light"
+                  size="md"
+                >
+                  {isLoadingMore ? "Loading..." : "Load More"}
+                </Button>
+              </Center>
+            )}
+          </>
         )
       )}
     </Stack>

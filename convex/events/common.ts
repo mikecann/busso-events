@@ -100,27 +100,30 @@ export function sortEventsByDate<T extends { eventDate: number }>(
 // Date range calculation for database queries
 export function calculateDateRangeForQuery(
   dateFilter?: "all" | "week" | "month" | "3months",
-): { startDate: number; endDate?: number } {
+): { startDate: number; endDate: number } {
   const now = Date.now();
   const startDate = now; // Only future events
 
-  if (!dateFilter || dateFilter === "all") {
-    return { startDate };
-  }
-
+  // Always provide an endDate to keep query structure consistent
   let endDate: number;
-  switch (dateFilter) {
-    case "week":
-      endDate = now + 7 * 24 * 60 * 60 * 1000; // 1 week
-      break;
-    case "month":
-      endDate = now + 30 * 24 * 60 * 60 * 1000; // 30 days
-      break;
-    case "3months":
-      endDate = now + 90 * 24 * 60 * 60 * 1000; // 90 days
-      break;
-    default:
-      return { startDate };
+
+  if (!dateFilter || dateFilter === "all") {
+    // For "all", use a very far future date (100 years from now)
+    endDate = now + 100 * 365 * 24 * 60 * 60 * 1000;
+  } else {
+    switch (dateFilter) {
+      case "week":
+        endDate = now + 7 * 24 * 60 * 60 * 1000; // 1 week
+        break;
+      case "month":
+        endDate = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+        break;
+      case "3months":
+        endDate = now + 90 * 24 * 60 * 60 * 1000; // 90 days
+        break;
+      default:
+        endDate = now + 100 * 365 * 24 * 60 * 60 * 1000;
+    }
   }
 
   return { startDate, endDate };
