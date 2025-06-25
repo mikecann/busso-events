@@ -1,7 +1,8 @@
 {
   "name": "busso-events",
+  "description": "A comprehensive events discovery and subscription platform for Busselton, Western Australia",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
