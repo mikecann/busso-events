@@ -100,7 +100,8 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
       .finally(() => setIsSearching(false));
   }, [debouncedSearchTerm, dateFilter, enhancedSearch, onApiError]);
 
-  if (events === undefined) {
+  // Show loading when first loading pagination or when events are undefined
+  if (events === undefined || paginationStatus === "LoadingFirstPage") {
     return (
       <Center py="xl">
         <Loader size="lg" />

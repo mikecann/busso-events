@@ -10,6 +10,7 @@ import {
 } from "./subscriptions/common";
 import { Resend } from "resend";
 import { marked } from "marked";
+import { isDevelopmentMode } from "./utils";
 
 if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
 
@@ -17,12 +18,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Detect environment and choose appropriate from address
 const getFromAddress = (): string => {
-  const isDevelopment =
-    process.env.NODE_ENV === "development" ||
-    process.env.CONVEX_ENVIRONMENT === "development" ||
-    !process.env.EMAIL_FROM_ADDRESS; // Fallback to test domain if no custom domain set
-
-  if (isDevelopment) {
+  if (isDevelopmentMode()) {
     return "EventFinder Dev <onboarding@resend.dev>";
   }
 
@@ -146,26 +142,35 @@ export const sendSubscriptionEmailInternal = internalAction({
         ? `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching "${subscription.prompt}"`
         : `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} for you`;
 
-      // Send the email using Resend
-      const fromAddress = getFromAddress();
-      console.log(`📧 Sending email from: ${fromAddress} to: ${user.email}`);
+      // Check if we're in development mode
+      if (isDevelopmentMode()) {
+        console.log(`🚫 DEVELOPMENT MODE: Skipping actual email sending`);
+        console.log(`📧 Would have sent email to: ${user.email}`);
+        console.log(`📧 Subject: ${emailSubject}`);
+        console.log(`📧 Events count: ${queuedEvents.length}`);
+        console.log(`📧 Email content length: ${emailHtml.length} characters`);
+      } else {
+        // Send the email using Resend in production
+        const fromAddress = getFromAddress();
+        console.log(`📧 Sending email from: ${fromAddress} to: ${user.email}`);
 
-      const { data, error } = await resend.emails.send({
-        from: fromAddress,
-        to: user.email,
-        subject: emailSubject,
-        html: emailHtml,
-      });
+        const { data, error } = await resend.emails.send({
+          from: fromAddress,
+          to: user.email,
+          subject: emailSubject,
+          html: emailHtml,
+        });
 
-      if (error) {
-        console.error("❌ Failed to send email via Resend:", error);
-        return {
-          success: false,
-          message: `Failed to send email to '${user.email}': ${JSON.stringify(error)}`,
-        };
+        if (error) {
+          console.error("❌ Failed to send email via Resend:", error);
+          return {
+            success: false,
+            message: `Failed to send email to '${user.email}': ${JSON.stringify(error)}`,
+          };
+        }
+
+        console.log(`✅ Email sent successfully to ${user.email}`);
       }
-
-      console.log(`✅ Email sent successfully to ${user.email}`);
 
       // Mark all queued events as sent
       await ctx.runMutation(internal.emailQueue.markEventsAsSent, {
