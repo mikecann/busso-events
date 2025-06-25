@@ -5,7 +5,6 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
 import { adminQuery, adminMutation, adminAction } from "./utils";
 
 export const list = adminQuery({

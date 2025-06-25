@@ -130,7 +130,7 @@ export const sendSubscriptionEmailInternal = internalAction({
 
       // Send the email using Resend
       const { data, error } = await resend.emails.send({
-        from: "EventFinder Notifications <notifications@eventfinder.com>",
+        from: "EventFinder Notifications <onboarding@resend.dev>", // Using Resend's test domain
         to: user.email,
         subject: emailSubject,
         html: emailHtml,
