@@ -1,35 +1,18 @@
 import { action, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { Doc, Id } from "./_generated/dataModel";
 import {
   isPromptSubscription,
   isAllEventsSubscription,
+  AnySubscription,
+  QueuedEventItem,
 } from "./subscriptions/common";
+import { Resend } from "resend";
 
-// Initialize Resend only if API key is available
-let resend: any = null;
-try {
-  if (process.env.CONVEX_RESEND_API_KEY) {
-    console.log(
-      "🔧 Initializing Resend with API key:",
-      process.env.CONVEX_RESEND_API_KEY ? "Present" : "Missing",
-    );
-    const { Resend } = require("resend");
-    resend = new Resend(process.env.CONVEX_RESEND_API_KEY);
+if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
 
-    // Set base URL if provided (for Convex proxy)
-    if (process.env.RESEND_BASE_URL) {
-      console.log("🔧 Setting Resend base URL:", process.env.RESEND_BASE_URL);
-      resend.baseURL = process.env.RESEND_BASE_URL;
-    }
-    console.log("✅ Resend initialized successfully");
-  } else {
-    console.warn("⚠️ CONVEX_RESEND_API_KEY not found in environment variables");
-  }
-} catch (error) {
-  console.error("❌ Failed to initialize Resend:", error);
-  console.warn("Resend not initialized - email functionality will be disabled");
-}
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Send email with queued events for a subscription
 export const sendSubscriptionEmail = action({
@@ -40,17 +23,19 @@ export const sendSubscriptionEmail = action({
     ctx,
     args,
   ): Promise<{ success: boolean; message: string; eventsSent?: number }> => {
-    console.log(
-      "📧 Starting sendSubscriptionEmail for subscription:",
-      args.subscriptionId,
-    );
+    console.log("📧 Sending subscription email for:", args.subscriptionId);
+
     const result = await ctx.runAction(
       internal.emailSending.sendSubscriptionEmailInternal,
       {
         subscriptionId: args.subscriptionId,
       },
     );
-    console.log("📧 sendSubscriptionEmail result:", result);
+
+    console.log("📧 Email send result:", {
+      success: result.success,
+      eventsSent: result.eventsSent,
+    });
     return result;
   },
 });
@@ -63,10 +48,7 @@ export const sendSubscriptionEmailInternal = internalAction({
     ctx,
     args,
   ): Promise<{ success: boolean; message: string; eventsSent?: number }> => {
-    console.log(
-      "🔍 Starting sendSubscriptionEmailInternal for subscription:",
-      args.subscriptionId,
-    );
+    console.log("🔍 Processing email for subscription:", args.subscriptionId);
 
     try {
       if (!resend) {
@@ -76,14 +58,11 @@ export const sendSubscriptionEmailInternal = internalAction({
         return {
           success: false,
           message:
-            "Email service not configured - CONVEX_RESEND_API_KEY environment variable is required",
+            "Email service not configured - RESEND_API_KEY environment variable is required",
         };
       }
 
-      console.log("✅ Resend is initialized, proceeding with email send");
-
       // Get the subscription
-      console.log("🔍 Fetching subscription data...");
       const subscription = await ctx.runQuery(
         internal.subscriptions.subscriptionsInternal.getSubscriptionById,
         {
@@ -92,8 +71,13 @@ export const sendSubscriptionEmailInternal = internalAction({
       );
 
       if (!subscription) {
-        console.error("❌ Subscription not found:", args.subscriptionId);
-        return { success: false, message: "Subscription not found" };
+        console.error(
+          `❌ Subscription with id '${args.subscriptionId}' not found`,
+        );
+        return {
+          success: false,
+          message: `Subscription with id '${args.subscriptionId}' not found`,
+        };
       }
 
       console.log("✅ Subscription found:", {
@@ -106,32 +90,22 @@ export const sendSubscriptionEmailInternal = internalAction({
       });
 
       // Get the user
-      console.log("🔍 Fetching user data...");
       const user = await ctx.runQuery(internal.users.getUserById, {
         userId: subscription.userId,
       });
 
       if (!user || !user.email) {
-        console.error("❌ User not found or no email address:", {
-          userFound: !!user,
-          hasEmail: user?.email ? "Yes" : "No",
-          email: user?.email,
-        });
+        console.error(
+          `❌ User with id '${subscription.userId}' not found or has no email address`,
+        );
         return {
           success: false,
-          message: "User not found or no email address",
+          message: `User with id '${subscription.userId}' not found or has no email address`,
         };
       }
 
-      console.log("✅ User found:", {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-      });
-
       // Get queued events for this subscription
-      console.log("🔍 Fetching queued events...");
-      const queuedEvents = await ctx.runQuery(
+      const queuedEvents: QueuedEventItem[] = await ctx.runQuery(
         internal.emailQueue.getQueuedEventsForSubscription,
         {
           subscriptionId: args.subscriptionId,
@@ -139,46 +113,22 @@ export const sendSubscriptionEmailInternal = internalAction({
         },
       );
 
-      console.log("📊 Queued events found:", {
-        count: queuedEvents.length,
-        events: queuedEvents.map((e: any) => ({
-          eventId: e.eventId,
-          eventTitle: e.event?.title,
-          matchScore: e.matchScore,
-          matchType: e.matchType,
-          emailSent: e.emailSent,
-        })),
-      });
-
       if (queuedEvents.length === 0) {
-        console.warn("⚠️ No events in queue to send");
+        console.warn(
+          `⚠️ No events queued for subscription '${args.subscriptionId}'`,
+        );
         return { success: false, message: "No events in queue to send" };
       }
 
-      // Generate email content
-      console.log("📝 Generating email content...");
-      const emailHtml = generateEmailHtml(subscription, queuedEvents, user);
+      console.log(`📊 Found ${queuedEvents.length} queued events to send`);
 
+      // Generate email content
+      const emailHtml = generateEmailHtml(subscription, queuedEvents, user);
       const emailSubject = isPromptSubscription(subscription)
         ? `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching "${subscription.prompt}"`
         : `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} for you`;
 
-      console.log("📧 Email details:", {
-        to: user.email,
-        subject: emailSubject,
-        htmlLength: emailHtml.length,
-        eventCount: queuedEvents.length,
-      });
-
-      // Send the email using Convex Resend proxy
-      console.log("🚀 Sending email via Resend...");
-      console.log("📧 Email payload:", {
-        from: "EventFinder Notifications <notifications@eventfinder.com>",
-        to: user.email,
-        subject: emailSubject,
-        htmlPreview: emailHtml.substring(0, 200) + "...",
-      });
-
+      // Send the email using Resend
       const { data, error } = await resend.emails.send({
         from: "EventFinder Notifications <notifications@eventfinder.com>",
         to: user.email,
@@ -186,53 +136,34 @@ export const sendSubscriptionEmailInternal = internalAction({
         html: emailHtml,
       });
 
-      console.log("📧 Resend response:", {
-        data,
-        error,
-        success: !error,
-      });
-
       if (error) {
         console.error("❌ Failed to send email via Resend:", error);
         return {
           success: false,
-          message: `Failed to send email: ${JSON.stringify(error)}`,
+          message: `Failed to send email to '${user.email}': ${JSON.stringify(error)}`,
         };
       }
 
-      console.log("✅ Email sent successfully via Resend, data:", data);
+      console.log(`✅ Email sent successfully to ${user.email}`);
 
       // Mark all queued events as sent
-      console.log("🔄 Marking events as sent...");
       await ctx.runMutation(internal.emailQueue.markEventsAsSent, {
         subscriptionId: args.subscriptionId,
-        eventIds: queuedEvents.map((e: { eventId: any }) => e.eventId),
+        eventIds: queuedEvents.map((e) => e.eventId),
       });
 
-      console.log("✅ Events marked as sent");
-
       // Update subscription's last email sent time
-      console.log("🔄 Updating subscription email time...");
       await ctx.runMutation(internal.emailSending.updateSubscriptionEmailTime, {
         subscriptionId: args.subscriptionId,
       });
 
-      console.log("✅ Subscription email time updated");
-
-      const result = {
+      return {
         success: true,
         message: `Email sent successfully to ${user.email}`,
         eventsSent: queuedEvents.length,
       };
-
-      console.log("🎉 Email sending completed successfully:", result);
-      return result;
     } catch (error) {
       console.error("💥 Error in sendSubscriptionEmailInternal:", error);
-      console.error(
-        "💥 Error stack:",
-        error instanceof Error ? error.stack : "No stack trace",
-      );
       return {
         success: false,
         message: `Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -246,55 +177,38 @@ export const updateSubscriptionEmailTime = internalMutation({
     subscriptionId: v.id("subscriptions"),
   },
   handler: async (ctx, args): Promise<void> => {
-    console.log(
-      "🔄 Updating subscription email time for:",
-      args.subscriptionId,
-    );
-
-    const now = Date.now();
     const subscription = await ctx.db.get(args.subscriptionId);
 
     if (!subscription) {
       console.error(
-        "❌ Subscription not found when updating email time:",
-        args.subscriptionId,
+        `❌ Subscription with id '${args.subscriptionId}' not found when updating email time`,
       );
       return;
     }
 
+    const now = Date.now();
     const emailFrequency = subscription.emailFrequencyHours || 24;
     const nextEmailTime = now + emailFrequency * 60 * 60 * 1000;
-
-    console.log("📅 Email time update details:", {
-      subscriptionId: args.subscriptionId,
-      currentTime: new Date(now).toISOString(),
-      emailFrequencyHours: emailFrequency,
-      nextEmailTime: new Date(nextEmailTime).toISOString(),
-    });
 
     await ctx.db.patch(args.subscriptionId, {
       lastEmailSent: now,
       nextEmailScheduled: nextEmailTime,
     });
 
-    console.log("✅ Subscription email time updated successfully");
+    console.log(
+      `✅ Updated email time for subscription '${args.subscriptionId}', next email scheduled for: ${new Date(nextEmailTime).toISOString()}`,
+    );
   },
 });
 
 function generateEmailHtml(
-  subscription: any,
-  queuedEvents: any[],
-  user: any,
+  subscription: AnySubscription,
+  queuedEvents: QueuedEventItem[],
+  user: Doc<"users">,
 ): string {
   const subscriptionDescription = isPromptSubscription(subscription)
     ? subscription.prompt
     : "all events";
-
-  console.log("📝 Generating email HTML for:", {
-    subscriptionPrompt: subscriptionDescription,
-    eventCount: queuedEvents.length,
-    userEmail: user.email,
-  });
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
@@ -316,11 +230,8 @@ function generateEmailHtml(
   const eventCards = queuedEvents
     .map((queueItem) => {
       const event = queueItem.event;
-      console.log("📝 Generating card for event:", {
-        title: event.title,
-        matchScore: queueItem.matchScore,
-        matchType: queueItem.matchType,
-      });
+
+      if (!event) return "";
 
       return `
       <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; background-color: #ffffff;">
@@ -359,6 +270,7 @@ function generateEmailHtml(
       </div>
     `;
     })
+    .filter(Boolean)
     .join("");
 
   const html = `
@@ -408,6 +320,8 @@ function generateEmailHtml(
     </html>
   `;
 
-  console.log("✅ Email HTML generated successfully, length:", html.length);
+  console.log(
+    `✅ Generated email HTML for ${queuedEvents.length} events (${html.length} characters)`,
+  );
   return html;
 }
