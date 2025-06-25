@@ -1,4 +1,4 @@
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { EventCard } from "../events/EventCard";
@@ -28,33 +28,64 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
   const [dateFilter, setDateFilter] = useState<
     "all" | "week" | "month" | "3months"
   >("all");
-  const [events, setEvents] = useState<Doc<"events">[] | undefined>(undefined);
+  const [searchEvents, setSearchEvents] = useState<Doc<"events">[] | undefined>(
+    undefined,
+  );
   const [isSearching, setIsSearching] = useState(false);
-  const [paginationCursor, setPaginationCursor] = useState<string | null>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 500);
   const enhancedSearch = useAction(api.events.events.enhancedSearch);
   const onApiError = useAPIErrorHandler();
 
-  const fallbackEventsResult = useQuery(api.events.events.listByDate, {
-    paginationOpts: { numItems: 9, cursor: paginationCursor },
-    dateFilter,
+  // Calculate date range once when dateFilter changes and keep it consistent
+  const [dateRange, setDateRange] = useState(() => {
+    const now = Date.now();
+    const startDate = now;
+    const endDate = now + 100 * 365 * 24 * 60 * 60 * 1000; // 100 years for "all"
+    return { startDate, endDate };
   });
 
-  const fallbackEvents = fallbackEventsResult?.page;
-  const hasMore = fallbackEventsResult?.isDone === false;
+  // Update date range when filter changes
+  useEffect(() => {
+    const now = Date.now();
+    const startDate = now;
+
+    let endDate: number;
+    switch (dateFilter) {
+      case "week":
+        endDate = now + 7 * 24 * 60 * 60 * 1000;
+        break;
+      case "month":
+        endDate = now + 30 * 24 * 60 * 60 * 1000;
+        break;
+      case "3months":
+        endDate = now + 90 * 24 * 60 * 60 * 1000;
+        break;
+      default: // "all"
+        endDate = now + 100 * 365 * 24 * 60 * 60 * 1000;
+    }
+
+    setDateRange({ startDate, endDate });
+  }, [dateFilter]);
+
+  // Use Convex's built-in pagination hook with fixed date range
+  const {
+    results: paginatedEvents,
+    status: paginationStatus,
+    loadMore,
+  } = usePaginatedQuery(
+    api.events.events.listByDate,
+    { startDate: dateRange.startDate, endDate: dateRange.endDate },
+    { initialNumItems: 9 },
+  );
+
+  // Determine which events to show based on search state
+  const events =
+    debouncedSearchTerm.trim() === "" ? paginatedEvents : searchEvents;
 
   useEffect(() => {
     if (debouncedSearchTerm.trim() === "") {
-      if (paginationCursor === null) {
-        // First page load or filter change
-        setEvents(fallbackEvents);
-      } else if (fallbackEvents && events) {
-        // Loading more results - append to existing
-        setEvents([...events, ...fallbackEvents]);
-        setIsLoadingMore(false);
-      }
+      setSearchEvents(undefined);
       setIsSearching(false);
       return;
     }
@@ -64,31 +95,10 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
       searchTerm: debouncedSearchTerm.trim(),
       dateFilter,
     })
-      .then(setEvents)
+      .then(setSearchEvents)
       .catch(onApiError)
       .finally(() => setIsSearching(false));
-  }, [
-    debouncedSearchTerm,
-    dateFilter,
-    enhancedSearch,
-    fallbackEvents,
-    onApiError,
-    paginationCursor,
-    events,
-  ]);
-
-  // Reset pagination when date filter changes
-  useEffect(() => {
-    setPaginationCursor(null);
-    setEvents(undefined);
-  }, [dateFilter]);
-
-  const loadMore = () => {
-    if (!hasMore || isLoadingMore || debouncedSearchTerm.trim() !== "") return;
-
-    setIsLoadingMore(true);
-    setPaginationCursor(fallbackEventsResult?.continueCursor || null);
-  };
+  }, [debouncedSearchTerm, dateFilter, enhancedSearch, onApiError]);
 
   if (events === undefined) {
     return (
@@ -153,18 +163,23 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
             </SimpleGrid>
 
             {/* Load More Button - only show when not searching and there are more results */}
-            {debouncedSearchTerm.trim() === "" && hasMore && (
-              <Center py="md">
-                <Button
-                  onClick={loadMore}
-                  loading={isLoadingMore}
-                  variant="light"
-                  size="md"
-                >
-                  {isLoadingMore ? "Loading..." : "Load More"}
-                </Button>
-              </Center>
-            )}
+            {debouncedSearchTerm.trim() === "" &&
+              (paginationStatus === "CanLoadMore" ||
+                paginationStatus === "LoadingMore") && (
+                <Center py="md">
+                  <Button
+                    onClick={() => loadMore(9)}
+                    loading={paginationStatus === "LoadingMore"}
+                    disabled={paginationStatus === "LoadingMore"}
+                    variant="light"
+                    size="md"
+                  >
+                    {paginationStatus === "LoadingMore"
+                      ? "Loading..."
+                      : "Load More"}
+                  </Button>
+                </Center>
+              )}
           </>
         )
       )}

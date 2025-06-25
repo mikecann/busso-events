@@ -7,7 +7,6 @@ import {
   filterEventsByDate,
   deduplicateEvents,
   sortEventsByDate,
-  calculateDateRangeForQuery,
 } from "./common";
 import { adminAction } from "../utils";
 import { paginationOptsValidator } from "convex/server";
@@ -40,15 +39,14 @@ export const list = query({
 export const listByDate = query({
   args: {
     paginationOpts: paginationOptsValidator,
-    dateFilter: v.optional(dateFilters),
+    startDate: v.number(),
+    endDate: v.number(),
   },
   handler: async (ctx, args) => {
-    const { startDate, endDate } = calculateDateRangeForQuery(args.dateFilter);
-
     const query = ctx.db
       .query("events")
       .withIndex("by_event_date", (q) =>
-        q.gte("eventDate", startDate).lt("eventDate", endDate),
+        q.gte("eventDate", args.startDate).lt("eventDate", args.endDate),
       );
 
     return await query.paginate(args.paginationOpts);
