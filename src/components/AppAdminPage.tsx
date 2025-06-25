@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../utils/hooks";
 import { formatRelativeTimeBidirectional } from "../utils/dateUtils";
 import {
@@ -35,6 +35,8 @@ import {
   IconCpu,
   IconTrash,
   IconBrush,
+  IconBell,
+  IconBellRinging,
 } from "@tabler/icons-react";
 
 interface AppAdminPageProps {
@@ -101,16 +103,28 @@ export function AppAdminPage({
       "🚨 FINAL WARNING: This will permanently delete ALL events.\nType 'DELETE ALL' to confirm:",
     );
     if (confirmation !== "DELETE ALL") {
-      toast.error("Deletion cancelled - confirmation text did not match");
+      notifications.show({
+        title: "Cancelled",
+        message: "Deletion cancelled - confirmation text did not match",
+        color: "blue",
+      });
       return;
     }
 
     setIsDeletingAllEvents(true);
     deleteAllEvents({})
       .then((result) => {
-        toast.success(`Successfully deleted ${result.deletedCount} events`);
+        notifications.show({
+          title: "Success",
+          message: `Successfully deleted ${result.deletedCount} events`,
+          color: "green",
+        });
         if (result.failedCount > 0) {
-          toast.warning(`Failed to delete ${result.failedCount} events`);
+          notifications.show({
+            title: "Warning",
+            message: `Failed to delete ${result.failedCount} events`,
+            color: "yellow",
+          });
         }
       })
       .catch(onApiError)
@@ -129,11 +143,17 @@ export function AppAdminPage({
     setIsClearingAllWorkpools(true);
     clearAllWorkpools({})
       .then((result) => {
-        toast.success(
-          `Successfully cleared ${result.totalCleared} jobs from all workpools`,
-        );
+        notifications.show({
+          title: "Success",
+          message: `Successfully cleared ${result.totalCleared} jobs from all workpools`,
+          color: "green",
+        });
         if (result.totalFailed > 0) {
-          toast.warning(`Failed to clear ${result.totalFailed} jobs`);
+          notifications.show({
+            title: "Warning",
+            message: `Failed to clear ${result.totalFailed} jobs`,
+            color: "yellow",
+          });
         }
       })
       .catch(onApiError)
@@ -444,9 +464,11 @@ export function AppAdminPage({
                   setIsGeneratingEmbeddings(true);
                   generateMissingEmbeddings({})
                     .then((result) => {
-                      toast.success(
-                        `Generated embeddings for ${result.processed} events. ${result.failed} failed.`,
-                      );
+                      notifications.show({
+                        title: "Success",
+                        message: `Generated embeddings for ${result.processed} events. ${result.failed} failed.`,
+                        color: "green",
+                      });
                     })
                     .catch(onApiError)
                     .finally(() => setIsGeneratingEmbeddings(false));
@@ -685,6 +707,110 @@ export function AppAdminPage({
             </Stack>
           </Card>
         )}
+
+        {/* Notification Testing */}
+        <Card shadow="sm" padding="xl" radius="lg" withBorder>
+          <Title order={3} mb="lg">
+            🔔 Notification Testing
+          </Title>
+          <Text size="sm" c="dimmed" mb="md">
+            Test different types of notifications to ensure they're working
+            properly
+          </Text>
+          <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
+            <Button
+              onClick={() => {
+                notifications.show({
+                  title: "Success!",
+                  message: "This is a success notification",
+                  color: "green",
+                });
+              }}
+              color="green"
+              leftSection={<IconBell size={16} />}
+              size="sm"
+            >
+              Success
+            </Button>
+
+            <Button
+              onClick={() => {
+                notifications.show({
+                  title: "Error!",
+                  message: "This is an error notification",
+                  color: "red",
+                });
+              }}
+              color="red"
+              leftSection={<IconBellRinging size={16} />}
+              size="sm"
+            >
+              Error
+            </Button>
+
+            <Button
+              onClick={() => {
+                notifications.show({
+                  title: "Warning!",
+                  message: "This is a warning notification",
+                  color: "yellow",
+                });
+              }}
+              color="yellow"
+              leftSection={<IconBell size={16} />}
+              size="sm"
+            >
+              Warning
+            </Button>
+
+            <Button
+              onClick={() => {
+                notifications.show({
+                  title: "Info",
+                  message: "This is an info notification",
+                  color: "blue",
+                });
+              }}
+              color="blue"
+              leftSection={<IconBell size={16} />}
+              size="sm"
+            >
+              Info
+            </Button>
+          </SimpleGrid>
+
+          <Divider my="md" />
+
+          <Button
+            onClick={() => {
+              notifications.show({
+                id: "test-loading",
+                title: "Loading...",
+                message: "This notification will update in 2 seconds",
+                color: "blue",
+                loading: true,
+                autoClose: false,
+              });
+
+              setTimeout(() => {
+                notifications.update({
+                  id: "test-loading",
+                  title: "Complete!",
+                  message: "The loading notification has been updated",
+                  color: "green",
+                  loading: false,
+                  autoClose: 5000,
+                });
+              }, 2000);
+            }}
+            variant="light"
+            fullWidth
+            leftSection={<IconBellRinging size={16} />}
+            size="sm"
+          >
+            Test Loading → Success Update
+          </Button>
+        </Card>
       </Stack>
     </Container>
   );

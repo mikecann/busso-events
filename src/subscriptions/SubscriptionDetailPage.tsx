@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../utils/hooks";
 import { formatDate, formatRelativeTime } from "../utils/dateUtils";
 import {
@@ -102,7 +102,11 @@ export function SubscriptionDetailPage({
     })
       .then(() => {
         setEditingPrompt(false);
-        toast.success("Subscription updated");
+        notifications.show({
+          title: "Success",
+          message: "Subscription updated",
+          color: "green",
+        });
       })
       .catch(onApiError);
   };
@@ -118,9 +122,11 @@ export function SubscriptionDetailPage({
       isActive: !subscription.isActive,
     })
       .then(() => {
-        toast.success(
-          `Subscription ${!subscription.isActive ? "activated" : "deactivated"}`,
-        );
+        notifications.show({
+          title: "Success",
+          message: `Subscription ${!subscription.isActive ? "activated" : "deactivated"}`,
+          color: "green",
+        });
       })
       .catch(onApiError);
   };
@@ -132,11 +138,17 @@ export function SubscriptionDetailPage({
     })
       .then((result) => {
         if (result.success) {
-          toast.success(
-            `Email sent successfully! ${result.eventsSent} events included.`,
-          );
+          notifications.show({
+            title: "Success",
+            message: `Email sent successfully! ${result.eventsSent} events included.`,
+            color: "green",
+          });
         } else {
-          toast.error(result.message);
+          notifications.show({
+            title: "Error",
+            message: result.message,
+            color: "red",
+          });
         }
       })
       .catch(onApiError)
@@ -148,7 +160,11 @@ export function SubscriptionDetailPage({
 
     deleteSubscription({ id: subscription._id })
       .then(() => {
-        toast.success("Subscription deleted");
+        notifications.show({
+          title: "Success",
+          message: "Subscription deleted",
+          color: "green",
+        });
         onBack();
       })
       .catch(onApiError);

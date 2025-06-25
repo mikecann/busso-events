@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 
 interface UseAPIErrorHandlerOptions {
   /**
@@ -59,8 +59,12 @@ export function useAPIErrorHandler(options: UseAPIErrorHandlerOptions = {}) {
         }
       }
 
-      // Show toast notification
-      toast.error(errorMessage);
+      // Show notification
+      notifications.show({
+        title: "Error",
+        message: errorMessage,
+        color: "red",
+      });
 
       // Call additional error handler if provided
       if (onError) {
