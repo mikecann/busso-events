@@ -11,7 +11,7 @@ interface UseAPIErrorHandlerOptions {
    */
   logError?: boolean;
   /**
-   * Additional action to perform after showing the toast.
+   * Additional action to perform after showing the notification.
    */
   onError?: (error: unknown) => void;
 }
@@ -27,7 +27,7 @@ interface UseAPIErrorHandlerOptions {
  * const handleSubmit = async () => {
  *   try {
  *     await createSomething({ data });
- *     toast.success("Created successfully!");
+ *     notifications.show({ message: "Created successfully!", color: "green" });
  *   } catch (error) {
  *     handleError(error);
  *   }

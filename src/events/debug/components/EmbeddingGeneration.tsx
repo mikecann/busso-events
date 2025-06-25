@@ -1,7 +1,7 @@
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../../../utils/hooks";
 import { formatDateDetailed as formatDate } from "../../../utils/dateUtils";
 import {
@@ -43,9 +43,15 @@ export function EmbeddingGeneration({ eventId }: DebugSectionProps) {
             generateEmbedding({ eventId })
               .then((result) => {
                 if (result.success) {
-                  toast.success("Embedding generated successfully");
+                  notifications.show({
+                    message: "Embedding generated successfully",
+                    color: "green",
+                  });
                 } else {
-                  toast.error("Embedding generation failed");
+                  notifications.show({
+                    message: "Embedding generation failed",
+                    color: "red",
+                  });
                 }
               })
               .catch(onApiError)

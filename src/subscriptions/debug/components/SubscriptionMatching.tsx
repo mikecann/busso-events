@@ -1,7 +1,7 @@
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../../../utils/hooks";
 import { formatDateDetailed as formatDate } from "../../../utils/dateUtils";
 import {
@@ -45,9 +45,15 @@ export function SubscriptionMatching({ eventId }: DebugSectionProps) {
             })
               .then((result) => {
                 if (result.success) {
-                  toast.success("Subscription matching triggered successfully");
+                  notifications.show({
+                    message: "Subscription matching triggered successfully",
+                    color: "green",
+                  });
                 } else {
-                  toast.error("Failed to trigger subscription matching");
+                  notifications.show({
+                    message: "Failed to trigger subscription matching",
+                    color: "red",
+                  });
                 }
               })
               .catch(onApiError)

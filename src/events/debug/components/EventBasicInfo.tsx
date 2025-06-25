@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../../../utils/hooks";
 import { formatDateDetailed as formatDate } from "../../../utils/dateUtils";
 import {
@@ -109,7 +109,10 @@ export function EventBasicInfo({ eventId }: DebugSectionProps) {
                   })
                     .then(() => {
                       setEditingField(null);
-                      toast.success(`${field} updated successfully`);
+                      notifications.show({
+                        message: `${field} updated successfully`,
+                        color: "green",
+                      });
                     })
                     .catch(onApiError)
                     .finally(() => setIsUpdating(false));
@@ -171,7 +174,10 @@ export function EventBasicInfo({ eventId }: DebugSectionProps) {
             setIsDeleting(true);
             deleteEvent({ id: eventId })
               .then(() => {
-                toast.success("Event deleted successfully");
+                notifications.show({
+                  message: "Event deleted successfully",
+                  color: "green",
+                });
                 window.history.back();
               })
               .catch(onApiError)

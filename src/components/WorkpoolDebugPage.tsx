@@ -1,7 +1,7 @@
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../utils/hooks";
 import { formatDateDetailed as formatDate } from "../utils/dateUtils";
 import {
@@ -144,9 +144,15 @@ export function WorkpoolDebugPage({
                   clearWorkpoolJobs({ workpoolType })
                     .then((result) => {
                       if (result.success) {
-                        toast.success(result.message);
+                        notifications.show({
+                          message: result.message,
+                          color: "green",
+                        });
                       } else {
-                        toast.error("Failed to clear workpool jobs");
+                        notifications.show({
+                          message: "Failed to clear workpool jobs",
+                          color: "red",
+                        });
                       }
                     })
                     .catch(onApiError)

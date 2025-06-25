@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { TestScrapeProgress } from "./TestScrapeProgress";
 import { useAPIErrorHandler } from "../utils/hooks";
 import { navigation } from "../router";
@@ -74,7 +74,10 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                 startingUrl: formData.startingUrl,
               })
                 .then(() => {
-                  toast.success("Event source created successfully!");
+                  notifications.show({
+                    message: "Event source created successfully!",
+                    color: "green",
+                  });
                   navigation.sources().push();
                 })
                 .catch(onApiError)

@@ -1,7 +1,7 @@
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../../../utils/hooks";
 import { formatDateDetailed as formatDate } from "../../../utils/dateUtils";
 import {
@@ -40,9 +40,15 @@ export function EventScraping({ eventId }: DebugSectionProps) {
             scrapeEvent({ eventId })
               .then((result) => {
                 if (result.success) {
-                  toast.success("Event scraped successfully");
+                  notifications.show({
+                    message: "Event scraped successfully",
+                    color: "green",
+                  });
                 } else {
-                  toast.error(`Scraping failed: ${result.message}`);
+                  notifications.show({
+                    message: `Scraping failed: ${result.message}`,
+                    color: "red",
+                  });
                 }
               })
               .catch(onApiError)

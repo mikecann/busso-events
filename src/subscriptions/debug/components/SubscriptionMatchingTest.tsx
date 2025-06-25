@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../../../utils/hooks";
 import { formatDate } from "../../../utils/dateUtils";
 import {
@@ -79,7 +79,10 @@ export function SubscriptionMatchingTest({
 
   const loadPreview = () => {
     if (!isPromptSubscription(subscription)) {
-      toast.error("Preview is only available for prompt-based subscriptions");
+      notifications.show({
+        message: "Preview is only available for prompt-based subscriptions",
+        color: "red",
+      });
       return;
     }
 
@@ -112,9 +115,15 @@ export function SubscriptionMatchingTest({
               testMatching({ subscriptionId })
                 .then((result) => {
                   if (result) {
-                    toast.success("Matching test completed successfully");
+                    notifications.show({
+                      message: "Matching test completed successfully",
+                      color: "green",
+                    });
                   } else {
-                    toast.error("Subscription not found");
+                    notifications.show({
+                      message: "Subscription not found",
+                      color: "red",
+                    });
                   }
                 })
                 .catch(onApiError)

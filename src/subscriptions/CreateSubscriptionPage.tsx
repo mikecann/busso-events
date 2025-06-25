@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../utils/hooks";
 import {
   Container,
@@ -68,7 +68,10 @@ export function CreateSubscriptionPage({
               e.preventDefault();
 
               if (subscriptionType === "prompt" && !prompt.trim()) {
-                toast.error("Please enter a prompt for your subscription");
+                notifications.show({
+                  message: "Please enter a prompt for your subscription",
+                  color: "red",
+                });
                 return;
               }
 
@@ -80,7 +83,10 @@ export function CreateSubscriptionPage({
                   isActive: true,
                 })
                   .then(() => {
-                    toast.success("Subscription created successfully!");
+                    notifications.show({
+                      message: "Subscription created successfully!",
+                      color: "green",
+                    });
                     onBack();
                   })
                   .catch(onApiError)
@@ -90,7 +96,10 @@ export function CreateSubscriptionPage({
                   isActive: true,
                 })
                   .then(() => {
-                    toast.success("Subscription created successfully!");
+                    notifications.show({
+                      message: "Subscription created successfully!",
+                      color: "green",
+                    });
                     onBack();
                   })
                   .catch(onApiError)

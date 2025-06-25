@@ -1,7 +1,6 @@
-"use client";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import {
   Stack,
   TextInput,
@@ -36,7 +35,10 @@ export function SignInForm() {
                   ? "Could not sign in, did you mean to sign up?"
                   : "Could not sign up, did you mean to sign in?";
             }
-            toast.error(toastTitle);
+            notifications.show({
+              message: toastTitle,
+              color: "red",
+            });
             setSubmitting(false);
           });
         }}

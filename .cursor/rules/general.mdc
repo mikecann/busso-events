@@ -18,7 +18,7 @@ alwaysApply: false
   onClick={() => {
     setIsLoading(true);
     mutation(data)
-      .then(() => toast.success("Success message"))
+      .then(() => notifications.show({ message: "Success message", color: "green" }))
       .catch(onApiError)
       .finally(() => setIsLoading(false));
   }}

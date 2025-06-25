@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../utils/hooks";
 import { EventDescription } from "../events/EventDescription";
 import {
@@ -186,9 +186,10 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                   isActive: !source.isActive,
                 })
                   .then(() => {
-                    toast.success(
-                      `Source ${!source.isActive ? "activated" : "deactivated"}`,
-                    );
+                    notifications.show({
+                      message: `Source ${!source.isActive ? "activated" : "deactivated"}`,
+                      color: "green",
+                    });
                   })
                   .catch(onApiError)
               }
@@ -211,11 +212,15 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                 testScrape({ sourceId: source._id })
                   .then((result) => {
                     if (result.success) {
-                      toast.success(
-                        `Scrape completed! Found ${result.eventsFound || 0} events.`,
-                      );
+                      notifications.show({
+                        message: `Scrape completed! Found ${result.eventsFound || 0} events.`,
+                        color: "green",
+                      });
                     } else {
-                      toast.error(`Scrape failed: ${result.message}`);
+                      notifications.show({
+                        message: `Scrape failed: ${result.message}`,
+                        color: "red",
+                      });
                     }
                   })
                   .catch(onApiError)
@@ -253,7 +258,10 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
 
                 deleteSource({ id: source._id })
                   .then(() => {
-                    toast.success("Source deleted successfully");
+                    notifications.show({
+                      message: "Source deleted successfully",
+                      color: "green",
+                    });
                     onBack(); // Navigate back to sources list
                   })
                   .catch(onApiError);
@@ -446,7 +454,10 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                     variant="light"
                     onClick={() => {
                       // TODO: Implement pagination with continueCursor
-                      toast.info("Pagination coming soon!");
+                      notifications.show({
+                        message: "Pagination coming soon!",
+                        color: "blue",
+                      });
                     }}
                   >
                     Load More Events
@@ -496,7 +507,10 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                     startingUrl: editUrl,
                   })
                     .then(() => {
-                      toast.success("Source updated successfully");
+                      notifications.show({
+                        message: "Source updated successfully",
+                        color: "green",
+                      });
                       setIsEditing(false);
                     })
                     .catch(onApiError);

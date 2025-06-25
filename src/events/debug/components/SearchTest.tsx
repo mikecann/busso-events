@@ -1,7 +1,7 @@
 import { useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifications } from "@mantine/notifications";
 import { useAPIErrorHandler } from "../../../utils/hooks";
 import {
   Card,
@@ -39,7 +39,10 @@ export function SearchTest({ eventId }: DebugSectionProps) {
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
-      toast.error("Please enter a search term");
+      notifications.show({
+        message: "Please enter a search term",
+        color: "red",
+      });
       return;
     }
 
@@ -61,11 +64,15 @@ export function SearchTest({ eventId }: DebugSectionProps) {
       );
 
       if (eventFound) {
-        toast.success(
-          `✅ Event found in search results! ${currentEventInResults?._searchType ? `(${currentEventInResults._searchType} search)` : ""}`,
-        );
+        notifications.show({
+          message: `✅ Event found in search results! ${currentEventInResults?._searchType ? `(${currentEventInResults._searchType} search)` : ""}`,
+          color: "green",
+        });
       } else {
-        toast.error("❌ Event not found in search results");
+        notifications.show({
+          message: "❌ Event not found in search results",
+          color: "red",
+        });
       }
     } catch (error) {
       console.error("Search test failed:", error);

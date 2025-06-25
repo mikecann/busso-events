@@ -102,7 +102,7 @@ A custom hook that provides standardized error handling for API calls with toast
 
 ### Features
 
-- **Automatic Toast Notifications**: Shows error messages using sonner toast
+- **Automatic Toast Notifications**: Shows error messages using Mantine notifications
 - **Flexible Error Message Extraction**: Handles different error types and formats
 - **Optional Console Logging**: Configurable error logging for debugging
 - **Custom Error Actions**: Execute additional logic when errors occur
@@ -120,7 +120,7 @@ function MyComponent() {
   const handleSubmit = async () => {
     try {
       await mutation({ data });
-      toast.success("Success!");
+      notifications.show({ message: "Success!", color: "green" });
     } catch (error) {
       handleError(error); // Automatically shows toast and logs error
     }
@@ -179,7 +179,7 @@ const handleSubmit = async (data) => {
   setIsSubmitting(true);
   try {
     await createItem(data);
-    toast.success("Item created successfully!");
+    notifications.show({ message: "Item created successfully!", color: "green" });
     onSuccess();
   } catch (error) {
     handleCreateError(error);
@@ -221,9 +221,9 @@ const handleSilentError = useAPIErrorHandler({
 ```tsx
 try {
   await mutation(data);
-  toast.success("Success!");
+  notifications.show({ message: "Success!", color: "green" });
 } catch (error) {
-  toast.error("Failed to create item");
+  notifications.show({ message: "Failed to create item", color: "red" });
   console.error("Error:", error);
   setIsSubmitting(false);
 }
@@ -238,7 +238,7 @@ const handleError = useAPIErrorHandler({
 
 try {
   await mutation(data);
-  toast.success("Success!");
+  notifications.show({ message: "Success!", color: "green" });
 } catch (error) {
   handleError(error);
 }
