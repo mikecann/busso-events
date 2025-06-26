@@ -19,12 +19,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Detect environment and choose appropriate from address
 const getFromAddress = (): string => {
   if (isDevelopmentMode()) {
-    return "EventFinder Dev <onboarding@resend.dev>";
+    return "Busso Events Dev <onboarding@resend.dev>";
   }
 
   return (
     process.env.EMAIL_FROM_ADDRESS ||
-    "EventFinder Notifications <onboarding@resend.dev>"
+    "Busso Events Notifications <notifications@busso.events>"
   );
 };
 
@@ -338,7 +338,7 @@ function generateEmailHtml(
           You're receiving this because you subscribed to event notifications.
         </p>
         <p style="margin: 0; color: #6b7280; font-size: 14px;">
-          To manage your subscriptions, visit your EventFinder dashboard.
+          To manage your subscriptions, visit your Busso Events dashboard.
         </p>
       </div>
 
