@@ -12,6 +12,7 @@ import {
   Avatar,
   Menu,
   rem,
+  Image,
 } from "@mantine/core";
 import { IconUser, IconLogout, IconChevronDown } from "@tabler/icons-react";
 
@@ -63,9 +64,17 @@ export function Header({ currentRoute }: HeaderProps) {
             <Button
               variant="subtle"
               size="lg"
-              {...routes.dashboard().link}
-              color={currentRoute === "dashboard" ? "blue" : "gray"}
+              {...routes.home().link}
+              color={currentRoute === "home" ? "blue" : "gray"}
               style={{ fontWeight: "bold", fontSize: "1.25rem" }}
+              leftSection={
+                <Image
+                  src="/logo-128.png"
+                  alt="Busso Events Logo"
+                  w={24}
+                  h={24}
+                />
+              }
             >
               Busso Events
             </Button>
@@ -73,11 +82,11 @@ export function Header({ currentRoute }: HeaderProps) {
             <Group gap="lg">
               <Button
                 variant="subtle"
-                {...routes.dashboard().link}
-                color={currentRoute === "dashboard" ? "blue" : "gray"}
+                {...routes.home().link}
+                color={currentRoute === "home" ? "blue" : "gray"}
                 style={{
                   borderBottom:
-                    currentRoute === "dashboard"
+                    currentRoute === "home"
                       ? "2px solid var(--mantine-color-blue-6)"
                       : "none",
                 }}

@@ -2,8 +2,6 @@ import { useQuery, useAction, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { EventCard } from "../events/EventCard";
-import { SearchBar } from "./SearchBar";
-import { DateFilter } from "./DateFilter";
 import { Id, Doc } from "../../convex/_generated/dataModel";
 import { useAPIErrorHandler } from "../utils/hooks";
 import {
@@ -21,13 +19,15 @@ import { useDebouncedValue } from "@mantine/hooks";
 
 interface EventGalleryProps {
   onEventClick: (eventId: Id<"events">) => void;
+  searchTerm: string;
+  dateFilter: "all" | "week" | "month" | "3months";
 }
 
-export function EventGallery({ onEventClick }: EventGalleryProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<
-    "all" | "week" | "month" | "3months"
-  >("all");
+export function EventGallery({
+  onEventClick,
+  searchTerm,
+  dateFilter,
+}: EventGalleryProps) {
   const [searchEvents, setSearchEvents] = useState<Doc<"events">[] | undefined>(
     undefined,
   );
@@ -113,13 +113,6 @@ export function EventGallery({ onEventClick }: EventGalleryProps) {
 
   return (
     <Stack gap="lg">
-      <Group align="flex-start" gap="md" style={{ flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: "300px" }}>
-          <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-        </div>
-        <DateFilter value={dateFilter} onChange={setDateFilter} />
-      </Group>
-
       {isSearching && (
         <Center py="md">
           <Group>

@@ -15,7 +15,6 @@ export const { RouteProvider, useRoute, routes } = createRouter({
   login: defineRoute("/login"),
 
   // Authenticated routes
-  dashboard: defineRoute("/dashboard"),
   subscriptions: defineRoute("/subscriptions"),
   createSubscription: defineRoute("/subscriptions/create"),
   subscriptionDetail: defineRoute(

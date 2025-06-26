@@ -5,7 +5,6 @@ import { AuthenticatedPageLayout } from "./components/AuthenticatedPageLayout";
 import { HomePage } from "./components/HomePage";
 import { LoginPage } from "./components/LoginPage";
 import { EventDetailPublic } from "./events/EventDetailPublic";
-import { EventGallery } from "./components/EventGallery";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
 import { CreateSubscriptionPage } from "./subscriptions/CreateSubscriptionPage";
 import { SubscriptionDetailPage } from "./subscriptions/SubscriptionDetailPage";
@@ -29,17 +28,6 @@ export function Routes() {
 
   if (route.name === "eventDetail")
     return <EventDetailPublic eventId={route.params.eventId} />;
-
-  if (route.name === "dashboard")
-    return (
-      <AuthRequired>
-        <AuthenticatedPageLayout>
-          <EventGallery
-            onEventClick={(eventId) => routes.eventDetail({ eventId }).push()}
-          />
-        </AuthenticatedPageLayout>
-      </AuthRequired>
-    );
 
   if (route.name === "subscriptions")
     return (
