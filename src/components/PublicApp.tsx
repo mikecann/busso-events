@@ -19,6 +19,8 @@ import {
 export function PublicApp() {
   const route = useRoute();
 
+  console.log("in here?!");
+
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
       <Paper
@@ -59,18 +61,12 @@ export function PublicApp() {
                 }}
               >
                 <Title order={1} size="3rem" fw={700}>
-                  Discover Amazing Events
+                  Busso Events
                 </Title>
                 <Text size="xl" c="dimmed" style={{ marginBottom: "2rem" }}>
-                  Find events that match your interests and never miss out
+                  All the events for Busselton and the south west, aggregated in
+                  one place
                 </Text>
-                <Button
-                  {...navigation.login().link}
-                  size="lg"
-                  style={{ fontSize: "1.125rem" }}
-                >
-                  Get Started - Sign In
-                </Button>
               </Stack>
             </Center>
 

@@ -13,6 +13,7 @@ import { SourcesListPage } from "./SourcesListPage";
 import { AddSourcePage } from "./AddSourcePage";
 import { SourceDetailPage } from "./SourceDetailPage";
 import { Header } from "./Header";
+import { AdminRequired } from "./AdminRequired";
 import { useRoute, navigation } from "../router";
 import {
   Container,
@@ -92,66 +93,80 @@ export function AuthenticatedApp() {
           />
         )}
 
-        {route.name === "admin" && isAdmin && (
-          <AppAdminPage
-            onNavigateToSources={() => navigation.sources().push()}
-            onNavigateToSubscriptionDebug={() =>
-              navigation.subscriptionDebug().push()
-            }
-            onNavigateToWorkpoolDebug={(workpoolType) =>
-              navigation.workpoolDebug(workpoolType).push()
-            }
-          />
+        {route.name === "admin" && (
+          <AdminRequired>
+            <AppAdminPage
+              onNavigateToSources={() => navigation.sources().push()}
+              onNavigateToSubscriptionDebug={() =>
+                navigation.subscriptionDebug().push()
+              }
+              onNavigateToWorkpoolDebug={(workpoolType) =>
+                navigation.workpoolDebug(workpoolType).push()
+              }
+            />
+          </AdminRequired>
         )}
 
-        {route.name === "eventDebug" && isAdmin && (
-          <EventDebugPage
-            eventId={route.params.eventId}
-            onBack={() => {
-              // Use browser history to go back to where we came from
-              window.history.back();
-            }}
-          />
+        {route.name === "eventDebug" && (
+          <AdminRequired>
+            <EventDebugPage
+              eventId={route.params.eventId}
+              onBack={() => {
+                // Use browser history to go back to where we came from
+                window.history.back();
+              }}
+            />
+          </AdminRequired>
         )}
 
-        {route.name === "subscriptionDebug" && isAdmin && (
-          <SubscriptionDebugPage onBack={() => navigation.admin().push()} />
+        {route.name === "subscriptionDebug" && (
+          <AdminRequired>
+            <SubscriptionDebugPage onBack={() => navigation.admin().push()} />
+          </AdminRequired>
         )}
 
-        {route.name === "workpoolDebug" && isAdmin && (
-          <WorkpoolDebugPage
-            workpoolType={
-              route.params.workpoolType as
-                | "eventScrapeWorkpool"
-                | "eventEmbeddingWorkpool"
-                | "subscriptionMatchWorkpool"
-            }
-            onBack={() => navigation.admin().push()}
-            onNavigateToEventDebug={(eventId) =>
-              navigation.eventDebug(eventId as Id<"events">).push()
-            }
-          />
+        {route.name === "workpoolDebug" && (
+          <AdminRequired>
+            <WorkpoolDebugPage
+              workpoolType={
+                route.params.workpoolType as
+                  | "eventScrapeWorkpool"
+                  | "eventEmbeddingWorkpool"
+                  | "subscriptionMatchWorkpool"
+              }
+              onBack={() => navigation.admin().push()}
+              onNavigateToEventDebug={(eventId) =>
+                navigation.eventDebug(eventId as Id<"events">).push()
+              }
+            />
+          </AdminRequired>
         )}
 
-        {route.name === "sources" && isAdmin && (
-          <SourcesListPage
-            onBack={() => navigation.admin().push()}
-            onNavigateToAddSource={() => navigation.addSource().push()}
-            onNavigateToSourceDetail={(sourceId) =>
-              navigation.sourceDetail(sourceId).push()
-            }
-          />
+        {route.name === "sources" && (
+          <AdminRequired>
+            <SourcesListPage
+              onBack={() => navigation.admin().push()}
+              onNavigateToAddSource={() => navigation.addSource().push()}
+              onNavigateToSourceDetail={(sourceId) =>
+                navigation.sourceDetail(sourceId).push()
+              }
+            />
+          </AdminRequired>
         )}
 
-        {route.name === "addSource" && isAdmin && (
-          <AddSourcePage onBack={() => navigation.sources().push()} />
+        {route.name === "addSource" && (
+          <AdminRequired>
+            <AddSourcePage onBack={() => navigation.sources().push()} />
+          </AdminRequired>
         )}
 
-        {route.name === "sourceDetail" && isAdmin && (
-          <SourceDetailPage
-            sourceId={route.params.sourceId}
-            onBack={() => navigation.sources().push()}
-          />
+        {route.name === "sourceDetail" && (
+          <AdminRequired>
+            <SourceDetailPage
+              sourceId={route.params.sourceId}
+              onBack={() => navigation.sources().push()}
+            />
+          </AdminRequired>
         )}
 
         {/* Handle invalid routes for authenticated users */}
@@ -164,28 +179,6 @@ export function AuthenticatedApp() {
             </Stack>
           </Center>
         )}
-
-        {/* Handle admin-only routes for non-admin users */}
-        {(route.name === "admin" ||
-          route.name === "eventDebug" ||
-          route.name === "subscriptionDebug" ||
-          route.name === "workpoolDebug" ||
-          route.name === "sources" ||
-          route.name === "addSource" ||
-          route.name === "sourceDetail") &&
-          !isAdmin && (
-            <Center style={{ minHeight: "50vh" }}>
-              <Stack align="center" gap="md">
-                <Title order={3}>Access Denied</Title>
-                <Text c="dimmed">
-                  You don't have permission to access this page.
-                </Text>
-                <Button {...navigation.dashboard().link}>
-                  Go to Dashboard
-                </Button>
-              </Stack>
-            </Center>
-          )}
       </Container>
     </div>
   );
