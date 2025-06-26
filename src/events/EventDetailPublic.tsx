@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { EventDetailPage } from "./EventDetailPage";
-import { navigation } from "../router";
+import { routes } from "../router";
 import { Container, Group, Button, Paper } from "@mantine/core";
 import { Id } from "../../convex/_generated/dataModel";
 
@@ -28,13 +28,13 @@ export function EventDetailPublic({ eventId }: EventDetailPublicProps) {
             <Button
               variant="subtle"
               size="lg"
-              {...navigation.home().link}
+              {...routes.home().link}
               color="gray"
               style={{ fontWeight: "bold", fontSize: "1.25rem" }}
             >
-              EventFinder
+              Busso Events
             </Button>
-            <Button {...navigation.login().link} size="md">
+            <Button {...routes.login().link} size="md">
               Sign In
             </Button>
           </Group>
@@ -43,10 +43,11 @@ export function EventDetailPublic({ eventId }: EventDetailPublicProps) {
       <Container size="xl" py="xl">
         <EventDetailPage
           eventId={eventId}
-          onBack={() => navigation.home().push()}
+          onBack={() => routes.home().push()}
           onDebugClick={
             isAdmin
-              ? () => navigation.eventDebug(eventId as Id<"events">).push()
+              ? () =>
+                  routes.eventDebug({ eventId: eventId as Id<"events"> }).push()
               : undefined
           }
         />

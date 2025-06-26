@@ -1,4 +1,4 @@
-import { navigation } from "../router";
+import { routes } from "../router";
 import { Container, Stack, Title, Text, Center, Button } from "@mantine/core";
 
 export function NotFoundPage() {
@@ -9,7 +9,7 @@ export function NotFoundPage() {
           <Stack align="center" gap="md">
             <Title order={3}>Page not found</Title>
             <Text c="dimmed">The page you're looking for doesn't exist.</Text>
-            <Button {...navigation.home().link}>Go to Home</Button>
+            <Button {...routes.home().link}>Go to Home</Button>
           </Stack>
         </Center>
       </Container>

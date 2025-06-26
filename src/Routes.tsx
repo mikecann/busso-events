@@ -1,4 +1,4 @@
-import { useRoute, navigation } from "./router";
+import { useRoute, routes } from "./router";
 import { AuthRequired } from "./components/AuthRequired";
 import { AdminRequired } from "./components/AdminRequired";
 import { AuthenticatedPageLayout } from "./components/AuthenticatedPageLayout";
@@ -35,7 +35,7 @@ export function Routes() {
       <AuthRequired>
         <AuthenticatedPageLayout>
           <EventGallery
-            onEventClick={(eventId) => navigation.eventDetail(eventId).push()}
+            onEventClick={(eventId) => routes.eventDetail({ eventId }).push()}
           />
         </AuthenticatedPageLayout>
       </AuthRequired>
@@ -46,9 +46,9 @@ export function Routes() {
       <AuthRequired>
         <AuthenticatedPageLayout>
           <SubscriptionsPage
-            onCreateNew={() => navigation.createSubscription().push()}
+            onCreateNew={() => routes.createSubscription().push()}
             onNavigateToSubscription={(subscriptionId) =>
-              navigation.subscriptionDetail(subscriptionId).push()
+              routes.subscriptionDetail({ subscriptionId }).push()
             }
           />
         </AuthenticatedPageLayout>
@@ -60,7 +60,7 @@ export function Routes() {
       <AuthRequired>
         <AuthenticatedPageLayout>
           <CreateSubscriptionPage
-            onBack={() => navigation.subscriptions().push()}
+            onBack={() => routes.subscriptions().push()}
           />
         </AuthenticatedPageLayout>
       </AuthRequired>
@@ -72,7 +72,7 @@ export function Routes() {
         <AuthenticatedPageLayout>
           <SubscriptionDetailPage
             subscriptionId={route.params.subscriptionId as Id<"subscriptions">}
-            onBack={() => navigation.subscriptions().push()}
+            onBack={() => routes.subscriptions().push()}
           />
         </AuthenticatedPageLayout>
       </AuthRequired>
@@ -83,12 +83,12 @@ export function Routes() {
       <AdminRequired>
         <AuthenticatedPageLayout>
           <AppAdminPage
-            onNavigateToSources={() => navigation.sources().push()}
+            onNavigateToSources={() => routes.sources().push()}
             onNavigateToSubscriptionDebug={() =>
-              navigation.subscriptionDebug().push()
+              routes.subscriptionDebug().push()
             }
             onNavigateToWorkpoolDebug={(workpoolType) =>
-              navigation.workpoolDebug(workpoolType).push()
+              routes.workpoolDebug({ workpoolType }).push()
             }
           />
         </AuthenticatedPageLayout>
@@ -100,10 +100,10 @@ export function Routes() {
       <AdminRequired>
         <AuthenticatedPageLayout>
           <SourcesListPage
-            onBack={() => navigation.admin().push()}
-            onNavigateToAddSource={() => navigation.addSource().push()}
+            onBack={() => routes.admin().push()}
+            onNavigateToAddSource={() => routes.addSource().push()}
             onNavigateToSourceDetail={(sourceId) =>
-              navigation.sourceDetail(sourceId).push()
+              routes.sourceDetail({ sourceId }).push()
             }
           />
         </AuthenticatedPageLayout>
@@ -114,7 +114,7 @@ export function Routes() {
     return (
       <AdminRequired>
         <AuthenticatedPageLayout>
-          <AddSourcePage onBack={() => navigation.sources().push()} />
+          <AddSourcePage onBack={() => routes.sources().push()} />
         </AuthenticatedPageLayout>
       </AdminRequired>
     );
@@ -125,7 +125,7 @@ export function Routes() {
         <AuthenticatedPageLayout>
           <SourceDetailPage
             sourceId={route.params.sourceId}
-            onBack={() => navigation.sources().push()}
+            onBack={() => routes.sources().push()}
           />
         </AuthenticatedPageLayout>
       </AdminRequired>
@@ -150,7 +150,7 @@ export function Routes() {
     return (
       <AdminRequired>
         <AuthenticatedPageLayout>
-          <SubscriptionDebugPage onBack={() => navigation.admin().push()} />
+          <SubscriptionDebugPage onBack={() => routes.admin().push()} />
         </AuthenticatedPageLayout>
       </AdminRequired>
     );
@@ -166,9 +166,9 @@ export function Routes() {
                 | "eventEmbeddingWorkpool"
                 | "subscriptionMatchWorkpool"
             }
-            onBack={() => navigation.admin().push()}
+            onBack={() => routes.admin().push()}
             onNavigateToEventDebug={(eventId) =>
-              navigation.eventDebug(eventId as Id<"events">).push()
+              routes.eventDebug({ eventId: eventId as Id<"events"> }).push()
             }
           />
         </AuthenticatedPageLayout>

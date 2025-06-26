@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AuthRequired } from "./AuthRequired";
 import { useEffect } from "react";
-import { navigation } from "../router";
+import { routes } from "../router";
 import { Center, Loader } from "@mantine/core";
 
 interface AdminRequiredProps {
@@ -22,7 +22,7 @@ function AdminCheck({ children }: AdminRequiredProps) {
 
   useEffect(() => {
     if (isAdmin === false) {
-      navigation.home().replace();
+      routes.home().replace();
     }
   }, [isAdmin]);
 

@@ -5,7 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { notifications } from "@mantine/notifications";
 import { TestScrapeProgress } from "./TestScrapeProgress";
 import { useAPIErrorHandler } from "../utils/hooks";
-import { navigation } from "../router";
+import { routes } from "../router";
 import {
   Container,
   Title,
@@ -78,7 +78,7 @@ export function AddSourcePage({ onBack }: AddSourcePageProps) {
                     message: "Event source created successfully!",
                     color: "green",
                   });
-                  navigation.sources().push();
+                  routes.sources().push();
                 })
                 .catch(onApiError)
                 .finally(() => setIsLoading(false));

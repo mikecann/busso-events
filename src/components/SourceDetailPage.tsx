@@ -52,7 +52,7 @@ import {
   IconCheck,
 } from "@tabler/icons-react";
 import { Id, Doc } from "../../convex/_generated/dataModel";
-import { navigation } from "../router";
+import { routes } from "../router";
 
 interface SourceDetailPageProps {
   sourceId: string;
@@ -389,7 +389,9 @@ export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
                       key={event._id}
                       style={{ cursor: "pointer" }}
                       onClick={() =>
-                        navigation.eventDebug(event._id as Id<"events">).push()
+                        routes
+                          .eventDebug({ eventId: event._id as Id<"events"> })
+                          .push()
                       }
                     >
                       <Table.Td style={{ width: "80px" }}>

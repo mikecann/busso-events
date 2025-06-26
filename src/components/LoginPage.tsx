@@ -1,5 +1,5 @@
 import { SignInForm } from "../SignInForm";
-import { navigation } from "../router";
+import { routes } from "../router";
 import {
   Container,
   Group,
@@ -25,13 +25,13 @@ export function LoginPage() {
             <Button
               variant="subtle"
               size="lg"
-              {...navigation.home().link}
+              {...routes.home().link}
               color="gray"
               style={{ fontWeight: "bold", fontSize: "1.25rem" }}
             >
-              EventFinder
+              Busso Events
             </Button>
-            <Button {...navigation.login().link} size="md">
+            <Button {...routes.login().link} size="md">
               Sign In
             </Button>
           </Group>
@@ -49,14 +49,14 @@ export function LoginPage() {
             <Stack align="center" gap="md">
               <div style={{ textAlign: "center" }}>
                 <Title order={2} mb="xs">
-                  Welcome to EventFinder
+                  Welcome to Busso Events
                 </Title>
                 <Text c="dimmed">
                   Sign in to manage your event subscriptions
                 </Text>
               </div>
               <SignInForm />
-              <Button variant="subtle" size="sm" {...navigation.home().link}>
+              <Button variant="subtle" size="sm" {...routes.home().link}>
                 ← Back to browse events
               </Button>
             </Stack>

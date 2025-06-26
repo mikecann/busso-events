@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { navigation } from "../router";
+import { routes } from "../router";
 import {
   Group,
   Text,
@@ -52,17 +52,17 @@ export function Header({ currentRoute }: HeaderProps) {
             <Button
               variant="subtle"
               size="lg"
-              {...navigation.dashboard().link}
+              {...routes.dashboard().link}
               color={currentRoute === "dashboard" ? "blue" : "gray"}
               style={{ fontWeight: "bold", fontSize: "1.25rem" }}
             >
-              EventFinder
+              Busso Events
             </Button>
 
             <Group gap="lg">
               <Button
                 variant="subtle"
-                {...navigation.dashboard().link}
+                {...routes.dashboard().link}
                 color={currentRoute === "dashboard" ? "blue" : "gray"}
                 style={{
                   borderBottom:
@@ -76,7 +76,7 @@ export function Header({ currentRoute }: HeaderProps) {
 
               <Button
                 variant="subtle"
-                {...navigation.subscriptions().link}
+                {...routes.subscriptions().link}
                 color={
                   currentRoute === "subscriptions" ||
                   currentRoute === "createSubscription"
@@ -97,7 +97,7 @@ export function Header({ currentRoute }: HeaderProps) {
               {isAdmin && (
                 <Button
                   variant="subtle"
-                  {...navigation.admin().link}
+                  {...routes.admin().link}
                   color={
                     ["admin", "eventDebug", "sources", "addSource"].includes(
                       currentRoute as string,
@@ -122,7 +122,7 @@ export function Header({ currentRoute }: HeaderProps) {
             </Group>
           </Group>
 
-            {user && (
+          {user && (
             <Menu shadow="md" width={250} position="bottom-end">
               <Menu.Target>
                 <Group
@@ -164,12 +164,12 @@ export function Header({ currentRoute }: HeaderProps) {
                     </Text>
                     <Text size="xs" c="dimmed">
                       {user.email}
-                </Text>
-                {isAdmin && (
+                    </Text>
+                    {isAdmin && (
                       <Badge color="blue" size="xs" mt="2px">
-                    Admin
-                  </Badge>
-                )}
+                        Admin
+                      </Badge>
+                    )}
                   </div>
                 </Menu.Item>
 

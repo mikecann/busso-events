@@ -1,5 +1,4 @@
 import { createRouter, defineRoute, param } from "type-route";
-import { Id } from "../convex/_generated/dataModel";
 
 // Define all routes for the application
 export const { RouteProvider, useRoute, routes } = createRouter({
@@ -50,28 +49,3 @@ export const { RouteProvider, useRoute, routes } = createRouter({
     (p) => `/admin/workpools/${p.workpoolType}/debug`,
   ),
 });
-
-// Navigation helpers
-export const navigation = {
-  home: () => routes.home(),
-  eventDetail: (eventId: Id<"events">) => routes.eventDetail({ eventId }),
-  login: () => routes.login(),
-  dashboard: () => routes.dashboard(),
-  subscriptions: () => routes.subscriptions(),
-  createSubscription: () => routes.createSubscription(),
-  subscriptionDetail: (subscriptionId: Id<"subscriptions">) =>
-    routes.subscriptionDetail({ subscriptionId }),
-  admin: () => routes.admin(),
-  sources: () => routes.sources(),
-  addSource: () => routes.addSource(),
-  sourceDetail: (sourceId: Id<"eventSources">) =>
-    routes.sourceDetail({ sourceId }),
-  eventDebug: (eventId: Id<"events">) => routes.eventDebug({ eventId }),
-  subscriptionDebug: () => routes.subscriptionDebug(),
-  workpoolDebug: (
-    workpoolType:
-      | "eventScrapeWorkpool"
-      | "eventEmbeddingWorkpool"
-      | "subscriptionMatchWorkpool",
-  ) => routes.workpoolDebug({ workpoolType }),
-} as const;

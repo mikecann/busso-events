@@ -1,5 +1,6 @@
 import { EventGallery } from "./EventGallery";
-import { navigation } from "../router";
+import { routes } from "../router";
+import { useState, useEffect } from "react";
 import {
   Container,
   Group,
@@ -12,53 +13,61 @@ import {
 } from "@mantine/core";
 
 export function HomePage() {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
-      <Paper
-        shadow="xs"
-        withBorder
-        style={{ borderTop: "none", borderLeft: "none", borderRight: "none" }}
+    <div style={{ minHeight: "100vh" }}>
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          width: "100%",
+          backgroundColor: isScrolled ? "white" : "transparent",
+          zIndex: 1000,
+          borderBottom: isScrolled ? "1px solid #e9ecef" : "none",
+          transition: "background-color 0.2s ease, border-bottom 0.2s ease",
+        }}
       >
         <Container size="xl" py="md">
-          <Group justify="space-between">
-            <Button
-              variant="subtle"
-              size="lg"
-              {...navigation.home().link}
-              color="gray"
-              style={{ fontWeight: "bold", fontSize: "1.25rem" }}
-            >
-              EventFinder
-            </Button>
-            <Button {...navigation.login().link} size="md">
+          <Group justify="flex-end">
+            <Button {...routes.login().link} size="md">
               Sign In
             </Button>
           </Group>
         </Container>
-      </Paper>
+      </div>
       <Container size="xl" py="xl">
         <Stack gap="xl">
           <Center>
             <Stack
-              gap="xl"
+              gap="sm"
               align="center"
               style={{
                 textAlign: "center",
-                paddingTop: "2rem",
-                paddingBottom: "2rem",
               }}
             >
               <Title order={1} size="3rem" fw={700}>
                 Busso Events
               </Title>
-              <Text size="xl" c="dimmed" style={{ marginBottom: "2rem" }}>
+              <Text size="xl" c="dimmed" style={{ marginBottom: "1rem" }}>
                 All the events for Busselton and the south west, aggregated in
                 one place
               </Text>
             </Stack>
           </Center>
           <EventGallery
-            onEventClick={(eventId) => navigation.eventDetail(eventId).push()}
+            onEventClick={(eventId) => routes.eventDetail({ eventId }).push()}
           />
         </Stack>
       </Container>

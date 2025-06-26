@@ -1,6 +1,6 @@
 import { useConvexAuth } from "convex/react";
 import { useEffect } from "react";
-import { navigation } from "../router";
+import { routes } from "../router";
 import { Center, Loader } from "@mantine/core";
 
 interface AuthRequiredProps {
@@ -12,7 +12,7 @@ export function AuthRequired({ children }: AuthRequiredProps) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigation.home().replace();
+      routes.home().replace();
     }
   }, [isAuthenticated, isLoading]);
 
