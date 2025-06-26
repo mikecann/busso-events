@@ -1,6 +1,9 @@
 import { EventGallery } from "./EventGallery";
+import { Header } from "./Header";
 import { routes } from "../router";
 import { useState, useEffect } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   Container,
   Group,
@@ -14,6 +17,8 @@ import {
 
 export function HomePage() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const { isAuthenticated } = useConvexAuth();
+  const user = useQuery(api.auth.loggedInUser);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,6 +29,40 @@ export function HomePage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Show the header if user is authenticated
+  if (isAuthenticated && user) {
+    return (
+      <div>
+        <Header currentRoute="home" />
+        <Container size="xl" py="xl" style={{ paddingTop: "6rem" }}>
+          <Stack gap="xl">
+            <Center>
+              <Stack
+                gap="sm"
+                align="center"
+                style={{
+                  textAlign: "center",
+                }}
+              >
+                <Title order={1} size="3rem" fw={700}>
+                  Busso Events
+                </Title>
+                <Text size="xl" c="dimmed" style={{ marginBottom: "1rem" }}>
+                  All the events for Busselton and the south west, aggregated in
+                  one place
+                </Text>
+              </Stack>
+            </Center>
+            <EventGallery
+              onEventClick={(eventId) => routes.eventDetail({ eventId }).push()}
+            />
+          </Stack>
+        </Container>
+      </div>
+    );
+  }
+
+  // Show the public version with floating header if not authenticated
   return (
     <div style={{ minHeight: "100vh" }}>
       <div

@@ -12,6 +12,7 @@ import {
   Anchor,
 } from "@mantine/core";
 import { useAPIErrorHandler } from "./utils/hooks";
+import { routes } from "./router";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
@@ -21,28 +22,33 @@ export function SignInForm() {
 
   return (
     <Box style={{ width: "100%" }}>
-      <form
+      {/* <form
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitting(true);
           const formData = new FormData(e.target as HTMLFormElement);
           formData.set("flow", flow);
-          void signIn("password", formData).catch((error) => {
-            let toastTitle = "";
-            if (error.message.includes("Invalid password")) {
-              toastTitle = "Invalid password. Please try again.";
-            } else {
-              toastTitle =
-                flow === "signIn"
-                  ? "Could not sign in, did you mean to sign up?"
-                  : "Could not sign up, did you mean to sign in?";
-            }
-            notifications.show({
-              message: toastTitle,
-              color: "red",
+          void signIn("password", formData)
+            .then((x) => {
+              console.log(`signed in`, x);
+              routes.home().push();
+            })
+            .catch((error) => {
+              let toastTitle = "";
+              if (error.message.includes("Invalid password")) {
+                toastTitle = "Invalid password. Please try again.";
+              } else {
+                toastTitle =
+                  flow === "signIn"
+                    ? "Could not sign in, did you mean to sign up?"
+                    : "Could not sign up, did you mean to sign in?";
+              }
+              notifications.show({
+                message: toastTitle,
+                color: "red",
+              });
+              setSubmitting(false);
             });
-            setSubmitting(false);
-          });
         }}
       >
         <Stack gap="md">
@@ -76,7 +82,7 @@ export function SignInForm() {
           </Text>
         </Stack>
       </form>
-      <Divider label="or" labelPosition="center" my="lg" />
+      <Divider label="or" labelPosition="center" my="lg" /> */}
       <Button
         onClick={() => {
           void signIn("google").catch(onApiError);

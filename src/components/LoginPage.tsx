@@ -15,30 +15,11 @@ import {
 export function LoginPage() {
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
-      <Paper
-        shadow="xs"
-        withBorder
-        style={{ borderTop: "none", borderLeft: "none", borderRight: "none" }}
+      <Container
+        size="xl"
+        style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}
       >
-        <Container size="xl" py="md">
-          <Group justify="space-between">
-            <Button
-              variant="subtle"
-              size="lg"
-              {...routes.home().link}
-              color="gray"
-              style={{ fontWeight: "bold", fontSize: "1.25rem" }}
-            >
-              Busso Events
-            </Button>
-            <Button {...routes.login().link} size="md">
-              Sign In
-            </Button>
-          </Group>
-        </Container>
-      </Paper>
-      <Container size="xl" py="xl">
-        <Center style={{ minHeight: "50vh" }}>
+        <Center style={{ width: "100%" }}>
           <Card
             shadow="sm"
             padding="xl"

@@ -44,7 +44,18 @@ export function Header({ currentRoute }: HeaderProps) {
     <Paper
       shadow="xs"
       withBorder
-      style={{ borderTop: "none", borderLeft: "none", borderRight: "none" }}
+      style={{
+        borderTop: "none",
+        borderLeft: "none",
+        borderRight: "none",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        width: "100%",
+        zIndex: 1000,
+        backgroundColor: "white",
+      }}
     >
       <Container size="xl" py="md">
         <Group justify="space-between">
