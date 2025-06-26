@@ -1,4 +1,4 @@
-import { Routes } from "./components/Routes";
+import { Routes } from "./Routes";
 import { RouteProvider } from "./router";
 
 export default function App() {

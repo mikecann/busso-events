@@ -51,15 +51,6 @@ export const { RouteProvider, useRoute, routes } = createRouter({
   ),
 });
 
-// Type helper for route parameters
-export type RouteParams = {
-  eventDetail: { eventId: string };
-  sourceDetail: { sourceId: string };
-  eventDebug: { eventId: string };
-  workpoolDebug: { workpoolType: string };
-  subscriptionDetail: { subscriptionId: string };
-};
-
 // Navigation helpers
 export const navigation = {
   home: () => routes.home(),
