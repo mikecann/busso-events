@@ -14,7 +14,7 @@ export function AuthenticatedPageLayout({
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}>
       <Header currentRoute={route.name} />
-      <Container size="xl" py="xl">
+      <Container size="xl" py="xl" style={{ paddingTop: "6rem" }}>
         {children}
       </Container>
     </div>
