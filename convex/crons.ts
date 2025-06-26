@@ -116,32 +116,6 @@ export const cleanupEmailQueue = internalAction({
   },
 });
 
-// Check for active sources missing scheduled scrapes and fix them
-export const checkSourceScheduling = internalAction({
-  args: {},
-  handler: async (
-    ctx,
-  ): Promise<{ sourcesFixed: number; sourcesChecked: number }> => {
-    console.log(
-      "📅 Starting source scheduling check job at:",
-      new Date().toISOString(),
-    );
-
-    try {
-      const result = await ctx.runMutation(
-        internal.crons.fixMissingSourceSchedules,
-      );
-      console.log(
-        `📅 Source scheduling check completed: ${result.sourcesFixed} sources fixed out of ${result.sourcesChecked} checked`,
-      );
-      return result;
-    } catch (error) {
-      console.error("💥 Error in source scheduling check job:", error);
-      throw error;
-    }
-  },
-});
-
 // Internal mutation to fix missing source schedules
 export const fixMissingSourceSchedules = internalMutation({
   args: {},
@@ -202,27 +176,17 @@ export const fixMissingSourceSchedules = internalMutation({
 
 const crons = cronJobs();
 
-// Send emails every 30 minutes
 crons.interval(
   "send scheduled emails",
-  { minutes: 30 },
-  internal.crons.sendScheduledEmails,
-  {},
-);
-
-// Clean up old email queue items daily at 2 AM
-crons.cron(
-  "cleanup email queue",
-  "0 2 * * *",
+  { hours: 4 },
   internal.crons.cleanupEmailQueue,
   {},
 );
 
-// Check for active sources missing scheduled scrapes and fix them daily at 3 AM
-crons.cron(
-  "check source scheduling",
-  "0 3 * * *",
-  internal.crons.checkSourceScheduling,
+crons.interval(
+  "cleanup email queue",
+  { hours: 3 },
+  internal.crons.cleanupEmailQueue,
   {},
 );
 

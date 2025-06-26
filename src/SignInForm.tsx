@@ -11,11 +11,13 @@ import {
   Box,
   Anchor,
 } from "@mantine/core";
+import { useAPIErrorHandler } from "./utils/hooks";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
+  const onApiError = useAPIErrorHandler();
 
   return (
     <Box style={{ width: "100%" }}>
@@ -76,12 +78,14 @@ export function SignInForm() {
       </form>
       <Divider label="or" labelPosition="center" my="lg" />
       <Button
-        variant="light"
-        onClick={() => void signIn("anonymous")}
-        fullWidth
+        onClick={() => {
+          void signIn("google").catch(onApiError);
+        }}
         size="md"
+        color="red"
+        fullWidth
       >
-        Sign in anonymously
+        {flow === "signIn" ? "Sign in with Google" : "Sign up with Google"}
       </Button>
     </Box>
   );
