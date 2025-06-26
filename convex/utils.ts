@@ -77,9 +77,5 @@ export const adminAction = customAction(
 
 // Development mode detection helper
 export const isDevelopmentMode = (): boolean => {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.CONVEX_ENVIRONMENT === "development" ||
-    !process.env.EMAIL_FROM_ADDRESS // Fallback to dev mode if no custom domain set
-  );
+  return process.env.IS_PROD != "true";
 };
