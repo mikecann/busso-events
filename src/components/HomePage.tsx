@@ -33,14 +33,19 @@ export function HomePage() {
           left: 0,
           right: 0,
           width: "100%",
+          opacity: isScrolled ? 1 : 0,
+          pointerEvents: isScrolled ? "auto" : "none",
           backgroundColor: isScrolled ? "white" : "transparent",
           zIndex: 1000,
           borderBottom: isScrolled ? "1px solid #e9ecef" : "none",
-          transition: "background-color 0.2s ease, border-bottom 0.2s ease",
+          transition: "all 0.3s ease",
         }}
       >
         <Container size="xl" py="md">
-          <Group justify="flex-end">
+          <Group justify="space-between">
+            <Text size="1.25rem" fw={500}>
+              Busso Events
+            </Text>
             <Button {...routes.login().link} size="md">
               Sign In
             </Button>
@@ -64,6 +69,9 @@ export function HomePage() {
                 All the events for Busselton and the south west, aggregated in
                 one place
               </Text>
+              <Button {...routes.login().link} size="md">
+                Sign In To Subscribe to Events
+              </Button>
             </Stack>
           </Center>
           <EventGallery
