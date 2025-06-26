@@ -1,10 +1,9 @@
 import { action, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { Doc, Id } from "./_generated/dataModel";
+import { Doc } from "./_generated/dataModel";
 import {
   isPromptSubscription,
-  isAllEventsSubscription,
   AnySubscription,
   QueuedEventItem,
 } from "./subscriptions/common";
@@ -260,7 +259,7 @@ function generateEmailHtml(
       if (!event) return "";
 
       return `
-      <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; background-color: #ffffff;">
+      <div style="border: 1px solid #e0e7ff; border-radius: 12px; padding: 24px; margin-bottom: 24px; background-color: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
         ${
           event.imageUrl
             ? `
@@ -269,29 +268,29 @@ function generateEmailHtml(
             : ""
         }
         
-        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-          <span style="background-color: ${getScoreColor(queueItem.matchScore)}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+          <span style="background-color: ${getScoreColor(queueItem.matchScore)}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
             Match: ${(queueItem.matchScore * 100).toFixed(0)}%
           </span>
-          <span style="background-color: #6366f1; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+          <span style="background-color: #6366f1; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
             ${queueItem.matchType === "semantic" ? "AI Match" : "Title Match"}
           </span>
         </div>
         
-        <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #111827;">
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.3;">
           ${event.title}
         </h3>
         
-        <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">
-          📅 ${formatDate(event.eventDate)}
+        <p style="margin: 0 0 16px 0; color: #64748b; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #6366f1;">📅</span> ${formatDate(event.eventDate)}
         </p>
         
-        <div style="margin: 0 0 16px 0; color: #374151; line-height: 1.5;">
+        <div style="margin: 0 0 20px 0; color: #475569; line-height: 1.6; font-size: 15px;">
           ${marked(event.description, { breaks: true })}
         </div>
         
-        <a href="${event.url}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 500;">
-          View Event Details
+        <a href="${event.url}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; transition: all 0.2s ease;">
+          View Event Details →
         </a>
       </div>
     `;
@@ -305,41 +304,86 @@ function generateEmailHtml(
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>New Events Matching Your Interests</title>
-    </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      
-      <div style="text-align: center; margin-bottom: 30px; padding: 20px; background-color: #f8fafc; border-radius: 8px;">
-        <h1 style="margin: 0 0 10px 0; color: #1f2937; font-size: 24px;">
-          🎉 New Events Found!
-        </h1>
-        <p style="margin: 0; color: #6b7280; font-size: 16px;">
-          We found ${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} ${isPromptSubscription(subscription) ? "matching your subscription" : "for you"}:
-        </p>
-        ${
-          isPromptSubscription(subscription)
-            ? `
-        <p style="margin: 8px 0 0 0; color: #3b82f6; font-weight: 600; font-size: 16px;">
-          "${subscription.prompt}"
-        </p>
-        `
-            : `
-        <p style="margin: 8px 0 0 0; color: #3b82f6; font-weight: 600; font-size: 16px;">
-          All Events Subscription
-        </p>
-        `
+      <title>New Events from Busso Events</title>
+      <style>
+        @media only screen and (max-width: 600px) {
+          .container { padding: 10px !important; }
+          .event-card { padding: 16px !important; }
+          .hero-title { font-size: 28px !important; }
         }
+      </style>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f8fafc;">
+      
+      <!-- Header with Hero Background -->
+      <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 40px 20px; text-align: center;">
+        <table role="presentation" style="width: 100%; max-width: 600px; margin: 0 auto;">
+          <tr>
+            <td style="text-align: center;">
+              <a href="https://busso.events" style="text-decoration: none; display: inline-block;">
+                <img src="https://busso.events/logo-128.png" alt="Busso Events Logo" style="width: 64px; height: 64px; margin-bottom: 16px; border-radius: 12px;" />
+                <h1 style="margin: 0 0 12px 0; color: white; font-size: 32px; font-weight: 700; text-decoration: none;" class="hero-title">
+                  Busso Events
+                </h1>
+              </a>
+              <p style="margin: 0 0 8px 0; color: rgba(255, 255, 255, 0.9); font-size: 18px; font-weight: 500;">
+                🎉 New Events Found!
+              </p>
+              <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 16px;">
+                We found ${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} ${isPromptSubscription(subscription) ? "matching your subscription" : "for you"}
+              </p>
+            </td>
+          </tr>
+        </table>
       </div>
 
-      ${eventCards}
+      <!-- Subscription Info -->
+      ${
+        isPromptSubscription(subscription)
+          ? `
+      <div style="background-color: #f1f5f9; padding: 20px; text-align: center; border-bottom: 1px solid #e2e8f0;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <p style="margin: 0; color: #475569; font-size: 14px; font-weight: 500;">
+            Subscription: <span style="color: #6366f1; font-weight: 600;">"${subscription.prompt}"</span>
+          </p>
+        </div>
+      </div>
+      `
+          : `
+      <div style="background-color: #f1f5f9; padding: 20px; text-align: center; border-bottom: 1px solid #e2e8f0;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <p style="margin: 0; color: #475569; font-size: 14px; font-weight: 500;">
+            Subscription: <span style="color: #6366f1; font-weight: 600;">All Events</span>
+          </p>
+        </div>
+      </div>
+      `
+      }
 
-      <div style="margin-top: 30px; padding: 20px; background-color: #f3f4f6; border-radius: 8px; text-align: center;">
-        <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
-          You're receiving this because you subscribed to event notifications.
-        </p>
-        <p style="margin: 0; color: #6b7280; font-size: 14px;">
-          To manage your subscriptions, visit your Busso Events dashboard.
-        </p>
+      <!-- Main Content -->
+      <div style="max-width: 600px; margin: 0 auto; padding: 32px 20px;" class="container">
+        ${eventCards}
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #1e293b; padding: 32px 20px; text-align: center;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <a href="https://busso.events" style="text-decoration: none; display: inline-block; margin-bottom: 16px;">
+            <img src="https://busso.events/logo-128.png" alt="Busso Events Logo" style="width: 40px; height: 40px; border-radius: 8px;" />
+          </a>
+          <p style="margin: 0 0 12px 0; color: #94a3b8; font-size: 16px; font-weight: 600;">
+            Busso Events
+          </p>
+          <p style="margin: 0 0 8px 0; color: #64748b; font-size: 14px;">
+            All the events for Busselton and the south west, aggregated in one place
+          </p>
+          <p style="margin: 0 0 16px 0; color: #64748b; font-size: 14px;">
+            You're receiving this because you subscribed to event notifications.
+          </p>
+          <a href="https://busso.events" style="display: inline-block; background-color: #6366f1; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 500; font-size: 14px;">
+            Manage Subscriptions
+          </a>
+        </div>
       </div>
 
     </body>

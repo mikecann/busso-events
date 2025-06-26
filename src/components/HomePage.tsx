@@ -91,8 +91,7 @@ export function HomePage() {
           </Title>
         </Group>
         <Text size="xl" c="gray.3" style={{ marginBottom: "1rem" }}>
-          All the events for Busselton and the south west, aggregated in one
-          place
+          All the Events for Busselton and the South West, in one place
         </Text>
         {!isAuthenticated && (
           <Button {...routes.login().link} color="blue" size="md">
@@ -143,7 +142,6 @@ export function HomePage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.4)",
             zIndex: 1,
           }}
         />
@@ -161,8 +159,7 @@ export function HomePage() {
       {/* Search Controls Section */}
       <Box
         style={{
-          backgroundColor: "var(--mantine-primary-color-6)",
-          borderBottom: "1px solid var(--mantine-primary-color-4)",
+          backgroundColor: "var(--mantine-color-gray-2)",
         }}
       >
         <Container size="xl" py="md">
