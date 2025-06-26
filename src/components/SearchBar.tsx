@@ -48,7 +48,7 @@ export function SearchBar({ searchTerm, onSearchChange }: SearchBarProps) {
           </ActionIcon>
         ) : null
       }
-      style={{ maxWidth: 400, margin: "0 auto" }}
+      style={{ maxWidth: 400 }}
       size="md"
     />
   );
