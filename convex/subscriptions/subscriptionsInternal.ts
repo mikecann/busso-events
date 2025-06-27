@@ -78,7 +78,7 @@ export const listUserSubscriptions = internalQuery({
     const subscriptionsWithQueue: SubscriptionWithQueue[] = await Promise.all(
       subscriptions.map(async (sub): Promise<SubscriptionWithQueue> => {
         const queuedEvents: QueuedEventItem[] = await ctx.runQuery(
-          internal.emailQueue.getQueuedEventsForSubscription,
+          internal.emails.emailsInternal.getQueuedEventsForSubscription,
           {
             subscriptionId: sub._id,
             includeAlreadySent: false,
@@ -120,7 +120,7 @@ export const getUserSubscription = internalQuery({
 
     // Get queued events for this subscription (all of them, not just first 5)
     const queuedEvents: QueuedEventItem[] = await ctx.runQuery(
-      internal.emailQueue.getQueuedEventsForSubscription,
+      internal.emails.emailsInternal.getQueuedEventsForSubscription,
       {
         subscriptionId: subscription._id,
         includeAlreadySent: false,
@@ -430,7 +430,7 @@ export const performSubscriptionEmail = internalAction({
     try {
       // Send the email using the existing email sending logic
       const result = await ctx.runAction(
-        internal.emailSending.sendSubscriptionEmailInternal,
+        internal.emails.emailsInternal.sendSubscriptionEmailInternal,
         {
           subscriptionId: args.subscriptionId,
         },
@@ -617,7 +617,7 @@ export const ensureEmailWorkpoolJobScheduled = internalMutation({
 
     // Check if there are any unsent queued events for this subscription
     const queuedEvents = await ctx.runQuery(
-      internal.emailQueue.getQueuedEventsForSubscription,
+      internal.emails.emailsInternal.getQueuedEventsForSubscription,
       {
         subscriptionId: args.subscriptionId,
         includeAlreadySent: false,

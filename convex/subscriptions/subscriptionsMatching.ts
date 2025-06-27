@@ -329,7 +329,7 @@ async function checkEventAgainstSubscription(
         `✅ Match found! Event ${eventId} matches subscription ${subscription._id} with score ${matchScore} (type: ${matchType})`,
       );
 
-      await ctx.runMutation(internal.emailQueue.addToQueue, {
+      await ctx.runMutation(internal.emails.emailsInternal.addToQueue, {
         subscriptionId: subscription._id,
         eventId,
         matchScore,

@@ -29,8 +29,10 @@ interface AddSourcePageProps {
 }
 
 export function AddSourcePage({ onBack }: AddSourcePageProps) {
-  const createSource = useMutation(api.eventSources.create);
-  const startTestScrape = useMutation(api.eventSources.startTestScrape);
+  const createSource = useMutation(api.eventSources.eventSourcesAdmin.create);
+  const startTestScrape = useMutation(
+    api.eventSources.eventSourcesAdmin.startTestScrape,
+  );
 
   const [currentTestScrapeId, setCurrentTestScrapeId] =
     useState<Id<"testScrapes"> | null>(null);

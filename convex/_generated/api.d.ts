@@ -10,11 +10,16 @@
 
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
-import type * as emailQueue from "../emailQueue.js";
-import type * as emailSending from "../emailSending.js";
+import type * as emails_common from "../emails/common.js";
+import type * as emails_emails from "../emails/emails.js";
+import type * as emails_emailsAdmin from "../emails/emailsAdmin.js";
+import type * as emails_emailsInternal from "../emails/emailsInternal.js";
 import type * as embeddingQueries from "../embeddingQueries.js";
 import type * as embeddings from "../embeddings.js";
-import type * as eventSources from "../eventSources.js";
+import type * as eventSources_common from "../eventSources/common.js";
+import type * as eventSources_eventSources from "../eventSources/eventSources.js";
+import type * as eventSources_eventSourcesAdmin from "../eventSources/eventSourcesAdmin.js";
+import type * as eventSources_eventSourcesInternal from "../eventSources/eventSourcesInternal.js";
 import type * as events_common from "../events/common.js";
 import type * as events_events from "../events/events.js";
 import type * as events_eventsAdmin from "../events/eventsAdmin.js";
@@ -49,11 +54,16 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
-  emailQueue: typeof emailQueue;
-  emailSending: typeof emailSending;
+  "emails/common": typeof emails_common;
+  "emails/emails": typeof emails_emails;
+  "emails/emailsAdmin": typeof emails_emailsAdmin;
+  "emails/emailsInternal": typeof emails_emailsInternal;
   embeddingQueries: typeof embeddingQueries;
   embeddings: typeof embeddings;
-  eventSources: typeof eventSources;
+  "eventSources/common": typeof eventSources_common;
+  "eventSources/eventSources": typeof eventSources_eventSources;
+  "eventSources/eventSourcesAdmin": typeof eventSources_eventSourcesAdmin;
+  "eventSources/eventSourcesInternal": typeof eventSources_eventSourcesInternal;
   "events/common": typeof events_common;
   "events/events": typeof events_events;
   "events/eventsAdmin": typeof events_eventsAdmin;

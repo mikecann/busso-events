@@ -64,10 +64,12 @@ export function AppAdminPage({
   );
   const deleteAllEvents = useAction(api.events.eventsAdmin.deleteAllEvents);
   const clearAllWorkpools = useAction(api.events.eventsAdmin.clearAllWorkpools);
-  const queueStats = useQuery(api.emailQueue.getQueueStats);
+  const queueStats = useQuery(api.emails.emails.getQueueStats);
   const jobsStatus = useQuery(api.jobs.getSystemStatus);
   const schedulingInfo = useQuery(api.events.eventsAdmin.getSchedulingInfo);
-  const sourcesStatus = useQuery(api.eventSources.getSourcesStatus);
+  const sourcesStatus = useQuery(
+    api.eventSources.eventSourcesAdmin.getSourcesStatus,
+  );
   const workpoolsStatus = useQuery(api.events.eventsAdmin.getWorkpoolsStatus);
 
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);

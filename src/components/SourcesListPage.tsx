@@ -28,7 +28,7 @@ export function SourcesListPage({
   onNavigateToAddSource,
   onNavigateToSourceDetail,
 }: SourcesListPageProps) {
-  const sources = useQuery(api.eventSources.list);
+  const sources = useQuery(api.eventSources.eventSourcesAdmin.list);
 
   if (sources === undefined) {
     return (

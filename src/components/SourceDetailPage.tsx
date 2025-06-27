@@ -60,24 +60,27 @@ interface SourceDetailPageProps {
 }
 
 export function SourceDetailPage({ sourceId, onBack }: SourceDetailPageProps) {
-  const source = useQuery(api.eventSources.getById, {
+  const source = useQuery(api.eventSources.eventSourcesAdmin.getById, {
     sourceId: sourceId as Id<"eventSources">,
   });
 
   const [currentPage, setCurrentPage] = useState(1);
   const numItems = 20;
 
-  const eventsData = useQuery(api.eventSources.getEventsBySource, {
-    sourceId: sourceId as Id<"eventSources">,
-    paginationOpts: {
-      numItems,
-      cursor: null, // For simplicity, we'll implement basic pagination
+  const eventsData = useQuery(
+    api.eventSources.eventSourcesAdmin.getEventsBySource,
+    {
+      sourceId: sourceId as Id<"eventSources">,
+      paginationOpts: {
+        numItems,
+        cursor: null, // For simplicity, we'll implement basic pagination
+      },
     },
-  });
+  );
 
-  const updateSource = useMutation(api.eventSources.update);
-  const deleteSource = useMutation(api.eventSources.remove);
-  const testScrape = useAction(api.eventSources.testScrape);
+  const updateSource = useMutation(api.eventSources.eventSourcesAdmin.update);
+  const deleteSource = useMutation(api.eventSources.eventSourcesAdmin.remove);
+  const testScrape = useAction(api.eventSources.eventSourcesAdmin.testScrape);
   const [isScrapingNow, setIsScrapingNow] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");

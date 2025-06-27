@@ -13,7 +13,7 @@ export const cleanupEmailQueue = internalAction({
 
     try {
       const deletedCount: number = await ctx.runMutation(
-        internal.emailQueue.cleanupOldQueueItems,
+        internal.emails.emailsInternal.cleanupOldQueueItems,
       );
       console.log(`🧹 Cleaned up ${deletedCount} old email queue items`);
       return { deletedCount };
@@ -64,7 +64,8 @@ export const fixMissingSourceSchedules = internalMutation({
         // Schedule the scrape
         const scheduledId = await ctx.scheduler.runAfter(
           delayMs,
-          internal.eventSources.performScheduledSourceScrape,
+          internal.eventSources.eventSourcesInternal
+            .performScheduledSourceScrape,
           { sourceId: source._id },
         );
 

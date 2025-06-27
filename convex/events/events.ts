@@ -289,6 +289,7 @@ export const generateMissingEmbeddings = adminAction({
   args: {},
   handler: async (
     ctx,
+    args,
   ): Promise<{
     success: boolean;
     processed: number;

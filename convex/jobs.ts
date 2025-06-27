@@ -52,7 +52,7 @@ export const createBatchSourceScrapeJob = adminAction({
   ): Promise<{ jobId: Id<"jobs">; totalSources: number }> => {
     // Get active event sources
     const sources: Doc<"eventSources">[] = await ctx.runQuery(
-      internal.eventSources.getActiveSources,
+      internal.eventSources.eventSourcesInternal.getActiveSources,
     );
 
     if (sources.length === 0) {
@@ -305,7 +305,7 @@ export const processBatchSourceScrapeJob = internalAction({
         try {
           // Get source details for progress tracking
           const source = await ctx.runQuery(
-            internal.eventSources.getSourceById,
+            internal.eventSources.eventSourcesInternal.getSourceById,
             { sourceId },
           );
 
@@ -320,7 +320,7 @@ export const processBatchSourceScrapeJob = internalAction({
 
           // Perform the scrape
           const result = await ctx.runAction(
-            internal.eventSources.performSourceScrape,
+            internal.eventSources.eventSourcesInternal.performSourceScrape,
             {
               sourceId,
             },

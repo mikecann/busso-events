@@ -53,7 +53,7 @@ export function SubscriptionDetailPage({
   const deleteSubscription = useMutation(
     api.subscriptions.subscriptions.remove,
   );
-  const sendEmailNow = useAction(api.emailSending.sendSubscriptionEmail);
+  const sendEmailNow = useAction(api.emails.emails.sendSubscriptionEmail);
 
   const [editingPrompt, setEditingPrompt] = useState(false);
   const [editPrompt, setEditPrompt] = useState("");

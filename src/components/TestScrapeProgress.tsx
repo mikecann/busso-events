@@ -20,7 +20,7 @@ interface TestScrapeProgressProps {
 
 export function TestScrapeProgress({ testScrapeId }: TestScrapeProgressProps) {
   const testScrape = useQuery(
-    api.eventSources.getTestScrapeByIdPublic,
+    api.eventSources.eventSources.getTestScrapeByIdPublic,
     testScrapeId ? { testScrapeId } : "skip",
   );
 
