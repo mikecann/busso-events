@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 
 // Helper function to parse date and find the closest future date
 function parseEventDate(dateString: string): number {
-  if (!dateString || typeof dateString !== 'string') {
+  if (!dateString || typeof dateString !== "string") {
     return Date.now(); // Default to today if no date
   }
 
@@ -57,14 +57,14 @@ function parseEventDate(dateString: string): number {
   }
 
   // Find the closest future date, or the latest date if none are in the future
-  const futureDates = dates.filter(date => date.getTime() > now);
-  
+  const futureDates = dates.filter((date) => date.getTime() > now);
+
   if (futureDates.length > 0) {
     // Return the earliest future date
-    return Math.min(...futureDates.map(d => d.getTime()));
+    return Math.min(...futureDates.map((d) => d.getTime()));
   } else {
     // Return the latest date (even if it's in the past)
-    return Math.max(...dates.map(d => d.getTime()));
+    return Math.max(...dates.map((d) => d.getTime()));
   }
 }
 
@@ -81,30 +81,36 @@ export const seedEvents = internalMutation({
     const sampleEvents = [
       {
         title: "Tech Meetup: AI and Machine Learning",
-        description: "Join us for an exciting evening discussing the latest trends in AI and machine learning. We'll have presentations from industry experts and networking opportunities.",
+        description:
+          "Join us for an exciting evening discussing the latest trends in AI and machine learning. We'll have presentations from industry experts and networking opportunities.",
         eventDate: "2024-02-15T18:00:00Z",
-        imageUrl: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=400&fit=crop",
+        imageUrl:
+          "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=400&fit=crop",
         url: "https://example.com/events/tech-meetup-ai-ml",
       },
       {
         title: "Startup Pitch Night",
-        description: "Watch innovative startups pitch their ideas to a panel of investors. Great networking event for entrepreneurs and investors alike.",
+        description:
+          "Watch innovative startups pitch their ideas to a panel of investors. Great networking event for entrepreneurs and investors alike.",
         eventDate: "2024-02-20T19:00:00Z",
-        imageUrl: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&h=400&fit=crop",
+        imageUrl:
+          "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&h=400&fit=crop",
         url: "https://example.com/events/startup-pitch-night",
       },
       {
         title: "Web Development Workshop",
-        description: "Hands-on workshop covering modern web development techniques including React, Node.js, and cloud deployment strategies.",
+        description:
+          "Hands-on workshop covering modern web development techniques including React, Node.js, and cloud deployment strategies.",
         eventDate: "2024-02-25T10:00:00Z",
-        imageUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=400&fit=crop",
+        imageUrl:
+          "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=400&fit=crop",
         url: "https://example.com/events/web-dev-workshop",
       },
     ];
 
     for (const event of sampleEvents) {
       const eventTimestamp = parseEventDate(event.eventDate);
-      
+
       const eventId = await ctx.db.insert("events", {
         title: event.title,
         description: event.description,
@@ -117,9 +123,14 @@ export const seedEvents = internalMutation({
       });
 
       // Schedule embedding generation for each seeded event
-      await ctx.scheduler.runAfter(0, internal.embeddings.generateEventDescriptionEmbedding, {
-        eventId,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.embeddings.embeddingsInternal
+          .generateEventDescriptionEmbedding,
+        {
+          eventId,
+        },
+      );
     }
 
     console.log(`Seeded ${sampleEvents.length} events`);

@@ -28,7 +28,9 @@ export function EmbeddingGeneration({ eventId }: DebugSectionProps) {
       eventId,
     },
   );
-  const generateEmbedding = useAction(api.embeddings.generateEventEmbedding);
+  const generateEmbedding = useAction(
+    api.embeddings.embeddings.generateEventEmbedding,
+  );
 
   const [isGeneratingEmbedding, setIsGeneratingEmbedding] = useState(false);
   const onApiError = useAPIErrorHandler();

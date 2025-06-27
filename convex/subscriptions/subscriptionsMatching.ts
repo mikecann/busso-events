@@ -31,10 +31,8 @@ export const previewMatchingEvents = action({
     try {
       // Generate embedding for the prompt
       const promptEmbedding: number[] = await ctx.runAction(
-        internal.embeddings.generateEmbedding,
-        {
-          text: args.prompt,
-        },
+        internal.embeddings.embeddingsInternal.generateEmbedding,
+        { text: args.prompt },
       );
 
       // Use vector search to find similar events
@@ -168,10 +166,8 @@ export const findMatchingEventsForSubscription = action({
         promptEmbedding = subscription.promptEmbedding;
       } else {
         promptEmbedding = await ctx.runAction(
-          internal.embeddings.generateEmbedding,
-          {
-            text: subscription.prompt,
-          },
+          internal.embeddings.embeddingsInternal.generateEmbedding,
+          { text: subscription.prompt },
         );
       }
 

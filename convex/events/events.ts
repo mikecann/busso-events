@@ -197,7 +197,7 @@ export const enhancedSearch = action({
         try {
           // Generate embedding for the search term
           const searchEmbedding = await ctx.runAction(
-            internal.embeddings.generateEmbedding,
+            internal.embeddings.embeddingsInternal.generateEmbedding,
             { text: searchTerm },
           );
 
@@ -296,6 +296,8 @@ export const generateMissingEmbeddings = adminAction({
     failed: number;
     total: number;
   }> => {
-    return await ctx.runAction(api.embeddings.generateMissingEmbeddings);
+    return await ctx.runAction(
+      api.embeddings.embeddingsAdmin.generateMissingEmbeddings,
+    );
   },
 });

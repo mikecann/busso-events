@@ -165,7 +165,7 @@ export const createPromptSubscription = internalMutation({
     // Schedule embedding generation for the new subscription
     await ctx.scheduler.runAfter(
       0,
-      internal.embeddings.generateSubscriptionEmbedding,
+      internal.embeddings.embeddingsInternal.generateSubscriptionEmbedding,
       {
         subscriptionId,
       },
@@ -278,7 +278,7 @@ export const updateSubscription = internalMutation({
     if (args.prompt && isPromptSubscription(subscription)) {
       await ctx.scheduler.runAfter(
         0,
-        internal.embeddings.generateSubscriptionEmbedding,
+        internal.embeddings.embeddingsInternal.generateSubscriptionEmbedding,
         {
           subscriptionId: args.subscriptionId,
         },

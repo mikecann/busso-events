@@ -60,7 +60,7 @@ export function AppAdminPage({
     api.events.eventsAdmin.getEventsReadyForScraping,
   );
   const generateMissingEmbeddings = useAction(
-    api.embeddings.generateMissingEmbeddings,
+    api.embeddings.embeddingsAdmin.generateMissingEmbeddings,
   );
   const deleteAllEvents = useAction(api.events.eventsAdmin.deleteAllEvents);
   const clearAllWorkpools = useAction(api.events.eventsAdmin.clearAllWorkpools);

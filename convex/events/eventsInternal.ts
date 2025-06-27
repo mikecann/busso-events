@@ -619,7 +619,8 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
 
       // Generate the embedding
       const result = await ctx.runAction(
-        internal.embeddings.generateEventDescriptionEmbedding,
+        internal.embeddings.embeddingsInternal
+          .generateEventDescriptionEmbedding,
         {
           eventId: args.eventId,
         },
