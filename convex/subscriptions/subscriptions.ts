@@ -7,6 +7,22 @@ import {
   validateSubscriptionData,
 } from "./common";
 
+// Types for workpool status
+interface WorkpoolStatus {
+  state: "pending" | "running" | "finished" | "failed";
+  previousAttempts?: number;
+  retryCount?: number;
+  queuePosition?: number;
+  error?: string;
+}
+
+interface WorkpoolStatusResponse {
+  workId: string;
+  enqueuedAt: number | undefined;
+  status: WorkpoolStatus | null;
+  error?: string;
+}
+
 export const list = query({
   args: {},
   handler: async (ctx): Promise<SubscriptionWithQueue[]> => {
@@ -158,6 +174,28 @@ export const remove = mutation({
       {
         userId,
         subscriptionId: args.id,
+      },
+    );
+  },
+});
+
+export const getSubscriptionEmailWorkpoolStatus = query({
+  args: { subscriptionId: v.id("subscriptions") },
+  handler: async (ctx, args): Promise<WorkpoolStatusResponse | null> => {
+    const userId = await requireAuth(ctx);
+
+    // Verify subscription ownership
+    const subscription = await ctx.db.get(args.subscriptionId);
+    if (!subscription || subscription.userId !== userId) {
+      throw new Error("Subscription not found or access denied");
+    }
+
+    // Get workpool status
+    return await ctx.runQuery(
+      internal.subscriptions.subscriptionsInternal
+        .getSubscriptionEmailWorkpoolStatus,
+      {
+        subscriptionId: args.subscriptionId,
       },
     );
   },

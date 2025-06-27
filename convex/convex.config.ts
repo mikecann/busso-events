@@ -12,4 +12,7 @@ app.use(workpool, { name: "eventEmbeddingWorkpool" });
 // Configure workpool for subscription matching with maximum parallelism of 1
 app.use(workpool, { name: "subscriptionMatchWorkpool" });
 
+// Configure workpool for subscription email sending with maximum parallelism of 2
+app.use(workpool, { name: "subscriptionEmailWorkpool" });
+
 export default app;

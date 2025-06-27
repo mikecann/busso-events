@@ -1,5 +1,6 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 export const getQueuedEventsForSubscription = internalQuery({
   args: {
@@ -67,7 +68,7 @@ export const addToQueue = internalMutation({
     }
 
     // Add new item to queue
-    return await ctx.db.insert("emailQueue", {
+    const queueItemId = await ctx.db.insert("emailQueue", {
       subscriptionId: args.subscriptionId,
       eventId: args.eventId,
       matchScore: args.matchScore,
@@ -75,6 +76,17 @@ export const addToQueue = internalMutation({
       queuedAt: Date.now(),
       emailSent: false,
     });
+
+    // Check if subscription needs an email workpool job scheduled
+    await ctx.runMutation(
+      internal.subscriptions.subscriptionsInternal
+        .ensureEmailWorkpoolJobScheduled,
+      {
+        subscriptionId: args.subscriptionId,
+      },
+    );
+
+    return queueItemId;
   },
 });
 

@@ -16,7 +16,6 @@ import {
   SimpleGrid,
   Badge,
   Table,
-  Divider,
   Alert,
   ActionIcon,
 } from "@mantine/core";
@@ -33,7 +32,8 @@ import {
 type WorkpoolType =
   | "eventScrapeWorkpool"
   | "eventEmbeddingWorkpool"
-  | "subscriptionMatchWorkpool";
+  | "subscriptionMatchWorkpool"
+  | "subscriptionEmailWorkpool";
 
 interface WorkpoolDebugPageProps {
   workpoolType: WorkpoolType;

@@ -12,16 +12,6 @@ export const getAllSubscriptions = adminQuery({
   },
 });
 
-export const getSubscriptionsReadyForEmail = adminQuery({
-  args: {},
-  handler: async (ctx): Promise<Doc<"subscriptions">[]> => {
-    return await ctx.runQuery(
-      internal.subscriptions.subscriptionsInternal
-        .getSubscriptionsReadyForEmail,
-    );
-  },
-});
-
 export const testSubscriptionMatching = adminAction({
   args: {
     subscriptionId: v.id("subscriptions"),

@@ -97,11 +97,12 @@ const applicationTables = {
         promptEmbedding: v.optional(v.array(v.number())),
         // Shared fields
         isActive: v.boolean(),
-        lastEmailSent: v.optional(v.number()), // Timestamp of last email sent
-        nextEmailScheduled: v.optional(v.number()), // Timestamp when next email should be sent
-        emailFrequencyHours: v.optional(v.number()), // How often to send emails (default 24 hours)
-        // Legacy field for migration
-        status: v.optional(v.string()), // Keep old field for migration
+        lastEmailSent: v.number(), // Timestamp of last email sent
+        nextEmailScheduled: v.number(), // Timestamp when next email should be sent
+        emailFrequencyHours: v.number(), // How often to send emails (default 24 hours)
+        // Track workpool email sending
+        emailWorkId: v.optional(v.string()), // WorkId is stored as string
+        emailEnqueuedAt: v.optional(v.number()),
       }),
       // All events subscription
       v.object({
@@ -109,11 +110,12 @@ const applicationTables = {
         userId: v.id("users"),
         // Shared fields
         isActive: v.boolean(),
-        lastEmailSent: v.optional(v.number()), // Timestamp of last email sent
-        nextEmailScheduled: v.optional(v.number()), // Timestamp when next email should be sent
-        emailFrequencyHours: v.optional(v.number()), // How often to send emails (default 24 hours)
-        // Legacy field for migration
-        status: v.optional(v.string()), // Keep old field for migration
+        lastEmailSent: v.number(), // Timestamp of last email sent
+        nextEmailScheduled: v.number(), // Timestamp when next email should be sent
+        emailFrequencyHours: v.number(), // How often to send emails (default 24 hours)
+        // Track workpool email sending
+        emailWorkId: v.optional(v.string()), // WorkId is stored as string
+        emailEnqueuedAt: v.optional(v.number()),
       }),
     ),
   )

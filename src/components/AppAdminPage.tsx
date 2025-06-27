@@ -46,7 +46,8 @@ interface AppAdminPageProps {
     workpoolType:
       | "eventScrapeWorkpool"
       | "eventEmbeddingWorkpool"
-      | "subscriptionMatchWorkpool",
+      | "subscriptionMatchWorkpool"
+      | "subscriptionEmailWorkpool",
   ) => void;
 }
 
@@ -367,12 +368,15 @@ export function AppAdminPage({
                   <Text fw={500} size="sm">
                     Email Sending
                   </Text>
-                  <Badge color="blue" size="sm">
-                    Automated (24h cycle)
+                  <Badge color="green" size="sm">
+                    {workpoolsStatus?.subscriptionEmailWorkpool?.queuedJobs ||
+                      0}{" "}
+                    queued
                   </Badge>
                 </Group>
                 <Text size="xs" c="dimmed">
-                  Runs automatically via cron job every day
+                  Runs automatically via workpool based on subscription
+                  schedules
                 </Text>
               </Box>
 
@@ -547,7 +551,7 @@ export function AppAdminPage({
           </Title>
 
           {workpoolsStatus ? (
-            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+            <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
               {/* Event Scraping Workpool */}
               <Card
                 shadow="sm"
@@ -648,6 +652,48 @@ export function AppAdminPage({
                   <Text size="xs" c="dimmed">
                     Max:{" "}
                     {workpoolsStatus.subscriptionMatchWorkpool.maxParallelism}
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    View Details
+                  </Button>
+                </Group>
+              </Card>
+
+              {/* Subscription Email Workpool */}
+              <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ cursor: "pointer" }}
+                onClick={() =>
+                  onNavigateToWorkpoolDebug("subscriptionEmailWorkpool")
+                }
+              >
+                <Group justify="space-between" align="flex-start" mb="sm">
+                  <Text size="xl">📧</Text>
+                  <Badge color="green" size="sm">
+                    {workpoolsStatus.subscriptionEmailWorkpool?.queuedJobs || 0}{" "}
+                    queued
+                  </Badge>
+                </Group>
+                <Title order={4} size="md" mb="xs">
+                  {workpoolsStatus.subscriptionEmailWorkpool?.name ||
+                    "Subscription Email Sending"}
+                </Title>
+                <Text size="sm" c="dimmed" mb="sm">
+                  {workpoolsStatus.subscriptionEmailWorkpool?.description ||
+                    "Sends email notifications for subscription matches"}
+                </Text>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    Max:{" "}
+                    {workpoolsStatus.subscriptionEmailWorkpool
+                      ?.maxParallelism || 2}
                   </Text>
                   <Button
                     size="xs"

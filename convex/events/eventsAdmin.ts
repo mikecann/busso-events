@@ -124,6 +124,12 @@ export const getWorkpoolsStatus = adminQuery({
       .filter((q) => q.neq(q.field("subscriptionMatchWorkId"), undefined))
       .collect();
 
+    // Get counts of subscriptions with email workpool jobs
+    const subscriptionsWithEmailJobs = await ctx.db
+      .query("subscriptions")
+      .filter((q) => q.neq(q.field("emailWorkId"), undefined))
+      .collect();
+
     return {
       eventScrapeWorkpool: {
         name: "Event Scraping",
@@ -174,6 +180,23 @@ export const getWorkpoolsStatus = adminQuery({
             enqueuedAt: event.subscriptionMatchEnqueuedAt,
           })),
       },
+      subscriptionEmailWorkpool: {
+        name: "Subscription Email Sending",
+        description: "Sends email notifications for subscription matches",
+        maxParallelism: 2,
+        queuedJobs: subscriptionsWithEmailJobs.length,
+        recentJobs: subscriptionsWithEmailJobs
+          .sort((a, b) => (b.emailEnqueuedAt || 0) - (a.emailEnqueuedAt || 0))
+          .slice(0, 5)
+          .map((subscription) => ({
+            subscriptionId: subscription._id,
+            subscriptionPrompt:
+              subscription.kind === "prompt"
+                ? subscription.prompt
+                : "All Events",
+            enqueuedAt: subscription.emailEnqueuedAt,
+          })),
+      },
     };
   },
 });
@@ -184,6 +207,7 @@ export const clearWorkpoolJobs = adminAction({
       v.literal("eventScrapeWorkpool"),
       v.literal("eventEmbeddingWorkpool"),
       v.literal("subscriptionMatchWorkpool"),
+      v.literal("subscriptionEmailWorkpool"),
     ),
   },
   handler: async (ctx, args) => {
@@ -262,6 +286,31 @@ export const clearWorkpoolJobs = adminAction({
           }
         }
       }
+    } else if (args.workpoolType === "subscriptionEmailWorkpool") {
+      // Get all subscriptions with email work IDs
+      const subscriptionsWithEmailJobs = await ctx.runQuery(
+        internal.subscriptions.subscriptionsInternal.getSubscriptionsWithEmailJobs,
+      );
+
+      for (const subscription of subscriptionsWithEmailJobs) {
+        if (subscription.emailWorkId) {
+          try {
+            // Cancel the workpool job by clearing the work ID fields
+            await ctx.runMutation(
+              internal.subscriptions.subscriptionsInternal
+                .cancelSubscriptionEmailJob,
+              { subscriptionId: subscription._id },
+            );
+            clearedCount++;
+          } catch (error) {
+            console.error(
+              `Failed to cancel email job for subscription ${subscription._id}:`,
+              error,
+            );
+            failedCount++;
+          }
+        }
+      }
     }
 
     return {
@@ -279,10 +328,12 @@ export const getWorkpoolDetailedStatus = adminQuery({
       v.literal("eventScrapeWorkpool"),
       v.literal("eventEmbeddingWorkpool"),
       v.literal("subscriptionMatchWorkpool"),
+      v.literal("subscriptionEmailWorkpool"),
     ),
   },
   handler: async (ctx, args) => {
     let events: Doc<"events">[] = [];
+    let subscriptions: Doc<"subscriptions">[] = [];
     let workpoolName = "";
     let description = "";
     let maxParallelism = 1;
@@ -311,33 +362,55 @@ export const getWorkpoolDetailedStatus = adminQuery({
       description =
         "Matches events against user subscriptions for email notifications";
       maxParallelism = 1;
+    } else if (args.workpoolType === "subscriptionEmailWorkpool") {
+      subscriptions = await ctx.db
+        .query("subscriptions")
+        .filter((q) => q.neq(q.field("emailWorkId"), undefined))
+        .collect();
+      workpoolName = "Subscription Email Sending";
+      description = "Sends email notifications for subscription matches";
+      maxParallelism = 2;
     }
 
     // Get detailed job information
-    const jobDetails = events.map((event) => {
-      let workId: string | undefined;
-      let enqueuedAt: number | undefined;
+    let jobDetails: any[] = [];
 
-      if (args.workpoolType === "eventScrapeWorkpool") {
-        workId = event.scrapeWorkId;
-        enqueuedAt = event.scrapeEnqueuedAt;
-      } else if (args.workpoolType === "eventEmbeddingWorkpool") {
-        workId = event.embeddingWorkId;
-        enqueuedAt = event.embeddingEnqueuedAt;
-      } else if (args.workpoolType === "subscriptionMatchWorkpool") {
-        workId = event.subscriptionMatchWorkId;
-        enqueuedAt = event.subscriptionMatchEnqueuedAt;
-      }
+    if (args.workpoolType === "subscriptionEmailWorkpool") {
+      jobDetails = subscriptions.map((subscription) => ({
+        subscriptionId: subscription._id,
+        subscriptionPrompt:
+          subscription.kind === "prompt" ? subscription.prompt : "All Events",
+        subscriptionKind: subscription.kind,
+        userId: subscription.userId,
+        workId: subscription.emailWorkId,
+        enqueuedAt: subscription.emailEnqueuedAt,
+      }));
+    } else {
+      jobDetails = events.map((event) => {
+        let workId: string | undefined;
+        let enqueuedAt: number | undefined;
 
-      return {
-        eventId: event._id,
-        eventTitle: event.title,
-        eventUrl: event.url,
-        eventDate: event.eventDate,
-        workId,
-        enqueuedAt,
-      };
-    });
+        if (args.workpoolType === "eventScrapeWorkpool") {
+          workId = event.scrapeWorkId;
+          enqueuedAt = event.scrapeEnqueuedAt;
+        } else if (args.workpoolType === "eventEmbeddingWorkpool") {
+          workId = event.embeddingWorkId;
+          enqueuedAt = event.embeddingEnqueuedAt;
+        } else if (args.workpoolType === "subscriptionMatchWorkpool") {
+          workId = event.subscriptionMatchWorkId;
+          enqueuedAt = event.subscriptionMatchEnqueuedAt;
+        }
+
+        return {
+          eventId: event._id,
+          eventTitle: event.title,
+          eventUrl: event.url,
+          eventDate: event.eventDate,
+          workId,
+          enqueuedAt,
+        };
+      });
+    }
 
     // Sort by enqueued time (most recent first)
     jobDetails.sort((a, b) => (b.enqueuedAt || 0) - (a.enqueuedAt || 0));

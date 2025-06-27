@@ -153,6 +153,7 @@ export function Routes() {
                 | "eventScrapeWorkpool"
                 | "eventEmbeddingWorkpool"
                 | "subscriptionMatchWorkpool"
+                | "subscriptionEmailWorkpool"
             }
             onBack={() => routes.admin().push()}
             onNavigateToEventDebug={(eventId) =>

@@ -24,13 +24,9 @@ export type AllEventsSubscription = Doc<"subscriptions"> & {
 
 export type AnySubscription = PromptSubscription | AllEventsSubscription;
 
-// Helper function to get isActive status from either field (for backward compatibility)
+// Helper function to get isActive status
 export function getIsActive(subscription: Doc<"subscriptions">): boolean {
-  if (subscription.isActive !== undefined) {
-    return subscription.isActive;
-  }
-  // Fallback to old status field
-  return subscription.status === "active";
+  return subscription.isActive;
 }
 
 // Type guards for subscription kinds
@@ -38,26 +34,25 @@ export function isPromptSubscription(
   subscription: Doc<"subscriptions">,
 ): subscription is PromptSubscription {
   return (
-    (subscription as any).kind === "prompt" ||
-    (subscription as any).prompt !== undefined
+    ("kind" in subscription && subscription.kind === "prompt") ||
+    ("prompt" in subscription && subscription.prompt !== undefined)
   );
 }
 
 export function isAllEventsSubscription(
   subscription: Doc<"subscriptions">,
 ): subscription is AllEventsSubscription {
-  return (subscription as any).kind === "all_events";
+  return "kind" in subscription && subscription.kind === "all_events";
 }
 
 // Helper to get subscription kind (with backward compatibility)
 export function getSubscriptionKind(
   subscription: Doc<"subscriptions">,
 ): "prompt" | "all_events" {
-  if ((subscription as any).kind) {
-    return (subscription as any).kind;
+  if (isAllEventsSubscription(subscription)) {
+    return "all_events";
   }
-  // Legacy: if it has a prompt, it's a prompt subscription
-  if ((subscription as any).prompt !== undefined) {
+  if (isPromptSubscription(subscription)) {
     return "prompt";
   }
   // Default fallback
@@ -150,8 +145,20 @@ export function createSubscriptionData(
 export function createSubscriptionData(
   userId: Id<"users">,
   kind: "prompt" | "all_events",
-  options: any,
-): any {
+  options: {
+    prompt?: string;
+    isActive?: boolean;
+    emailFrequencyHours?: number;
+  },
+): {
+  kind: "prompt" | "all_events";
+  userId: Id<"users">;
+  prompt?: string;
+  isActive: boolean;
+  emailFrequencyHours: number;
+  lastEmailSent: number;
+  nextEmailScheduled: number;
+} {
   const baseData = {
     userId,
     kind,
@@ -162,6 +169,9 @@ export function createSubscriptionData(
   };
 
   if (kind === "prompt") {
+    if (!options.prompt) {
+      throw new Error("Prompt is required for prompt subscriptions");
+    }
     return {
       ...baseData,
       prompt: options.prompt,
