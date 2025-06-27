@@ -368,10 +368,8 @@ export const performEventScrape = internalAction({
       // Scrape the event page using the event page scraping function
       console.log(`🌐 Scraping event URL: ${event.url}`);
       const scrapeResult = await ctx.runAction(
-        internal.scraping.scrapeEventPageInternal,
-        {
-          url: event.url,
-        },
+        internal.scraping.scrapingInternal.scrapeEventPageInternal,
+        { url: event.url },
       );
 
       if (!scrapeResult.success) {

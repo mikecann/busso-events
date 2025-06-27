@@ -260,7 +260,7 @@ export const testScrapeEvent = adminAction({
   },
   handler: async (ctx, args): Promise<unknown> => {
     // Call the event-specific scraping action
-    const result = await ctx.runAction(api.scraping.scrapeEventPage, {
+    const result = await ctx.runAction(api.scraping.scraping.scrapeEventPage, {
       url: args.url,
     });
 

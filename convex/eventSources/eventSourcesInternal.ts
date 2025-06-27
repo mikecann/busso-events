@@ -161,10 +161,8 @@ export const performSourceScrape = internalAction({
       // Scrape the source page using the general URL scraping function
       console.log(`🌐 Scraping URL: ${source.startingUrl}`);
       const scrapeResult = await ctx.runAction(
-        internal.scraping.scrapeUrlInternal,
-        {
-          url: source.startingUrl,
-        },
+        internal.scraping.scrapingInternal.scrapeUrlInternal,
+        { url: source.startingUrl },
       );
 
       if (!scrapeResult.success) {
@@ -189,8 +187,16 @@ export const performSourceScrape = internalAction({
       for (const eventData of events) {
         try {
           console.log(
-            `🔄 Processing event: ${eventData.title} (${eventData.url})`,
+            `🔄 Processing event: ${eventData.title} (${eventData.url || "no URL"})`,
           );
+
+          // Skip events without required fields
+          if (!eventData.url || !eventData.title) {
+            console.log(
+              `⏭️ Skipping event with missing required fields: ${eventData.title || "no title"}`,
+            );
+            continue;
+          }
 
           // Check if event already exists
           const existingEvent = await ctx.runQuery(
@@ -203,6 +209,20 @@ export const performSourceScrape = internalAction({
           if (!existingEvent) {
             // Create new event
             console.log(`➕ Creating new event: ${eventData.title}`);
+
+            // Parse event date
+            let eventDate = Date.now() + 24 * 60 * 60 * 1000; // Default to tomorrow
+            if (eventData.eventDate) {
+              if (typeof eventData.eventDate === "string") {
+                const parsedDate = new Date(eventData.eventDate);
+                if (!isNaN(parsedDate.getTime())) {
+                  eventDate = parsedDate.getTime();
+                }
+              } else if (typeof eventData.eventDate === "number") {
+                eventDate = eventData.eventDate;
+              }
+            }
+
             await ctx.runMutation(
               internal.events.eventsInternal.createInternal,
               {
@@ -210,10 +230,7 @@ export const performSourceScrape = internalAction({
                 description:
                   eventData.description ||
                   `Event: ${eventData.title}. More details available at ${eventData.url}`,
-                eventDate:
-                  typeof eventData.eventDate === "string"
-                    ? new Date(eventData.eventDate).getTime()
-                    : eventData.eventDate,
+                eventDate: eventDate,
                 imageUrl: eventData.imageUrl || "",
                 url: eventData.url,
                 sourceId: args.sourceId,
@@ -226,7 +243,10 @@ export const performSourceScrape = internalAction({
             );
           }
         } catch (error) {
-          console.error(`❌ Failed to process event ${eventData.url}:`, error);
+          console.error(
+            `❌ Failed to process event ${eventData.url || "unknown URL"}:`,
+            error,
+          );
         }
       }
 
@@ -306,7 +326,7 @@ export const performTestScrape = internalAction({
       // Scrape the URL
       console.log(`🌐 Scraping URL: ${testScrape.url}`);
       const scrapeResult = await ctx.runAction(
-        internal.scraping.scrapeUrlInternal,
+        internal.scraping.scrapingInternal.scrapeUrlInternal,
         { url: testScrape.url },
       );
 
