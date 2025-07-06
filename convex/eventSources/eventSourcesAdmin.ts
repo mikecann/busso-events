@@ -426,6 +426,133 @@ export const forceScrapeNow = adminAction({
   },
 });
 
+export const fixMissingSourceSchedules = adminAction({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{
+    sourcesFixed: number;
+    sourcesChecked: number;
+    sources: Array<{
+      id: string;
+      name: string;
+      scheduled: boolean;
+      error?: string;
+    }>;
+  }> => {
+    console.log("🔧 Admin: Starting to fix missing source schedules");
+
+    const sources = await ctx.runQuery(
+      internal.eventSources.eventSourcesInternal.getActiveSources,
+    );
+
+    let sourcesFixed = 0;
+    let sourcesChecked = 0;
+    const results: Array<{
+      id: string;
+      name: string;
+      scheduled: boolean;
+      error?: string;
+    }> = [];
+
+    for (const source of sources) {
+      sourcesChecked++;
+      console.log(`🔍 Checking source: ${source.name} (ID: ${source._id})`);
+
+      // Check if active source is missing scheduled scrape
+      if (!source.nextScrapeScheduledId) {
+        console.log(`📅 Fixing missing schedule for source: ${source.name}`);
+
+        try {
+          // Calculate when next scrape should be based on last scrape
+          let delayMs;
+          if (source.dateLastScrape) {
+            // If last scraped, next scrape should be 3 days after
+            const threeDaysAfterLastScrape =
+              source.dateLastScrape + 3 * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+
+            if (threeDaysAfterLastScrape <= now) {
+              // Overdue, schedule immediately
+              delayMs = 0;
+              console.log(
+                `⏰ Source ${source.name} is overdue, scheduling immediately`,
+              );
+            } else {
+              // Schedule for the calculated time
+              delayMs = threeDaysAfterLastScrape - now;
+              console.log(
+                `⏰ Source ${source.name} scheduled for ${new Date(threeDaysAfterLastScrape).toISOString()}`,
+              );
+            }
+          } else {
+            // Never scraped, schedule for 5 minutes from now
+            delayMs = 5 * 60 * 1000;
+            console.log(
+              `⏰ Source ${source.name} never scraped, scheduling for 5 minutes from now`,
+            );
+          }
+
+          // Schedule the scrape
+          const scheduledId = await ctx.scheduler.runAfter(
+            delayMs,
+            internal.eventSources.eventSourcesInternal
+              .performScheduledSourceScrape,
+            { sourceId: source._id },
+          );
+
+          // Update the source with the scheduled job info
+          await ctx.runMutation(
+            internal.eventSources.eventSourcesInternal.updateSchedulingInfo,
+            {
+              sourceId: source._id,
+              nextScrapeScheduledId: scheduledId,
+              nextScrapeScheduledAt: Date.now() + delayMs,
+            },
+          );
+
+          sourcesFixed++;
+          results.push({
+            id: source._id,
+            name: source.name,
+            scheduled: true,
+          });
+
+          console.log(`✅ Successfully scheduled scrape for ${source.name}`);
+        } catch (error) {
+          console.error(
+            `❌ Failed to schedule scrape for ${source.name}:`,
+            error,
+          );
+          results.push({
+            id: source._id,
+            name: source.name,
+            scheduled: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      } else {
+        console.log(`✅ Source ${source.name} already has a scheduled scrape`);
+        results.push({
+          id: source._id,
+          name: source.name,
+          scheduled: true,
+        });
+      }
+    }
+
+    console.log(
+      `🔧 Admin: Fixed ${sourcesFixed} out of ${sourcesChecked} sources`,
+    );
+
+    return {
+      sourcesFixed,
+      sourcesChecked,
+      sources: results,
+    };
+  },
+});
+
 // Helper function to schedule next scrape for a source (used in mutations)
 async function scheduleNextScrapeForSource(
   ctx: any,

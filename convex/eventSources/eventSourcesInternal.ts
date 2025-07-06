@@ -147,6 +147,20 @@ export const createTestScrape = internalMutation({
   },
 });
 
+export const updateSchedulingInfo = internalMutation({
+  args: {
+    sourceId: v.id("eventSources"),
+    nextScrapeScheduledId: v.id("_scheduled_functions"),
+    nextScrapeScheduledAt: v.number(),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    await ctx.db.patch(args.sourceId, {
+      nextScrapeScheduledId: args.nextScrapeScheduledId,
+      nextScrapeScheduledAt: args.nextScrapeScheduledAt,
+    });
+  },
+});
+
 // INTERNAL ACTIONS
 
 export const performSourceScrape = internalAction({

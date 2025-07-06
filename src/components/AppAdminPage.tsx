@@ -37,6 +37,7 @@ import {
   IconBrush,
   IconBell,
   IconBellRinging,
+  IconTool,
 } from "@tabler/icons-react";
 
 interface AppAdminPageProps {
@@ -64,6 +65,9 @@ export function AppAdminPage({
   );
   const deleteAllEvents = useAction(api.events.eventsAdmin.deleteAllEvents);
   const clearAllWorkpools = useAction(api.events.eventsAdmin.clearAllWorkpools);
+  const fixMissingSourceSchedules = useAction(
+    api.eventSources.eventSourcesAdmin.fixMissingSourceSchedules,
+  );
   const queueStats = useQuery(api.emails.emails.getQueueStats);
   const jobsStatus = useQuery(api.jobs.getSystemStatus);
   const schedulingInfo = useQuery(api.events.eventsAdmin.getSchedulingInfo);
@@ -75,6 +79,7 @@ export function AppAdminPage({
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
   const [isDeletingAllEvents, setIsDeletingAllEvents] = useState(false);
   const [isClearingAllWorkpools, setIsClearingAllWorkpools] = useState(false);
+  const [isFixingSchedules, setIsFixingSchedules] = useState(false);
 
   const onApiError = useAPIErrorHandler();
 
@@ -161,6 +166,38 @@ export function AppAdminPage({
       })
       .catch(onApiError)
       .finally(() => setIsClearingAllWorkpools(false));
+  };
+
+  const handleFixMissingSchedules = () => {
+    if (
+      !confirm(
+        "This will schedule next scrapes for all sources that don't have one. Are you sure?",
+      )
+    ) {
+      return;
+    }
+
+    setIsFixingSchedules(true);
+    fixMissingSourceSchedules({})
+      .then((result) => {
+        notifications.show({
+          title: "Success",
+          message: `Checked ${result.sourcesChecked} sources and fixed ${result.sourcesFixed} missing schedules`,
+          color: "green",
+        });
+
+        // Show detailed results
+        if (result.sources.some((s) => s.error)) {
+          const failedSources = result.sources.filter((s) => s.error);
+          notifications.show({
+            title: "Some Sources Failed",
+            message: `${failedSources.length} sources failed to schedule: ${failedSources.map((s) => s.name).join(", ")}`,
+            color: "yellow",
+          });
+        }
+      })
+      .catch(onApiError)
+      .finally(() => setIsFixingSchedules(false));
   };
 
   return (
@@ -451,13 +488,25 @@ export function AppAdminPage({
               </Stack>
             )}
 
-            <Button
-              onClick={onNavigateToSources}
-              leftSection={<IconSettings size={16} />}
-              fullWidth
-            >
-              Manage Sources
-            </Button>
+            <Stack gap="sm">
+              <Button
+                onClick={onNavigateToSources}
+                leftSection={<IconSettings size={16} />}
+                fullWidth
+              >
+                Manage Sources
+              </Button>
+
+              <Button
+                onClick={handleFixMissingSchedules}
+                color="orange"
+                fullWidth
+                leftSection={<IconTool size={16} />}
+                loading={isFixingSchedules}
+              >
+                {isFixingSchedules ? "Checking..." : "Fix Missing Schedules"}
+              </Button>
+            </Stack>
           </Card>
 
           <Card shadow="sm" padding="xl" radius="lg" withBorder>
