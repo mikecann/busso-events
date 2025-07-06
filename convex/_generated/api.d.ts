@@ -34,7 +34,6 @@ import type * as scraping_common from "../scraping/common.js";
 import type * as scraping_scraping from "../scraping/scraping.js";
 import type * as scraping_scrapingAdmin from "../scraping/scrapingAdmin.js";
 import type * as scraping_scrapingInternal from "../scraping/scrapingInternal.js";
-import type * as seedEvents from "../seedEvents.js";
 import type * as subscriptions_common from "../subscriptions/common.js";
 import type * as subscriptions_subscriptions from "../subscriptions/subscriptions.js";
 import type * as subscriptions_subscriptionsAdmin from "../subscriptions/subscriptionsAdmin.js";
@@ -84,7 +83,6 @@ declare const fullApi: ApiFromModules<{
   "scraping/scraping": typeof scraping_scraping;
   "scraping/scrapingAdmin": typeof scraping_scrapingAdmin;
   "scraping/scrapingInternal": typeof scraping_scrapingInternal;
-  seedEvents: typeof seedEvents;
   "subscriptions/common": typeof subscriptions_common;
   "subscriptions/subscriptions": typeof subscriptions_subscriptions;
   "subscriptions/subscriptionsAdmin": typeof subscriptions_subscriptionsAdmin;

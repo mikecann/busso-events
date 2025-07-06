@@ -59,13 +59,30 @@ export const updateLastScrapeTime = internalMutation({
       `🔄 updateLastScrapeTime called for sourceId: ${args.sourceId} at timestamp: ${new Date(args.timestamp).toISOString()}`,
     );
 
+    // Always update the last scrape time first
     await ctx.db.patch(args.sourceId, {
       dateLastScrape: args.timestamp,
     });
 
     console.log(`📅 Calling scheduleNextScrape for sourceId: ${args.sourceId}`);
-    // Schedule next scrape in 3 days
-    await scheduleNextScrape(ctx, args.sourceId);
+
+    // Try to schedule next scrape, but don't fail the entire operation if it fails
+    try {
+      await scheduleNextScrape(ctx, args.sourceId);
+      console.log(
+        `✅ Successfully scheduled next scrape for sourceId: ${args.sourceId}`,
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to schedule next scrape for sourceId: ${args.sourceId}`,
+        error,
+      );
+      // Don't throw the error here - we want to ensure the lastScrapeTime update succeeds
+      // The error has already been logged, and manual intervention or retry logic can handle it
+      console.log(
+        `⚠️ Source ${args.sourceId} lastScrapeTime updated but next scrape not scheduled - manual intervention may be needed`,
+      );
+    }
   },
 });
 
@@ -471,32 +488,37 @@ export const performScheduledSourceScrape = internalAction({
         console.log(
           `✅ Scheduled scrape completed successfully for ${source.name}: ${result.message}`,
         );
+
+        // Only clear the scheduled scrape info after successful completion
+        // The performSourceScrape -> updateLastScrapeTime -> scheduleNextScrape chain
+        // should have already scheduled the next scrape
+        await ctx.runMutation(
+          internal.eventSources.eventSourcesInternal.clearScheduledScrape,
+          {
+            sourceId: args.sourceId,
+          },
+        );
       } else {
         console.error(
           `❌ Scheduled scrape failed for ${source.name}: ${result.message}`,
         );
-      }
 
-      // Clear the scheduled scrape info since this job is now complete
-      // The performSourceScrape -> updateLastScrapeTime chain will schedule the next one
-      await ctx.runMutation(
-        internal.eventSources.eventSourcesInternal.clearScheduledScrape,
-        {
-          sourceId: args.sourceId,
-        },
-      );
+        // For failed scrapes, keep the current scheduling info but log the issue
+        // This prevents the source from becoming unscheduled due to temporary failures
+        console.log(
+          `⚠️ Keeping existing schedule for ${source.name} due to scrape failure`,
+        );
+      }
     } catch (error) {
       console.error(
         `💥 Error in scheduled source scrape for ${args.sourceId}:`,
         error,
       );
 
-      // Clear the scheduled scrape info even on error to prevent stuck jobs
-      await ctx.runMutation(
-        internal.eventSources.eventSourcesInternal.clearScheduledScrape,
-        {
-          sourceId: args.sourceId,
-        },
+      // For errors, also keep the scheduling info to prevent permanent unscheduling
+      // Log the error but don't clear the schedule
+      console.log(
+        `⚠️ Keeping existing schedule for source ${args.sourceId} due to error`,
       );
     }
   },
@@ -507,54 +529,95 @@ async function scheduleNextScrape(
   ctx: any,
   sourceId: Id<"eventSources">,
 ): Promise<void> {
-  console.log(`📅 scheduleNextScrape called for sourceId: ${sourceId}`);
+  try {
+    console.log(`📅 scheduleNextScrape called for sourceId: ${sourceId}`);
 
-  const source = await ctx.db.get(sourceId);
-  if (!source) {
-    console.log(`❌ Source not found: ${sourceId}`);
-    return;
-  }
-
-  if (!source.isActive) {
-    console.log(`⏸️ Source is inactive, skipping scheduling: ${source.name}`);
-    return;
-  }
-
-  console.log(`✅ Scheduling next scrape for active source: ${source.name}`);
-
-  // Cancel any existing scheduled scraping for this source
-  if (source.nextScrapeScheduledId) {
-    try {
-      console.log(
-        `🗑️ Canceling existing scheduled scrape: ${source.nextScrapeScheduledId}`,
-      );
-      await ctx.scheduler.cancel(source.nextScrapeScheduledId);
-    } catch (error) {
-      // Ignore errors if the job was already completed or doesn't exist
-      console.log("Could not cancel existing scrape job:", error);
+    const source = await ctx.db.get(sourceId);
+    if (!source) {
+      console.log(`❌ Source not found: ${sourceId}`);
+      return;
     }
+
+    if (!source.isActive) {
+      console.log(`⏸️ Source is inactive, skipping scheduling: ${source.name}`);
+      return;
+    }
+
+    console.log(`✅ Scheduling next scrape for active source: ${source.name}`);
+
+    // Cancel any existing scheduled scraping for this source
+    if (source.nextScrapeScheduledId) {
+      try {
+        console.log(
+          `🗑️ Canceling existing scheduled scrape: ${source.nextScrapeScheduledId}`,
+        );
+        await ctx.scheduler.cancel(source.nextScrapeScheduledId);
+      } catch (error) {
+        // Ignore errors if the job was already completed or doesn't exist
+        console.log("Could not cancel existing scrape job:", error);
+      }
+    }
+
+    // Schedule next scraping in 3 days (72 hours)
+    const delayMs =
+      SOURCE_CONSTANTS.DEFAULT_SCRAPE_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
+
+    let scheduledId;
+    try {
+      scheduledId = await ctx.scheduler.runAfter(
+        delayMs,
+        internal.eventSources.eventSourcesInternal.performScheduledSourceScrape,
+        { sourceId },
+      );
+      console.log(
+        `⏰ Scheduled next scrape with ID: ${scheduledId}, delay: ${delayMs}ms (${SOURCE_CONSTANTS.DEFAULT_SCRAPE_INTERVAL_DAYS} days)`,
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to schedule next scrape for source ${source.name}:`,
+        error,
+      );
+      throw new Error(
+        `Failed to schedule next scrape for source '${source.name}': ${error instanceof Error ? error.message : "Unknown scheduler error"}`,
+      );
+    }
+
+    // Update the source with the scheduled job info
+    try {
+      await ctx.db.patch(sourceId, {
+        nextScrapeScheduledId: scheduledId,
+        nextScrapeScheduledAt: Date.now() + delayMs,
+      });
+      console.log(
+        `✅ Successfully scheduled next scrape for ${source.name} at ${new Date(Date.now() + delayMs).toISOString()}`,
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to update source ${source.name} with scheduling info:`,
+        error,
+      );
+
+      // If we can't update the database, try to cancel the scheduled job to prevent orphaned jobs
+      try {
+        await ctx.scheduler.cancel(scheduledId);
+        console.log(`🗑️ Canceled orphaned scheduled job: ${scheduledId}`);
+      } catch (cancelError) {
+        console.error(
+          `❌ Could not cancel orphaned job ${scheduledId}:`,
+          cancelError,
+        );
+      }
+
+      throw new Error(
+        `Failed to update source '${source.name}' with scheduling info: ${error instanceof Error ? error.message : "Unknown database error"}`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      `💥 Critical error in scheduleNextScrape for sourceId ${sourceId}:`,
+      error,
+    );
+    // Re-throw the error so calling code can handle it appropriately
+    throw error;
   }
-
-  // Schedule next scraping in 3 days (72 hours)
-  const delayMs =
-    SOURCE_CONSTANTS.DEFAULT_SCRAPE_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
-  const scheduledId = await ctx.scheduler.runAfter(
-    delayMs,
-    internal.eventSources.eventSourcesInternal.performScheduledSourceScrape,
-    { sourceId },
-  );
-
-  console.log(
-    `⏰ Scheduled next scrape with ID: ${scheduledId}, delay: ${delayMs}ms (${SOURCE_CONSTANTS.DEFAULT_SCRAPE_INTERVAL_DAYS} days)`,
-  );
-
-  // Update the source with the scheduled job info
-  await ctx.db.patch(sourceId, {
-    nextScrapeScheduledId: scheduledId,
-    nextScrapeScheduledAt: Date.now() + delayMs,
-  });
-
-  console.log(
-    `✅ Successfully scheduled next scrape for ${source.name} at ${new Date(Date.now() + delayMs).toISOString()}`,
-  );
 }

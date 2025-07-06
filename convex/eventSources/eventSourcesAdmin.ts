@@ -170,17 +170,34 @@ export const create = adminMutation({
 
     // Schedule first scrape for new source (5 minutes delay to allow immediate manual testing)
     const delayMs = getInitialScrapeDelay();
-    const scheduledId = await ctx.scheduler.runAfter(
-      delayMs,
-      internal.eventSources.eventSourcesInternal.performScheduledSourceScrape,
-      { sourceId },
-    );
 
-    // Update the source with the scheduled job info
-    await ctx.db.patch(sourceId, {
-      nextScrapeScheduledId: scheduledId,
-      nextScrapeScheduledAt: Date.now() + delayMs,
-    });
+    try {
+      const scheduledId = await ctx.scheduler.runAfter(
+        delayMs,
+        internal.eventSources.eventSourcesInternal.performScheduledSourceScrape,
+        { sourceId },
+      );
+
+      // Update the source with the scheduled job info
+      await ctx.db.patch(sourceId, {
+        nextScrapeScheduledId: scheduledId,
+        nextScrapeScheduledAt: Date.now() + delayMs,
+      });
+
+      console.log(
+        `✅ Successfully created and scheduled source ${sourceData.name}`,
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to schedule initial scrape for newly created source ${sourceData.name}:`,
+        error,
+      );
+      // Don't throw the error - the source creation should still succeed
+      // The scheduling failure is logged and can be handled separately
+      console.log(
+        `⚠️ Source ${sourceId} created but initial scheduling failed - manual intervention may be needed`,
+      );
+    }
 
     return sourceId;
   },
@@ -240,7 +257,22 @@ export const update = adminMutation({
         });
       } else if (updates.isActive === true && !currentSource.isActive) {
         // Source is being activated - schedule next scrape
-        await scheduleNextScrapeForSource(ctx, id);
+        try {
+          await scheduleNextScrapeForSource(ctx, id);
+          console.log(
+            `✅ Successfully scheduled scrape for newly activated source: ${id}`,
+          );
+        } catch (error) {
+          console.error(
+            `❌ Failed to schedule scrape for newly activated source: ${id}`,
+            error,
+          );
+          // Don't throw the error - the source activation should still succeed
+          // The scheduling failure is logged and can be handled separately
+          console.log(
+            `⚠️ Source ${id} activated but scheduling failed - manual intervention may be needed`,
+          );
+        }
       }
     }
   },
@@ -399,15 +431,64 @@ async function scheduleNextScrapeForSource(
   ctx: any,
   sourceId: Id<"eventSources">,
 ): Promise<void> {
-  const delayMs = getInitialScrapeDelay(); // Use initial delay for newly activated sources
-  const scheduledId = await ctx.scheduler.runAfter(
-    delayMs,
-    internal.eventSources.eventSourcesInternal.performScheduledSourceScrape,
-    { sourceId },
-  );
+  try {
+    const delayMs = getInitialScrapeDelay(); // Use initial delay for newly activated sources
 
-  await ctx.db.patch(sourceId, {
-    nextScrapeScheduledId: scheduledId,
-    nextScrapeScheduledAt: Date.now() + delayMs,
-  });
+    let scheduledId;
+    try {
+      scheduledId = await ctx.scheduler.runAfter(
+        delayMs,
+        internal.eventSources.eventSourcesInternal.performScheduledSourceScrape,
+        { sourceId },
+      );
+      console.log(
+        `⏰ Scheduled scrape for source ${sourceId} with ID: ${scheduledId}, delay: ${delayMs}ms`,
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to schedule scrape for source ${sourceId}:`,
+        error,
+      );
+      throw new Error(
+        `Failed to schedule scrape for source '${sourceId}': ${error instanceof Error ? error.message : "Unknown scheduler error"}`,
+      );
+    }
+
+    try {
+      await ctx.db.patch(sourceId, {
+        nextScrapeScheduledId: scheduledId,
+        nextScrapeScheduledAt: Date.now() + delayMs,
+      });
+      console.log(
+        `✅ Successfully updated source ${sourceId} with scheduling info`,
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to update source ${sourceId} with scheduling info:`,
+        error,
+      );
+
+      // If we can't update the database, try to cancel the scheduled job to prevent orphaned jobs
+      try {
+        await ctx.scheduler.cancel(scheduledId);
+        console.log(`🗑️ Canceled orphaned scheduled job: ${scheduledId}`);
+      } catch (cancelError) {
+        console.error(
+          `❌ Could not cancel orphaned job ${scheduledId}:`,
+          cancelError,
+        );
+      }
+
+      throw new Error(
+        `Failed to update source '${sourceId}' with scheduling info: ${error instanceof Error ? error.message : "Unknown database error"}`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      `💥 Critical error in scheduleNextScrapeForSource for sourceId ${sourceId}:`,
+      error,
+    );
+    // Re-throw the error so calling code can handle it appropriately
+    throw error;
+  }
 }
