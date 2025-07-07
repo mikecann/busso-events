@@ -503,14 +503,12 @@ export const performScheduledSourceScrape = internalAction({
           `✅ Scheduled scrape completed successfully for ${source.name}: ${result.message}`,
         );
 
-        // Only clear the scheduled scrape info after successful completion
+        // DO NOT clear scheduled scrape info on success!
         // The performSourceScrape -> updateLastScrapeTime -> scheduleNextScrape chain
-        // should have already scheduled the next scrape
-        await ctx.runMutation(
-          internal.eventSources.eventSourcesInternal.clearScheduledScrape,
-          {
-            sourceId: args.sourceId,
-          },
+        // has already created and stored the NEXT scheduled job info.
+        // Clearing it now would orphan the next scheduled job.
+        console.log(
+          `📅 Next scrape has been scheduled for ${source.name}, keeping schedule info`,
         );
       } else {
         console.error(
