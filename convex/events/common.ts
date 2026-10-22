@@ -28,6 +28,12 @@ export interface EventScrapeResult {
   success: boolean;
   message: string;
   scrapedData?: unknown;
+  // Set when a scrape job was deferred by the scrape budget.
+  retryAt?: number;
+  // Set when an event's own job stopped without scraping because it no longer
+  // owns the event's job pointer (superseded or cancelled) or was deferred.
+  // Its completion then queues no follow-up work.
+  handedOff?: boolean;
 }
 
 // Admin authentication is now handled by custom functions in utils.ts

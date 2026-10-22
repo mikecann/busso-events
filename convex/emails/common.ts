@@ -29,6 +29,8 @@ export interface EmailSendResult {
   success: boolean;
   message: string;
   eventsSent?: number;
+  // Set when an email quota refused the send: the earliest time to try again.
+  retryAt?: number;
 }
 
 export interface EmailQueueStats {

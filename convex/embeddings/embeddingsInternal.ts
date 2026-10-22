@@ -21,6 +21,8 @@ import { Doc, Id } from "../_generated/dataModel";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 0,
+  timeout: 20_000,
 });
 
 // INTERNAL ACTIONS
@@ -28,10 +30,18 @@ const openai = new OpenAI({
 export const generateEmbedding = internalAction({
   args: {
     text: v.string(),
+    pool: v.optional(v.literal("public")),
+    // Only for callers that already reserved this call in the mutation that scheduled them.
+    reserved: v.optional(v.boolean()),
   },
-  handler: async (_ctx, args): Promise<number[]> => {
+  handler: async (ctx, args): Promise<number[]> => {
     try {
       validateEmbeddingText(args.text);
+      if (!args.reserved)
+        await ctx.runMutation(internal.abuse.reservePaid, {
+          operation: "embedding",
+          pool: args.pool,
+        });
 
       const response = await openai.embeddings.create({
         model: EMBEDDING_CONSTANTS.OPENAI_MODEL,
@@ -52,6 +62,9 @@ export const generateEmbedding = internalAction({
 export const generateEventDescriptionEmbedding = internalAction({
   args: {
     eventId: v.id("events"),
+    pool: v.optional(v.literal("public")),
+    // Only for event embedding jobs that reserved in reserveEventJob.
+    reserved: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<EmbeddingResult> => {
     try {
@@ -80,6 +93,8 @@ export const generateEventDescriptionEmbedding = internalAction({
         internal.embeddings.embeddingsInternal.generateEmbedding,
         {
           text: textForEmbedding,
+          pool: args.pool,
+          reserved: args.reserved,
         },
       );
 
@@ -116,6 +131,9 @@ export const generateEventDescriptionEmbedding = internalAction({
 export const generateSubscriptionEmbedding = internalAction({
   args: {
     subscriptionId: v.id("subscriptions"),
+    // Set by scheduleSubscriptionEmbedding, which charged the owner already.
+    // Other callers omit it and are charged as background work.
+    reserved: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<EmbeddingResult> => {
     try {
@@ -161,6 +179,7 @@ export const generateSubscriptionEmbedding = internalAction({
         internal.embeddings.embeddingsInternal.generateEmbedding,
         {
           text: textForEmbedding,
+          reserved: args.reserved,
         },
       );
 

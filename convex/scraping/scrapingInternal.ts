@@ -1,6 +1,7 @@
 import { internalAction } from "../_generated/server";
 import { v } from "convex/values";
 import OpenAI from "openai";
+import { internal } from "../_generated/api";
 import {
   ScrapeResult,
   EventPageScrapeResult,
@@ -17,6 +18,8 @@ import {
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 0,
+  timeout: 30_000,
 });
 
 // INTERNAL ACTIONS
@@ -24,8 +27,26 @@ const openai = new OpenAI({
 export const scrapeUrlInternal = internalAction({
   args: {
     url: v.string(),
+    pool: v.optional(v.literal("public")),
+    // Only for scheduled source runs that reserved in reserveScheduledSourceScrape.
+    reserved: v.optional(v.boolean()),
   },
-  handler: async (_ctx, args): Promise<ScrapeResult> => {
+  handler: async (ctx, args): Promise<ScrapeResult> => {
+    try {
+      validateUrl(args.url);
+      if (args.url.length > 2048) throw new Error("URL is too long");
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to scrape URL: ${error instanceof Error ? error.message : "Invalid URL"}`,
+        data: null,
+      };
+    }
+    if (!args.reserved)
+      await ctx.runMutation(internal.abuse.reservePaid, {
+        operation: "scrape",
+        pool: args.pool,
+      });
     return await performScrape(args.url);
   },
 });
@@ -33,8 +54,26 @@ export const scrapeUrlInternal = internalAction({
 export const scrapeEventPageInternal = internalAction({
   args: {
     url: v.string(),
+    pool: v.optional(v.literal("public")),
+    // Only for event scrape jobs that reserved in reserveEventJob.
+    reserved: v.optional(v.boolean()),
   },
-  handler: async (_ctx, args): Promise<EventPageScrapeResult> => {
+  handler: async (ctx, args): Promise<EventPageScrapeResult> => {
+    try {
+      validateUrl(args.url);
+      if (args.url.length > 2048) throw new Error("URL is too long");
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to scrape URL: ${error instanceof Error ? error.message : "Invalid URL"}`,
+        data: null,
+      };
+    }
+    if (!args.reserved)
+      await ctx.runMutation(internal.abuse.reservePaid, {
+        operation: "scrape",
+        pool: args.pool,
+      });
     return await performEventPageScrape(args.url);
   },
 });
@@ -69,7 +108,7 @@ async function performScrape(url: string): Promise<ScrapeResult> {
       );
     }
 
-    const content = await response.text();
+    const content = await readBoundedContent(response);
     const sanitizedContent = sanitizeContent(content);
 
     console.log("=== JINA.AI SCRAPE RESULT ===");
@@ -94,6 +133,7 @@ async function performScrape(url: string): Promise<ScrapeResult> {
         },
       ],
       temperature: SCRAPING_CONSTANTS.OPENAI_TEMPERATURE,
+      max_tokens: 4096,
     });
 
     const extractedContent = openaiResponse.choices[0].message.content;
@@ -103,7 +143,7 @@ async function performScrape(url: string): Promise<ScrapeResult> {
     if (extractedContent) {
       const parsedEvents = parseJsonFromResponse(extractedContent);
       if (Array.isArray(parsedEvents)) {
-        extractedEvents = parsedEvents;
+        extractedEvents = parsedEvents.slice(0, 30);
       }
     }
 
@@ -161,7 +201,7 @@ async function performEventPageScrape(
       );
     }
 
-    const content = await response.text();
+    const content = await readBoundedContent(response);
     const sanitizedContent = sanitizeContent(content);
 
     console.log("=== JINA.AI EVENT PAGE SCRAPE RESULT ===");
@@ -186,6 +226,7 @@ async function performEventPageScrape(
         },
       ],
       temperature: SCRAPING_CONSTANTS.OPENAI_TEMPERATURE,
+      max_tokens: 4096,
     });
 
     const extractedContent = openaiResponse.choices[0].message.content;
@@ -221,4 +262,31 @@ async function performEventPageScrape(
       data: null,
     };
   }
+}
+
+// Bound the downloaded response before buffering it or sending it to OpenAI.
+async function readBoundedContent(response: Response): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > 1024 * 1024)
+        throw new Error("Scraped response is too large");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel();
+  }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }

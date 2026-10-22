@@ -20,6 +20,7 @@ export const scrapeUrl = action({
       internal.scraping.scrapingInternal.scrapeUrlInternal,
       {
         url: args.url,
+        pool: "public",
       },
     );
   },
@@ -39,6 +40,7 @@ export const scrapeEventPage = action({
       internal.scraping.scrapingInternal.scrapeEventPageInternal,
       {
         url: args.url,
+        pool: "public",
       },
     );
   },

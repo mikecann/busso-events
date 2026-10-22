@@ -22,6 +22,8 @@ export const previewMatchingEvents = action({
     prompt: v.string(),
   },
   handler: async (ctx, args): Promise<EventSearchResult[]> => {
+    if (args.prompt.length > 1000)
+      throw new Error("Prompt must be 1000 characters or fewer");
     if (!args.prompt.trim()) {
       return [];
     }
@@ -32,7 +34,7 @@ export const previewMatchingEvents = action({
       // Generate embedding for the prompt
       const promptEmbedding: number[] = await ctx.runAction(
         internal.embeddings.embeddingsInternal.generateEmbedding,
-        { text: args.prompt },
+        { text: args.prompt, pool: "public" },
       );
 
       // Use vector search to find similar events
@@ -140,7 +142,10 @@ export const findMatchingEventsForSubscription = action({
     }
 
     const now = Date.now();
-    const maxResults = args.maxResults || 10;
+    const maxResults = Math.min(
+      50,
+      Math.max(1, Math.floor(args.maxResults || 10)),
+    );
 
     // Handle "all_events" subscriptions
     if (isAllEventsSubscription(subscription)) {
@@ -167,7 +172,7 @@ export const findMatchingEventsForSubscription = action({
       } else {
         promptEmbedding = await ctx.runAction(
           internal.embeddings.embeddingsInternal.generateEmbedding,
-          { text: subscription.prompt },
+          { text: subscription.prompt, pool: "public" },
         );
       }
 

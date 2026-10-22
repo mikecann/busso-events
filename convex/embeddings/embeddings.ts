@@ -16,6 +16,7 @@ export const generateEventEmbedding = action({
       internal.embeddings.embeddingsInternal.generateEventDescriptionEmbedding,
       {
         eventId: args.eventId,
+        pool: "public",
       },
     );
 
