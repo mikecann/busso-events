@@ -14,6 +14,27 @@ import {
 } from "./common";
 import { components } from "../_generated/api";
 import { Workpool, WorkId } from "@convex-dev/workpool";
+import { paidLimits, reserveLimits } from "../abuse";
+import type { MutationCtx } from "../_generated/server";
+
+// The scheduled embedding job runs without the caller's identity, so charge the
+// stored owner and the public slice here, in the same transaction as the schedule.
+// A refusal rolls back the create/update. The job is told not to charge again.
+async function scheduleSubscriptionEmbedding(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  subscriptionId: Id<"subscriptions">,
+): Promise<void> {
+  await reserveLimits(
+    ctx,
+    await paidLimits(ctx, { operation: "embedding", pool: "public", userId }),
+  );
+  await ctx.scheduler.runAfter(
+    0,
+    internal.embeddings.embeddingsInternal.generateSubscriptionEmbedding,
+    { subscriptionId, reserved: true },
+  );
+}
 
 // Initialize the workpool for subscription email sending with max parallelism of 2
 const subscriptionEmailPool = new Workpool(
@@ -163,13 +184,7 @@ export const createPromptSubscription = internalMutation({
     });
 
     // Schedule embedding generation for the new subscription
-    await ctx.scheduler.runAfter(
-      0,
-      internal.embeddings.embeddingsInternal.generateSubscriptionEmbedding,
-      {
-        subscriptionId,
-      },
-    );
+    await scheduleSubscriptionEmbedding(ctx, args.userId, subscriptionId);
 
     // No email job scheduled on creation - jobs are only scheduled when events are queued
 
@@ -275,13 +290,15 @@ export const updateSubscription = internalMutation({
     }
 
     // If prompt changed, regenerate embedding (only for prompt subscriptions)
-    if (args.prompt && isPromptSubscription(subscription)) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.embeddings.embeddingsInternal.generateSubscriptionEmbedding,
-        {
-          subscriptionId: args.subscriptionId,
-        },
+    if (
+      args.prompt &&
+      isPromptSubscription(subscription) &&
+      args.prompt !== subscription.prompt
+    ) {
+      await scheduleSubscriptionEmbedding(
+        ctx,
+        subscription.userId,
+        args.subscriptionId,
       );
     }
   },
@@ -393,7 +410,7 @@ export const enqueueSubscriptionEmail = internalMutation({
     const workId = await subscriptionEmailPool.enqueueAction(
       ctx,
       internal.subscriptions.subscriptionsInternal.performSubscriptionEmail,
-      { subscriptionId: args.subscriptionId },
+      { subscriptionId: args.subscriptionId, enqueuedAt: now },
       { runAt: now + delayMs },
     );
 
@@ -414,6 +431,9 @@ export const enqueueSubscriptionEmail = internalMutation({
 export const performSubscriptionEmail = internalAction({
   args: {
     subscriptionId: v.id("subscriptions"),
+    // Matches emailEnqueuedAt while this job is the subscription's current one.
+    // Older queued jobs don't have it.
+    enqueuedAt: v.optional(v.number()),
   },
   handler: async (
     ctx,
@@ -436,12 +456,14 @@ export const performSubscriptionEmail = internalAction({
         },
       );
 
-      // Clear the workpool job info since the job is now complete
+      // Clear the job info, and queue the next batch if events remain
       await ctx.runMutation(
-        internal.subscriptions.subscriptionsInternal
-          .clearSubscriptionEmailWorkpoolJob,
+        internal.subscriptions.subscriptionsInternal.finishSubscriptionEmailJob,
         {
           subscriptionId: args.subscriptionId,
+          enqueuedAt: args.enqueuedAt,
+          sent: result.success,
+          retryAt: result.retryAt,
         },
       );
 
@@ -460,9 +482,11 @@ export const performSubscriptionEmail = internalAction({
       try {
         await ctx.runMutation(
           internal.subscriptions.subscriptionsInternal
-            .clearSubscriptionEmailWorkpoolJob,
+            .finishSubscriptionEmailJob,
           {
             subscriptionId: args.subscriptionId,
+            enqueuedAt: args.enqueuedAt,
+            sent: false,
           },
         );
       } catch (clearError) {
@@ -581,6 +605,51 @@ export const clearSubscriptionEmailWorkpoolJob = internalMutation({
 
     console.log(
       `✅ Cleared completed email workpool job info for subscription ${args.subscriptionId}`,
+    );
+  },
+});
+
+// Called when a send job ends. Batches hold at most 50 events, so after a send,
+// or a send refused by an email quota, queue the next batch for whichever is
+// later: the subscription's next allowed send, or when the quota resets.
+// Other failures keep the old behaviour: the next matched event re-arms the job.
+export const finishSubscriptionEmailJob = internalMutation({
+  args: {
+    subscriptionId: v.id("subscriptions"),
+    enqueuedAt: v.optional(v.number()),
+    sent: v.boolean(),
+    retryAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const subscription = await ctx.db.get(args.subscriptionId);
+    if (!subscription) return;
+    // Cancelled or replaced while this job ran, so the job info isn't ours.
+    if (
+      args.enqueuedAt !== undefined &&
+      subscription.emailEnqueuedAt !== args.enqueuedAt
+    )
+      return;
+    await ctx.db.patch(args.subscriptionId, {
+      emailWorkId: undefined,
+      emailEnqueuedAt: undefined,
+    });
+    if (!subscription.isActive) return;
+    if (!args.sent && args.retryAt === undefined) return;
+    const remaining = await ctx.db
+      .query("emailQueue")
+      .withIndex("by_subscription", (q) =>
+        q.eq("subscriptionId", args.subscriptionId),
+      )
+      .filter((q) => q.neq(q.field("emailSent"), true))
+      .first();
+    if (!remaining) return;
+    const runAt = Math.max(subscription.nextEmailScheduled, args.retryAt ?? 0);
+    await ctx.runMutation(
+      internal.subscriptions.subscriptionsInternal.enqueueSubscriptionEmail,
+      {
+        subscriptionId: args.subscriptionId,
+        delayMs: Math.max(0, runAt - Date.now()),
+      },
     );
   },
 });

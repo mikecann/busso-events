@@ -169,6 +169,8 @@ export const enhancedSearch = action({
     ctx,
     args,
   ): Promise<(Doc<"events"> & { _searchType?: string; _score?: number })[]> => {
+    if (args.searchTerm.length > 1000)
+      throw new Error("Search must be 1000 characters or fewer");
     let results: (Doc<"events"> & { _searchType?: string; _score?: number })[] =
       [];
 
@@ -198,7 +200,7 @@ export const enhancedSearch = action({
           // Generate embedding for the search term
           const searchEmbedding = await ctx.runAction(
             internal.embeddings.embeddingsInternal.generateEmbedding,
-            { text: searchTerm },
+            { text: searchTerm, pool: "public" },
           );
 
           // Use ctx.vectorSearch to get semantic search results

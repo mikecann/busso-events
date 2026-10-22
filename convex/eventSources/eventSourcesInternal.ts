@@ -16,6 +16,7 @@ import {
   createSourceError,
   SOURCE_CONSTANTS,
 } from "./common";
+import { paidLimits, tryReserveLimits } from "../abuse";
 
 // INTERNAL QUERIES
 
@@ -161,11 +162,51 @@ export const updateSchedulingInfo = internalMutation({
   },
 });
 
+// Reserve the listing scrape for a scheduled run. When the budget is spent the
+// run is deferred, not dropped: a replacement is scheduled for when the full
+// buckets reset, and the source's pointer moves to it in the same transaction.
+export const reserveScheduledSourceScrape = internalMutation({
+  args: {
+    sourceId: v.id("eventSources"),
+  },
+  returns: v.union(v.literal("run"), v.literal("skip"), v.literal("deferred")),
+  handler: async (ctx, args) => {
+    const source = await ctx.db.get(args.sourceId);
+    if (!source?.isActive) return "skip";
+    const retryAt = await tryReserveLimits(
+      ctx,
+      await paidLimits(ctx, { operation: "scrape" }),
+    );
+    if (retryAt === null) return "run";
+    // If the pointer is another job that hasn't run yet (an admin reschedule),
+    // leave it be so the source never ends up with two chains.
+    const pointed = source.nextScrapeScheduledId
+      ? await ctx.db.system.get(source.nextScrapeScheduledId)
+      : null;
+    if (pointed?.state.kind === "pending") return "deferred";
+    const scheduledId = await ctx.scheduler.runAt(
+      retryAt,
+      internal.eventSources.eventSourcesInternal.performScheduledSourceScrape,
+      { sourceId: args.sourceId },
+    );
+    await ctx.db.patch(args.sourceId, {
+      nextScrapeScheduledId: scheduledId,
+      nextScrapeScheduledAt: retryAt,
+    });
+    console.log(
+      `⏳ Scrape budget spent, deferred ${source.name} to ${new Date(retryAt).toISOString()}`,
+    );
+    return "deferred";
+  },
+});
+
 // INTERNAL ACTIONS
 
 export const performSourceScrape = internalAction({
   args: {
     sourceId: v.id("eventSources"),
+    // Set only after reserveScheduledSourceScrape reserved the listing scrape.
+    reserved: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<SourceScrapeResult> => {
     try {
@@ -193,7 +234,7 @@ export const performSourceScrape = internalAction({
       console.log(`🌐 Scraping URL: ${source.startingUrl}`);
       const scrapeResult = await ctx.runAction(
         internal.scraping.scrapingInternal.scrapeUrlInternal,
-        { url: source.startingUrl },
+        { url: source.startingUrl, reserved: args.reserved },
       );
 
       if (!scrapeResult.success) {
@@ -486,6 +527,17 @@ export const performScheduledSourceScrape = internalAction({
         return;
       }
 
+      const reservation = await ctx.runMutation(
+        internal.eventSources.eventSourcesInternal.reserveScheduledSourceScrape,
+        { sourceId: args.sourceId },
+      );
+      if (reservation !== "run") {
+        console.log(
+          `⏳ Scheduled scrape for ${source.name} not run now: ${reservation}`,
+        );
+        return;
+      }
+
       console.log(
         `✅ Running scheduled scrape for active source: ${source.name}`,
       );
@@ -495,6 +547,7 @@ export const performScheduledSourceScrape = internalAction({
         internal.eventSources.eventSourcesInternal.performSourceScrape,
         {
           sourceId: args.sourceId,
+          reserved: true,
         },
       );
 
@@ -557,8 +610,13 @@ async function scheduleNextScrape(
 
     console.log(`✅ Scheduling next scrape for active source: ${source.name}`);
 
-    // Cancel any existing scheduled scraping for this source
-    if (source.nextScrapeScheduledId) {
+    // Cancel any existing scheduled scraping for this source. Only pending runs:
+    // the pointer is usually the run calling this, and cancelling an in-progress
+    // run can also cancel what it schedules.
+    const existing = source.nextScrapeScheduledId
+      ? await ctx.db.system.get(source.nextScrapeScheduledId)
+      : null;
+    if (existing?.state.kind === "pending") {
       try {
         console.log(
           `🗑️ Canceling existing scheduled scrape: ${source.nextScrapeScheduledId}`,

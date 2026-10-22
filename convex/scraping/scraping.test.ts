@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test, describe, vi, beforeEach, afterEach } from "vitest";
 import { api, internal } from "../_generated/api";
@@ -10,6 +11,10 @@ import {
 } from "./common";
 
 // Mock OpenAI at the module level
+const modules = import.meta.glob([
+  "/convex/**/*.{ts,js}",
+  "!/convex/**/*.test.ts",
+]);
 const mockOpenAICreate = vi.fn();
 vi.mock("openai", () => {
   return {
@@ -172,7 +177,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should extract multiple events when scraping a valid source URL with event listings", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup successful mocks
     mockFetch.mockResolvedValue(
@@ -211,7 +216,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should return empty event list when source URL contains no events", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup mocks for content with no events
     mockFetch.mockResolvedValue(
@@ -239,7 +244,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should fail gracefully when provided with an invalid URL", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     const result = await t.action(
       internal.scraping.scrapingInternal.scrapeUrlInternal,
@@ -254,7 +259,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should handle Jina API failures gracefully and return error result", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup failed Jina API response
     mockFetch.mockResolvedValue(
@@ -274,7 +279,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should handle OpenAI extraction failures gracefully", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup successful Jina but failed OpenAI
     mockFetch.mockResolvedValue(
@@ -295,7 +300,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should handle malformed JSON from OpenAI gracefully", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup successful Jina but malformed OpenAI response
     mockFetch.mockResolvedValue(
@@ -323,7 +328,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should handle missing JINA_API_KEY environment variable", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Remove the API key
     vi.stubEnv("JINA_API_KEY", "");
@@ -343,7 +348,7 @@ describe("Source URL Scraping", () => {
   });
 
   test("should sanitize content that exceeds maximum length limits", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Create very long content
     const longContent = "a".repeat(150000); // Exceeds 100KB limit
@@ -394,7 +399,7 @@ describe("Individual Event Page Scraping", () => {
   });
 
   test("should extract comprehensive event details when scraping a valid event page", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup successful mocks
     mockFetch.mockResolvedValue(
@@ -435,7 +440,7 @@ describe("Individual Event Page Scraping", () => {
   });
 
   test("should handle missing optional event details gracefully", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     const minimalEventDetails = {
       title: "Simple Event",
@@ -469,7 +474,7 @@ describe("Individual Event Page Scraping", () => {
   });
 
   test("should fail gracefully when provided with an invalid event URL", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     const result = await t.action(
       internal.scraping.scrapingInternal.scrapeEventPageInternal,
@@ -484,7 +489,7 @@ describe("Individual Event Page Scraping", () => {
   });
 
   test("should handle API failures for event page scraping gracefully", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup failed Jina API response
     mockFetch.mockResolvedValue(createFailedFetchResponse(404, "Not Found"));
@@ -502,7 +507,7 @@ describe("Individual Event Page Scraping", () => {
   });
 
   test("should handle malformed JSON from OpenAI event details extraction", async () => {
-    const t = convexTest(schema);
+    const t = convexTest(schema, modules);
 
     // Setup successful Jina but malformed OpenAI response
     mockFetch.mockResolvedValue(

@@ -58,7 +58,7 @@ export const getQueuedEventsForSubscription = internalQuery({
       query = query.filter((q) => q.neq(q.field("emailSent"), true));
     }
 
-    const queueItems = await query.collect();
+    const queueItems = await query.take(50);
 
     // Get the full event data for each queue item
     const queueWithEvents = await Promise.all(
@@ -303,6 +303,18 @@ export const sendSubscriptionEmailInternal = internalAction({
 
       console.log(`📊 Found ${queuedEvents.length} queued events to send`);
 
+      const retryAt = await ctx.runMutation(internal.abuse.tryReservePaid, {
+        operation: "email",
+        subscriptionId: args.subscriptionId,
+      });
+      if (retryAt !== null) {
+        return {
+          success: false,
+          message: "Email limit reached. The queued events will be sent later.",
+          retryAt,
+        };
+      }
+
       // Generate email content
       const emailContent = generateEmailContent(
         subscription,
@@ -310,7 +322,7 @@ export const sendSubscriptionEmailInternal = internalAction({
         user,
       );
       const emailSubject = isPromptSubscription(subscription)
-        ? `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching "${subscription.prompt}"`
+        ? `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} matching "${subscription.prompt.slice(0, 160)}"`
         : `${queuedEvents.length} new event${queuedEvents.length > 1 ? "s" : ""} for you`;
 
       // Check if we're in development mode
@@ -357,6 +369,14 @@ export const sendSubscriptionEmailInternal = internalAction({
         {
           subscriptionId: args.subscriptionId,
         },
+      );
+
+      // A manual send can leave events beyond the 50-item batch with no job.
+      // Scheduled sends already own the job, so this is a no-op for them.
+      await ctx.runMutation(
+        internal.subscriptions.subscriptionsInternal
+          .ensureEmailWorkpoolJobScheduled,
+        { subscriptionId: args.subscriptionId },
       );
 
       return {
@@ -427,7 +447,7 @@ function generateEmailContent(
       const scoreColor = getScoreColor(item.matchScore);
       const scoreLabel = getScoreLabel(item.matchScore);
       const truncatedDescription = truncateText(
-        event.description || "",
+        (event.description || "").slice(0, 4000),
         EMAIL_TEMPLATE_CONSTANTS.MAX_DESCRIPTION_LENGTH,
       );
 

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as abuse from "../abuse.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as emails_common from "../emails/common.js";
@@ -57,6 +58,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  abuse: typeof abuse;
   auth: typeof auth;
   crons: typeof crons;
   "emails/common": typeof emails_common;

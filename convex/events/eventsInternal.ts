@@ -19,6 +19,7 @@ import {
   convertEventDetailsToScrapedData,
   selectBestImageUrl,
 } from "./common";
+import { paidLimits, tryReserveLimits } from "../abuse";
 
 // Initialize the workpool for event scraping with max parallelism of 1
 const eventScrapePool = new Workpool(components.eventScrapeWorkpool, {
@@ -334,6 +335,9 @@ export const deleteEventInternal = internalMutation({
 export const performEventScrape = internalAction({
   args: {
     eventId: v.id("events"),
+    // Set only on the event's own workpool job (its scrapeEnqueuedAt).
+    // Admin and batch calls omit it and don't touch the job pointer.
+    job: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<EventScrapeResult> => {
     try {
@@ -365,11 +369,31 @@ export const performEventScrape = internalAction({
 
       console.log(`✅ Found event: ${event.title} (${event.url})`);
 
+      if (args.job !== undefined) {
+        const reservation = await ctx.runMutation(
+          internal.events.eventsInternal.reserveEventJob,
+          { eventId: args.eventId, kind: "scrape", job: args.job },
+        );
+        if (reservation === "stale")
+          return {
+            success: false,
+            message: "Scrape job was superseded",
+            handedOff: true,
+          };
+        if (reservation !== "run")
+          return {
+            success: false,
+            message: "Scrape budget spent, deferred",
+            retryAt: reservation.retryAt,
+            handedOff: true,
+          };
+      }
+
       // Scrape the event page using the event page scraping function
       console.log(`🌐 Scraping event URL: ${event.url}`);
       const scrapeResult = await ctx.runAction(
         internal.scraping.scrapingInternal.scrapeEventPageInternal,
-        { url: event.url },
+        { url: event.url, reserved: args.job !== undefined },
       );
 
       if (!scrapeResult.success) {
@@ -438,47 +462,100 @@ export const performEventScrape = internalAction({
         message: errorMessage,
       };
     } finally {
-      // Always clear the workpool job ID when the job completes (success or failure)
-      try {
-        await ctx.runMutation(
-          internal.events.eventsInternal.clearEventScrapeSchedule,
-          {
-            eventId: args.eventId,
-          },
-        );
-      } catch (clearError) {
-        console.error("Failed to clear scrape workpool job ID:", clearError);
+      // A job clears its own pointer when it finishes (success or failure).
+      // A deferred or superseded job no longer owns it, so this is a no-op.
+      if (args.job !== undefined) {
+        try {
+          await ctx.runMutation(
+            internal.events.eventsInternal.clearEventScrapeSchedule,
+            {
+              eventId: args.eventId,
+              job: args.job,
+            },
+          );
+        } catch (clearError) {
+          console.error("Failed to clear scrape workpool job ID:", clearError);
+        }
       }
     }
   },
 });
 
+// A job's token is its enqueue time, bumped so each new job for an event gets
+// a distinct one even within the same millisecond.
+function nextJobToken(previous: number | undefined): number {
+  return Math.max(Date.now(), (previous ?? 0) + 1);
+}
+
 // Enqueue event scraping in workpool with completion handler
 async function enqueueEventScraping(
   ctx: MutationCtx,
   eventId: Id<"events">,
+  runAt?: number,
 ): Promise<string> {
   console.log(`🔍 Enqueueing event scraping for event ${eventId} in workpool`);
+  const event = await ctx.db.get(eventId);
+  const job = nextJobToken(event?.scrapeEnqueuedAt);
 
   // Enqueue the scraping action in the workpool with onComplete handler
   const workId = await eventScrapePool.enqueueAction(
     ctx,
     internal.events.eventsInternal.performEventScrape,
-    { eventId },
+    { eventId, job },
     {
       onComplete: internal.events.eventsInternal.onScrapeComplete,
-      context: { eventId },
+      context: { eventId, job },
+      runAt,
     },
   );
 
   // Update the event with the workpool job ID and enqueue time
   await ctx.db.patch(eventId, {
     scrapeWorkId: workId,
-    scrapeEnqueuedAt: Date.now(),
+    scrapeEnqueuedAt: job,
   });
 
   return workId;
 }
+
+/**
+ * Reserve the provider call for an event's own scrape or embedding job.
+ * A job that no longer owns the event's pointer (deleted event, admin cancel,
+ * or a newer job) stops. When the budget is spent the job is replaced by one
+ * that runs when the full buckets reset, and the pointer moves to it in the
+ * same transaction, so the work is deferred rather than lost.
+ */
+export const reserveEventJob = internalMutation({
+  args: {
+    eventId: v.id("events"),
+    kind: v.union(v.literal("scrape"), v.literal("embedding")),
+    job: v.number(),
+  },
+  returns: v.union(
+    v.literal("run"),
+    v.literal("stale"),
+    v.object({ retryAt: v.number() }),
+  ),
+  handler: async (ctx, { eventId, kind, job }) => {
+    const event = await ctx.db.get(eventId);
+    const current =
+      kind === "scrape" ? event?.scrapeEnqueuedAt : event?.embeddingEnqueuedAt;
+    if (!event || current !== job) return "stale";
+    const retryAt = await tryReserveLimits(
+      ctx,
+      await paidLimits(ctx, {
+        operation: kind === "scrape" ? "scrape" : "embedding",
+      }),
+    );
+    if (retryAt === null) return "run";
+    if (kind === "scrape") await enqueueEventScraping(ctx, eventId, retryAt);
+    else await enqueueEmbeddingGeneration(ctx, eventId, retryAt);
+    console.log(
+      `⏳ ${kind} budget spent, deferred event ${eventId} to ${new Date(retryAt).toISOString()}`,
+    );
+    return { retryAt };
+  },
+});
 
 // Workpool completion handler for scraping
 export const onScrapeComplete = internalMutation({
@@ -487,12 +564,39 @@ export const onScrapeComplete = internalMutation({
     result: vResultValidator,
     context: v.object({
       eventId: v.id("events"),
+      job: v.optional(v.number()),
     }),
   },
   handler: async (ctx, args) => {
     console.log(
       `🔍 Scrape completed for event ${args.context.eventId} with result: ${args.result.kind}`,
     );
+
+    // A deferred or superseded job hands over to the newer job, whose own
+    // completion does the follow-up work. Deleted events need none.
+    const event = await ctx.db.get(args.context.eventId);
+    if (!event) return;
+    if (args.context.job !== undefined) {
+      if (
+        event.scrapeEnqueuedAt !== undefined &&
+        event.scrapeEnqueuedAt !== args.context.job
+      )
+        return;
+      // A job that stopped without scraping (superseded, admin-cancelled or
+      // deferred) says so in its return value.
+      if (
+        args.result.kind === "success" &&
+        (args.result.returnValue as EventScrapeResult | null)?.handedOff
+      )
+        return;
+      // Workpool only cancels jobs that haven't started, so the job never
+      // cleared its own pointer. A cleared pointer means an admin cancel.
+      if (
+        args.result.kind === "canceled" &&
+        event.scrapeEnqueuedAt !== args.context.job
+      )
+        return;
+    }
 
     // Only enqueue embedding generation if scraping was successful
     if (args.result.kind === "success") {
@@ -517,8 +621,13 @@ export const onScrapeComplete = internalMutation({
 export const clearEventScrapeSchedule = internalMutation({
   args: {
     eventId: v.id("events"),
+    // Clear only if this job still owns the pointer.
+    job: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event) return;
+    if (args.job !== undefined && event.scrapeEnqueuedAt !== args.job) return;
     await ctx.db.patch(args.eventId, {
       scrapeWorkId: undefined,
       scrapeEnqueuedAt: undefined,
@@ -530,19 +639,23 @@ export const clearEventScrapeSchedule = internalMutation({
 async function enqueueEmbeddingGeneration(
   ctx: MutationCtx,
   eventId: Id<"events">,
+  runAt?: number,
 ): Promise<string> {
   console.log(`🧠 Enqueueing embedding generation for event ${eventId}`);
+  const event = await ctx.db.get(eventId);
+  const job = nextJobToken(event?.embeddingEnqueuedAt);
 
   const workId = await eventEmbeddingPool.enqueueAction(
     ctx,
     internal.events.eventsInternal.performWorkpoolEmbeddingGeneration,
-    { eventId },
+    { eventId, job },
+    { runAt },
   );
 
   // Update the event with the work ID and enqueue time
   await ctx.db.patch(eventId, {
     embeddingWorkId: workId,
-    embeddingEnqueuedAt: Date.now(),
+    embeddingEnqueuedAt: job,
   });
 
   return workId;
@@ -556,17 +669,19 @@ async function enqueueEmbeddingGenerationDelayed(
   console.log(
     `🧠 Enqueueing delayed embedding generation for event ${eventId}`,
   );
+  const event = await ctx.db.get(eventId);
+  const job = nextJobToken(event?.embeddingEnqueuedAt);
 
   const workId = await eventEmbeddingPool.enqueueAction(
     ctx,
     internal.events.eventsInternal.performWorkpoolEmbeddingGeneration,
-    { eventId },
+    { eventId, job },
   );
 
   // Update the event with the work ID and enqueue time
   await ctx.db.patch(eventId, {
     embeddingWorkId: workId,
-    embeddingEnqueuedAt: Date.now(),
+    embeddingEnqueuedAt: job,
   });
 
   return workId;
@@ -576,6 +691,9 @@ async function enqueueEmbeddingGenerationDelayed(
 export const performWorkpoolEmbeddingGeneration = internalAction({
   args: {
     eventId: v.id("events"),
+    // The event's embeddingEnqueuedAt when this job was enqueued. Jobs
+    // enqueued before tokens existed omit it and run as before.
+    job: v.optional(v.number()),
   },
   handler: async (
     ctx,
@@ -583,6 +701,7 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
   ): Promise<{
     success: boolean;
     message: string;
+    retryAt?: number;
   }> => {
     console.log(
       `🧠 Starting workpool embedding generation for event ${args.eventId}`,
@@ -617,12 +736,28 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
         };
       }
 
+      if (args.job !== undefined) {
+        const reservation = await ctx.runMutation(
+          internal.events.eventsInternal.reserveEventJob,
+          { eventId: args.eventId, kind: "embedding", job: args.job },
+        );
+        if (reservation === "stale")
+          return { success: false, message: "Embedding job was superseded" };
+        if (reservation !== "run")
+          return {
+            success: false,
+            message: "Embedding budget spent, deferred",
+            retryAt: reservation.retryAt,
+          };
+      }
+
       // Generate the embedding
       const result = await ctx.runAction(
         internal.embeddings.embeddingsInternal
           .generateEventDescriptionEmbedding,
         {
           eventId: args.eventId,
+          reserved: args.job !== undefined,
         },
       );
 
@@ -650,6 +785,7 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
           internal.events.eventsInternal.clearEmbeddingGenerationSchedule,
           {
             eventId: args.eventId,
+            job: args.job,
           },
         );
       } catch (clearError) {
@@ -663,8 +799,14 @@ export const performWorkpoolEmbeddingGeneration = internalAction({
 export const clearEmbeddingGenerationSchedule = internalMutation({
   args: {
     eventId: v.id("events"),
+    // Clear only if this job still owns the pointer.
+    job: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event) return;
+    if (args.job !== undefined && event.embeddingEnqueuedAt !== args.job)
+      return;
     await ctx.db.patch(args.eventId, {
       embeddingWorkId: undefined,
       embeddingEnqueuedAt: undefined,

@@ -10,6 +10,12 @@ export const dateFilters = v.union(
 );
 
 const applicationTables = {
+  abuseLimits: defineTable({
+    key: v.string(),
+    windowStart: v.number(),
+    used: v.number(),
+  }).index("by_key", ["key"]),
+
   events: defineTable({
     title: v.string(),
     description: v.string(),
